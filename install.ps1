@@ -15,10 +15,19 @@ function Install-Dependencies {
 
     Push-Location $Directory
     $npmCommand = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
-    $npmExecutable = (Get-Command $npmCommand -ErrorAction SilentlyContinue)?.Source
+
+    $npmCommandInfo = Get-Command $npmCommand -ErrorAction SilentlyContinue
+
+    if (-not $npmCommandInfo) {
+        Write-Error "Erreur : npm n'est pas disponible dans le PATH."
+        exit 1
+    }
+
+    $npmExecutable = if ($npmCommandInfo.Path) { $npmCommandInfo.Path } else { $npmCommandInfo.Source }
 
     if (-not $npmExecutable) {
-        Write-Error "Erreur : npm n'est pas disponible dans le PATH."
+        Write-Error "Erreur : impossible de déterminer le chemin de npm."
+
         exit 1
     }
 
