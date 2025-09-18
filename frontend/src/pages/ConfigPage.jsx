@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+  Button,
+  FormControl,
+  FormControlLabel,
+  Grid,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  Switch,
+  TextField,
+  Typography
+} from '@mui/material';
 import { fetchConfig, updateConfig } from '../services/api.js';
-import './ConfigPage.css';
 
 function ConfigPage() {
   const [config, setConfig] = useState(null);
@@ -56,17 +69,21 @@ function ConfigPage() {
   const ollama = providers.ollama || {};
 
   return (
-    <form className="config-page" onSubmit={handleSubmit}>
-      <h2>Configuration</h2>
-      <section>
-        <h3>Général</h3>
-        <label>
-          Gabarit par défaut
-          <input name="defaultTemplate" value={draft.defaultTemplate || ''} onChange={handleChange} />
-        </label>
-        <label>
-          Participants par défaut
-          <input
+    <Paper component="form" onSubmit={handleSubmit} elevation={0} sx={{ p: 3 }}>
+      <Stack spacing={3}>
+        <Typography variant="h5">Configuration</Typography>
+
+        <Stack spacing={2}>
+          <Typography variant="h6">Général</Typography>
+          <TextField
+            label="Gabarit par défaut"
+            name="defaultTemplate"
+            value={draft.defaultTemplate || ''}
+            onChange={handleChange}
+            fullWidth
+          />
+          <TextField
+            label="Participants par défaut"
             name="participants"
             value={(draft.participants || []).join(', ')}
             onChange={(event) =>
@@ -78,72 +95,98 @@ function ConfigPage() {
                   .filter(Boolean)
               }))
             }
+            helperText="Séparer les participants par une virgule"
+            fullWidth
           />
-        </label>
-      </section>
-      <section>
-        <h3>Pipeline</h3>
-        <label className="checkbox">
-          <input type="checkbox" name="diarization" checked={draft.diarization} onChange={handleChange} />
-          Activer la diarisation
-        </label>
-        <label className="checkbox">
-          <input type="checkbox" name="enableSummary" checked={draft.enableSummary} onChange={handleChange} />
-          Générer la synthèse Markdown
-        </label>
-      </section>
-      <section>
-        <h3>LLM</h3>
-        <label>
-          Fournisseur
-          <select name="llmProvider" value={draft.llmProvider} onChange={handleChange}>
-            <option value="chatgpt">ChatGPT (OpenAI)</option>
-            <option value="ollama">Ollama</option>
-          </select>
-        </label>
-        {draft.llmProvider === 'ollama' ? (
-          <div className="provider-grid">
-            <label>
-              Modèle Ollama
-              <input value={ollama.model || ''} onChange={handleProviderChange('ollama', 'model')} />
-            </label>
-            <label>
-              Commande Ollama
-              <input value={ollama.command || ''} onChange={handleProviderChange('ollama', 'command')} />
-            </label>
-          </div>
-        ) : (
-          <div className="provider-grid">
-            <label>
-              Modèle ChatGPT
-              <input value={chatgpt.model || ''} onChange={handleProviderChange('chatgpt', 'model')} />
-            </label>
-            <label>
-              Clé API ChatGPT
-              <input
-                type="password"
-                value={chatgpt.apiKey || ''}
-                onChange={handleProviderChange('chatgpt', 'apiKey')}
-                placeholder="sk-..."
-              />
-            </label>
-            <label>
-              Base URL (optionnel)
-              <input
-                value={chatgpt.baseUrl || ''}
-                onChange={handleProviderChange('chatgpt', 'baseUrl')}
-                placeholder="https://api.openai.com/v1"
-              />
-            </label>
-          </div>
-        )}
-      </section>
-      <footer>
-        <button type="submit" disabled={!hasChanged || saving}>
-          {saving ? 'Enregistrement...' : 'Sauvegarder'}
-        </button>
-      </footer>
-    </form>
+        </Stack>
+
+        <Stack spacing={2}>
+          <Typography variant="h6">Pipeline</Typography>
+          <FormControlLabel
+            control={<Switch name="diarization" checked={draft.diarization} onChange={handleChange} />}
+            label="Activer la diarisation"
+          />
+          <FormControlLabel
+            control={<Switch name="enableSummary" checked={draft.enableSummary} onChange={handleChange} />}
+            label="Générer la synthèse Markdown"
+          />
+        </Stack>
+
+        <Stack spacing={2}>
+          <Typography variant="h6">LLM</Typography>
+          <FormControl fullWidth>
+            <InputLabel id="llm-provider-label">Fournisseur</InputLabel>
+            <Select
+              labelId="llm-provider-label"
+              name="llmProvider"
+              value={draft.llmProvider}
+              label="Fournisseur"
+              onChange={handleChange}
+            >
+              <MenuItem value="chatgpt">ChatGPT (OpenAI)</MenuItem>
+              <MenuItem value="ollama">Ollama</MenuItem>
+            </Select>
+          </FormControl>
+
+          {draft.llmProvider === 'ollama' ? (
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Modèle Ollama"
+                  value={ollama.model || ''}
+                  onChange={handleProviderChange('ollama', 'model')}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Commande Ollama"
+                  value={ollama.command || ''}
+                  onChange={handleProviderChange('ollama', 'command')}
+                  fullWidth
+                />
+              </Grid>
+            </Grid>
+          ) : (
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  label="Modèle ChatGPT"
+                  value={chatgpt.model || ''}
+                  onChange={handleProviderChange('chatgpt', 'model')}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  label="Clé API ChatGPT"
+                  type="password"
+                  value={chatgpt.apiKey || ''}
+                  onChange={handleProviderChange('chatgpt', 'apiKey')}
+                  placeholder="sk-..."
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  label="Base URL (optionnel)"
+                  value={chatgpt.baseUrl || ''}
+                  onChange={handleProviderChange('chatgpt', 'baseUrl')}
+                  placeholder="https://api.openai.com/v1"
+                  fullWidth
+                />
+              </Grid>
+            </Grid>
+          )}
+        </Stack>
+
+        <Stack direction="row" justifyContent="flex-end">
+          <Button type="submit" disabled={!hasChanged || saving}>
+            {saving ? 'Enregistrement...' : 'Sauvegarder'}
+          </Button>
+        </Stack>
+      </Stack>
+    </Paper>
   );
 }
 

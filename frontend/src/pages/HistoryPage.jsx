@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Button, Stack, Typography } from '@mui/material';
 import HistoryTable from '../components/HistoryTable.jsx';
 import { deleteItem, fetchItems } from '../services/api.js';
-import './HistoryPage.css';
 
 function HistoryPage() {
   const [items, setItems] = useState([]);
@@ -32,15 +32,13 @@ function HistoryPage() {
   };
 
   return (
-    <div className="history-page">
-      <header>
-        <h2>Historique des traitements</h2>
-        <button type="button" onClick={load}>
-          Actualiser
-        </button>
-      </header>
-      {loading ? <p>Chargement...</p> : <HistoryTable items={items} onDelete={handleDelete} />}
-    </div>
+    <Stack spacing={3}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Typography variant="h5">Historique des traitements</Typography>
+        <Button onClick={load}>Actualiser</Button>
+      </Stack>
+      {loading ? <Typography>Chargement...</Typography> : <HistoryTable items={items} onDelete={handleDelete} />}
+    </Stack>
   );
 }
 

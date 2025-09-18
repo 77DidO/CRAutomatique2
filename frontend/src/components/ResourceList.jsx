@@ -1,23 +1,30 @@
 import PropTypes from 'prop-types';
-import './ResourceList.css';
+import { Button, Paper, Stack, Typography } from '@mui/material';
 
 function ResourceList({ resources }) {
   if (!resources?.length) {
     return null;
   }
   return (
-    <section className="resource-list">
-      <h3>Ressources générées</h3>
-      <ul>
-        {resources.map((resource) => (
-          <li key={resource.url}>
-            <a href={resource.url} target="_blank" rel="noreferrer">
+    <Paper elevation={0} sx={{ p: 2.5 }}>
+      <Stack spacing={2}>
+        <Typography variant="subtitle1">Ressources générées</Typography>
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+          {resources.map((resource) => (
+            <Button
+              key={resource.url}
+              component="a"
+              href={resource.url}
+              target="_blank"
+              rel="noreferrer"
+              variant="outlined"
+            >
               {resource.type}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </section>
+            </Button>
+          ))}
+        </Stack>
+      </Stack>
+    </Paper>
   );
 }
 
