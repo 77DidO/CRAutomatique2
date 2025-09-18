@@ -4,6 +4,7 @@ import { getConfig } from './configService.js';
 import { upsertJobUpdate } from './jobStore.js';
 import { ensureJobDirectory, writeTextFile, writeJsonFile } from '../utils/fileSystem.js';
 import { generateSummary } from './llmService.js';
+import { info, warn, error as logError, debug } from '../utils/logger.js';
 
 const STEPS = ['queued', 'preconvert', 'transcribe', 'clean', 'summarize', 'done'];
 
@@ -21,6 +22,7 @@ async function handlePreconvert(job) {
   const dir = ensureJobDirectory(job.id);
   const sourcePath = path.join(dir, job.originalFilename);
   fs.copyFileSync(job.uploadPath, sourcePath);
+  debug('Fichier source copié pour le job', { jobId: job.id, sourcePath });
   return { ...job, sourcePath };
 }
 
@@ -31,6 +33,7 @@ async function handleTranscription(job) {
     { speaker: 'SPEAKER_00', start: 0, end: 10, text }
   ]);
   writeTextFile(job.id, 'subtitles.vtt', 'WEBVTT\n\n00:00.000 --> 00:10.000\n' + text);
+  debug('Transcription simulée générée', { jobId: job.id });
   return { ...job, transcription: text };
 }
 
@@ -41,6 +44,7 @@ function cleanText(rawText) {
 async function handleClean(job) {
   const clean = cleanText(job.transcription || '');
   writeTextFile(job.id, 'transcription_clean.txt', clean);
+  debug('Transcription nettoyée écrite', { jobId: job.id });
   return { ...job, cleanTranscription: clean };
 }
 
@@ -53,11 +57,14 @@ async function handleSummarize(job) {
   let summary = 'Résumé indisponible.';
   try {
     summary = await generateSummary(prompt);
+    info('Résumé généré par le service LLM', { jobId: job.id });
   } catch (error) {
     summary = `Résumé impossible: ${error.message}`;
+    warn('Échec de la génération du résumé', { jobId: job.id, message: error.message });
   }
   writeTextFile(job.id, 'summary.md', summary);
   writeTextFile(job.id, 'summary.html', `<article>${summary}</article>`);
+  debug('Résumé écrit sur disque', { jobId: job.id });
   return { ...job, summary };
 }
 
@@ -81,11 +88,13 @@ export async function processJob(job, onProgress) {
         updatedAt: new Date().toISOString()
       };
       appendLog(job.id, logs, 'Traitement terminé.');
+      info('Job terminé', { jobId: job.id });
       upsertJobUpdate(job.id, () => currentJob);
       onProgress?.(currentJob);
       break;
     }
     appendLog(job.id, logs, `Début de l'étape ${step}`);
+    info('Début d\'étape', { jobId: job.id, step });
     currentJob = { ...currentJob, status: step, updatedAt: new Date().toISOString() };
     upsertJobUpdate(job.id, () => currentJob);
     onProgress?.(currentJob);
@@ -93,9 +102,11 @@ export async function processJob(job, onProgress) {
       await simulateProcessingDelay(300);
       const handler = STEP_HANDLERS[step];
       if (handler) {
+        debug('Exécution du handler d\'étape', { jobId: job.id, step });
         currentJob = await handler(currentJob);
       }
       appendLog(job.id, logs, `Fin de l'étape ${step}`);
+      info('Fin d\'étape', { jobId: job.id, step });
       currentJob = {
         ...currentJob,
         progress: Math.min(95, (STEPS.indexOf(step) / (STEPS.length - 1)) * 100),
@@ -105,9 +116,11 @@ export async function processJob(job, onProgress) {
       onProgress?.(currentJob);
     } catch (error) {
       appendLog(job.id, logs, `Erreur à l'étape ${step}: ${error.message}`);
+      warn('Erreur durant une étape', { jobId: job.id, step, message: error.message });
       currentJob = { ...currentJob, status: 'error', error: error.message, updatedAt: new Date().toISOString() };
       upsertJobUpdate(job.id, () => currentJob);
       onProgress?.(currentJob);
+      logError('Arrêt du job suite à une erreur', { jobId: job.id, step, message: error.message });
       return;
     }
   }
