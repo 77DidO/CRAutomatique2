@@ -1,0 +1,15 @@
+.history-page header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.history-page header button {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
+}
