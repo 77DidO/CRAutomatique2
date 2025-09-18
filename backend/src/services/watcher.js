@@ -5,6 +5,7 @@ import multer from 'multer';
 import { listJobs, getJob, saveJob, deleteJob, upsertJobUpdate } from './jobStore.js';
 import { ensureJobDirectory, removeJobDirectory, getJobFilePath } from '../utils/fileSystem.js';
 import { processJob } from './pipeline.js';
+import { info, warn, error as logError, debug } from '../utils/logger.js';
 
 const uploadDir = path.join(process.cwd(), 'backend', 'data', 'uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -41,9 +42,12 @@ function getNextQueuedJob() {
 
 async function runJob(job) {
   runningJob = job.id;
+  info('Lancement du traitement du job', { jobId: job.id, title: job.title });
   await processJob(job, (progressJob) => {
     runningJob = progressJob.status === 'done' || progressJob.status === 'error' ? null : job.id;
+    debug('Mise à jour du job', { jobId: progressJob.id, status: progressJob.status, progress: progressJob.progress });
   });
+  info('Traitement du job terminé', { jobId: job.id });
   runningJob = null;
 }
 
@@ -58,8 +62,9 @@ function startLoop() {
     }
     const nextJob = getNextQueuedJob();
     if (nextJob) {
+      debug('Job en attente détecté', { jobId: nextJob.id });
       runJob(nextJob).catch((error) => {
-        console.error('Erreur du watcher', error);
+        logError('Erreur du watcher', { message: error.message, stack: error.stack });
         upsertJobUpdate(nextJob.id, () => ({ status: 'error', error: error.message }));
       });
     }
@@ -67,6 +72,7 @@ function startLoop() {
 }
 
 export function initJobWatcher() {
+  info('Démarrage du watcher de jobs.');
   startLoop();
 }
 
@@ -93,6 +99,7 @@ export function createJobFromUpload({ file, body }) {
   };
   ensureJobDirectory(id);
   saveJob(job);
+  info('Nouveau job créé', { jobId: id, filename: file.originalname });
   return job;
 }
 
@@ -107,8 +114,10 @@ export function getLogs(jobId) {
 export function removeJob(id) {
   const job = getJob(id);
   if (!job) {
+    warn('Suppression demandée pour un job inexistant', { jobId: id });
     return;
   }
+  info('Suppression d\'un job', { jobId: id });
   if (job.uploadPath && fs.existsSync(job.uploadPath)) {
     fs.unlinkSync(job.uploadPath);
   }

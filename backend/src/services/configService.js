@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { info, warn } from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -97,16 +98,19 @@ export function loadConfig() {
   if (!fs.existsSync(CONFIG_PATH)) {
     cachedConfig = normalizeConfig({});
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(cachedConfig, null, 2));
+    info('Fichier de configuration créé avec les valeurs par défaut.');
   } else {
     const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
     cachedConfig = normalizeConfig(JSON.parse(raw));
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(cachedConfig, null, 2));
+    info('Configuration chargée depuis le disque.');
   }
   return cachedConfig;
 }
 
 export function getConfig() {
   if (!cachedConfig) {
+    warn('Configuration demandée avant le chargement, chargement automatique.');
     return loadConfig();
   }
   return cachedConfig;
@@ -116,6 +120,7 @@ export function saveConfig(partialConfig) {
   const nextConfig = normalizeConfig({ ...getConfig(), ...partialConfig });
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(nextConfig, null, 2));
   cachedConfig = nextConfig;
+  info('Configuration sauvegardée.', { llmProvider: cachedConfig.llmProvider });
   return cachedConfig;
 }
 
