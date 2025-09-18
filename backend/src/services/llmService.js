@@ -23,8 +23,14 @@ async function callChatGPT(prompt, providerConfig) {
     model: providerConfig.model,
     input: prompt
   });
-  const [{ output_text: text }] = completion.output.filter((item) => item.type === 'output_text');
-  return text || '';
+  const textItem = completion.output?.find((item) => item.type === 'output_text');
+  if (textItem?.output_text) {
+    return textItem.output_text;
+  }
+  if (typeof completion.output_text === 'string') {
+    return completion.output_text;
+  }
+  return '';
 }
 
 async function callOllama(prompt, providerConfig) {
