@@ -1,0 +1,59 @@
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+}
+
+.history-table th,
+.history-table td {
+  padding: 0.85rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.history-table th {
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+.history-table tr:last-child td {
+  border-bottom: none;
+}
+
+.history-table .status.done {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.history-table .status.error {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.history-table .actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.history-table .actions a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.history-table .actions button {
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.empty-state {
+  background: #fff;
+  padding: 1.25rem;
+  border-radius: 12px;
+  color: #6b7280;
+  text-align: center;
+}

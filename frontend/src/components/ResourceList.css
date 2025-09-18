@@ -1,0 +1,32 @@
+.resource-list {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.resource-list h3 {
+  margin: 0;
+}
+
+.resource-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.resource-list a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 600;
+}
