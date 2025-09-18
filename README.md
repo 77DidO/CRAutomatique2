@@ -17,6 +17,15 @@ pwsh -File ./install.ps1
 
 ```
 
+### Démarrage automatique
+
+Pour ouvrir automatiquement deux sessions PowerShell (backend et frontend) configurées en mode développement, utilisez :
+
+```powershell
+pwsh -File ./start.ps1
+
+```
+
 ### Prérequis
 
 - Node.js 18+ (le backend utilise l'option `--watch`).
