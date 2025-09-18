@@ -3,31 +3,37 @@ import OpenAI from 'openai';
 
 import { getConfig } from './configService.js';
 
-function createOpenAIClient() {
-  const apiKey = process.env.OPENAI_API_KEY;
+function createChatGPTClient(providerConfig) {
+  const apiKey = providerConfig.apiKey || process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is required for OpenAI provider');
+    throw new Error('Aucune clé API configurée pour ChatGPT');
   }
-  return new OpenAI({ apiKey });
+  const baseURL = providerConfig.baseUrl?.trim() ? providerConfig.baseUrl.trim() : undefined;
+  return new OpenAI({ apiKey, baseURL });
 }
 
-async function callOpenAI(prompt) {
-  const client = createOpenAIClient();
-  const { openaiModel } = getConfig();
+async function callChatGPT(prompt, providerConfig) {
+  const client = createChatGPTClient(providerConfig);
+  if (!providerConfig.model) {
+    throw new Error('Aucun modèle ChatGPT configuré');
+  }
   const completion = await client.responses.create({
-    model: openaiModel,
+    model: providerConfig.model,
     input: prompt
   });
   const [{ output_text: text }] = completion.output.filter((item) => item.type === 'output_text');
   return text || '';
 }
 
-async function callOllama(prompt) {
-  const { ollamaModel } = getConfig();
-  const command = process.env.OLLAMA_COMMAND || 'ollama';
+async function callOllama(prompt, providerConfig) {
+  const command = providerConfig.command || process.env.OLLAMA_COMMAND || 'ollama';
+  const model = providerConfig.model;
+  if (!model) {
+    return Promise.reject(new Error('Aucun modèle Ollama configuré'));
+  }
   return new Promise((resolve, reject) => {
     const chunks = [];
-    const child = spawn(command, ['run', ollamaModel], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(command, ['run', model], { stdio: ['pipe', 'pipe', 'pipe'] });
     child.stdin.write(prompt);
     child.stdin.end();
     child.stdout.on('data', (data) => chunks.push(data.toString()));
@@ -38,9 +44,17 @@ async function callOllama(prompt) {
 }
 
 export async function generateSummary(prompt) {
-  const { llmProvider } = getConfig();
-  if (llmProvider === 'ollama') {
-    return callOllama(prompt);
+  const config = getConfig();
+  const providers = config.providers || {};
+  const providerKey = config.llmProvider || 'chatgpt';
+  const providerConfig = providers[providerKey];
+
+  if (!providerConfig) {
+    throw new Error(`Fournisseur LLM inconnu: ${providerKey}`);
   }
-  return callOpenAI(prompt);
+
+  if (providerKey === 'ollama') {
+    return callOllama(prompt, providerConfig);
+  }
+  return callChatGPT(prompt, providerConfig);
 }
