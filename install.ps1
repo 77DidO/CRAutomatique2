@@ -15,6 +15,7 @@ function Install-Dependencies {
 
     Push-Location $Directory
     $npmCommand = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
+
     $npmCommandInfo = Get-Command $npmCommand -ErrorAction SilentlyContinue
 
     if (-not $npmCommandInfo) {
@@ -26,6 +27,7 @@ function Install-Dependencies {
 
     if (-not $npmExecutable) {
         Write-Error "Erreur : impossible de déterminer le chemin de npm."
+
         exit 1
     }
 
