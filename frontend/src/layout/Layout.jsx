@@ -1,6 +1,14 @@
-import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import './Layout.css';
+import { Link as RouterLink } from 'react-router-dom';
+import {
+  AppBar,
+  Box,
+  Container,
+  Tab,
+  Tabs,
+  Toolbar,
+  Typography
+} from '@mui/material';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Dashboard' },
@@ -9,22 +17,55 @@ const NAV_ITEMS = [
 ];
 
 function Layout({ currentPath, children }) {
+  const active =
+    NAV_ITEMS.find((item) => item.path !== '/' && currentPath.startsWith(item.path)) || NAV_ITEMS[0];
   return (
-    <div className="app-shell">
-      <header className="app-header">
-        <h1>Compte rendu automatique</h1>
-        <nav>
-          <ul>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <AppBar
+        position="sticky"
+        color="transparent"
+        elevation={0}
+        sx={{
+          backdropFilter: 'blur(16px)',
+          borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+          py: { xs: 1.5, md: 2.5 }
+        }}
+      >
+        <Toolbar sx={{ display: 'flex', alignItems: 'center', gap: { xs: 2, md: 4 }, flexWrap: 'wrap' }}>
+          <Typography variant="h6" color="text.primary" sx={{ flexGrow: { xs: 1, md: 0 } }}>
+            Compte rendu automatique
+          </Typography>
+          <Tabs
+            value={active.path}
+            textColor="primary"
+            indicatorColor="primary"
+            variant="scrollable"
+            scrollButtons="auto"
+            onChange={() => {}}
+            sx={{ ml: { xs: 0, md: 'auto' } }}
+          >
             {NAV_ITEMS.map((item) => (
-              <li key={item.path} className={currentPath.startsWith(item.path) ? 'active' : ''}>
-                <Link to={item.path}>{item.label}</Link>
-              </li>
+              <Tab
+                key={item.path}
+                label={item.label}
+                value={item.path}
+                component={RouterLink}
+                to={item.path}
+                sx={{
+                  borderRadius: 999,
+                  '&.Mui-selected': {
+                    fontWeight: 600
+                  }
+                }}
+              />
             ))}
-          </ul>
-        </nav>
-      </header>
-      <main className="app-main">{children}</main>
-    </div>
+          </Tabs>
+        </Toolbar>
+      </AppBar>
+      <Container component="main" maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+        {children}
+      </Container>
+    </Box>
   );
 }
 

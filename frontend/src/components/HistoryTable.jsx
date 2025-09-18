@@ -1,41 +1,71 @@
 import PropTypes from 'prop-types';
-import { Link } from 'react-router-dom';
-import './HistoryTable.css';
+import { Link as RouterLink } from 'react-router-dom';
+import {
+  Button,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography
+} from '@mui/material';
 
 function HistoryTable({ items, onDelete }) {
   if (!items.length) {
-    return <p className="empty-state">Aucun traitement terminé pour le moment.</p>;
+    return (
+      <Paper elevation={0} sx={{ p: 3 }}>
+        <Typography color="text.secondary" textAlign="center">
+          Aucun traitement terminé pour le moment.
+        </Typography>
+      </Paper>
+    );
   }
   return (
-    <table className="history-table">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Titre</th>
-          <th>Gabarit</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((item) => (
-          <tr key={item.id}>
-            <td>{new Date(item.createdAt).toLocaleString()}</td>
-            <td>{item.title}</td>
-            <td>{item.template || '—'}</td>
-            <td className={`status ${item.status}`}>{item.status}</td>
-            <td>
-              <div className="actions">
-                <Link to={`/item/${item.id}`}>Consulter</Link>
-                <button type="button" onClick={() => onDelete(item.id)}>
-                  Supprimer
-                </button>
-              </div>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <TableContainer component={Paper} elevation={0}>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>Date</TableCell>
+            <TableCell>Titre</TableCell>
+            <TableCell>Gabarit</TableCell>
+            <TableCell>Status</TableCell>
+            <TableCell align="right">Actions</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {items.map((item) => (
+            <TableRow key={item.id} hover>
+              <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
+              <TableCell>{item.title}</TableCell>
+              <TableCell>{item.template || '—'}</TableCell>
+              <TableCell>
+                <Typography
+                  variant="body2"
+                  color={item.status === 'done' ? 'success.main' : item.status === 'error' ? 'error.main' : 'text.primary'}
+                  fontWeight={600}
+                  textTransform="uppercase"
+                >
+                  {item.status}
+                </Typography>
+              </TableCell>
+              <TableCell align="right">
+                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                  <Button component={RouterLink} to={`/item/${item.id}`} size="small">
+                    Consulter
+                  </Button>
+                  <Button color="error" variant="outlined" size="small" onClick={() => onDelete(item.id)}>
+                    Supprimer
+                  </Button>
+                </Stack>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 }
 
