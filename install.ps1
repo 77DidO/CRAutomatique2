@@ -4,6 +4,8 @@ param()
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+$IsWindows = [Environment]::OSVersion.Platform -eq 'Win32NT'
+
 function Write-Section {
     param(
         [Parameter(Mandatory = $true)]
