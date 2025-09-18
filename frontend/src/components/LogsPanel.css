@@ -1,0 +1,35 @@
+.logs-panel {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.2);
+}
+
+.logs-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.logs-panel header h3 {
+  margin: 0;
+}
+
+.logs-panel header button {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.logs-panel pre {
+  margin: 1rem 0 0;
+  max-height: 240px;
+  overflow: auto;
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
