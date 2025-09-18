@@ -14,6 +14,7 @@ avec PowerShell :
 
 ```powershell
 pwsh -File ./install.ps1
+
 ```
 
 1. **Backend**
