@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import {
+  Box,
+  Button,
+  Grid,
+  Paper,
+  Stack,
+  Typography
+} from '@mui/material';
 import ItemTabs from '../components/ItemTabs.jsx';
 import { fetchItem } from '../services/api.js';
-import './ItemDetailPage.css';
 
 function computeDiarizationSummary(segments = []) {
   const map = new Map();
@@ -52,99 +59,182 @@ function ItemDetailPage() {
     switch (tab) {
       case 'overview':
         return (
-          <div className="panel">
-            <h2>{item.title}</h2>
-            <p>Créé le {new Date(item.createdAt).toLocaleString()}</p>
-            <p>Gabarit : {item.template || '—'}</p>
-            {summaryHtml ? (
-              <article className="markdown" dangerouslySetInnerHTML={{ __html: summaryHtml }} />
-            ) : item.summary ? (
-              <article className="markdown"><p>{item.summary}</p></article>
-            ) : (
-              <p>Résumé non disponible.</p>
-            )}
-            <section className="resources">
-              <h3>Téléchargements</h3>
-              <ul>
-                {item.resources?.map((resource) => (
-                  <li key={resource.url}>
-                    <a href={resource.url} target="_blank" rel="noreferrer">
-                      {resource.type}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </div>
+          <Paper elevation={0} sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="h5">{item.title}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Créé le {new Date(item.createdAt).toLocaleString()}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Gabarit : {item.template || '—'}
+                </Typography>
+              </Box>
+              {summaryHtml ? (
+                <Box
+                  sx={{ typography: 'body1' }}
+                  dangerouslySetInnerHTML={{ __html: summaryHtml }}
+                />
+              ) : item.summary ? (
+                <Typography>{item.summary}</Typography>
+              ) : (
+                <Typography color="text.secondary">Résumé non disponible.</Typography>
+              )}
+              {item.resources?.length > 0 && (
+                <Stack spacing={1.5}>
+                  <Typography variant="subtitle1">Téléchargements</Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                    {item.resources.map((resource) => (
+                      <Button
+                        key={resource.url}
+                        component="a"
+                        href={resource.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        variant="outlined"
+                      >
+                        {resource.type}
+                      </Button>
+                    ))}
+                  </Stack>
+                </Stack>
+              )}
+            </Stack>
+          </Paper>
         );
       case 'audio': {
         const audioResource = item.resources?.find((resource) => resource.type === item.originalFilename);
         return (
-          <div className="panel">
-            <h2>Source audio</h2>
-            {audioResource ? (
-              <audio controls src={audioResource.url} />
-            ) : (
-              <p>Audio non disponible.</p>
-            )}
-          </div>
+          <Paper elevation={0} sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Typography variant="h5">Source audio</Typography>
+              {audioResource ? (
+                <Box component="audio" controls src={audioResource.url} sx={{ width: '100%' }} />
+              ) : (
+                <Typography color="text.secondary">Audio non disponible.</Typography>
+              )}
+            </Stack>
+          </Paper>
         );
       }
       case 'texts':
         return (
-          <div className="panel">
-            <h2>Transcriptions</h2>
-            <div className="text-columns">
-              <section>
-                <h3>Brut</h3>
-                <iframe title="transcription-brute" src={`/api/assets/${item.id}/transcription_raw.txt`} />
-              </section>
-              <section>
-                <h3>Nettoyé</h3>
-                <iframe title="transcription-nettoyee" src={`/api/assets/${item.id}/transcription_clean.txt`} />
-              </section>
-            </div>
-          </div>
+          <Paper elevation={0} sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Typography variant="h5">Transcriptions</Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Stack spacing={1.5}>
+                    <Typography variant="subtitle1">Brut</Typography>
+                    <Box
+                      component="iframe"
+                      title="transcription-brute"
+                      src={`/api/assets/${item.id}/transcription_raw.txt`}
+                      sx={{
+                        width: '100%',
+                        minHeight: 260,
+                        borderRadius: 2,
+                        border: (theme) => `1px solid ${theme.palette.divider}`
+                      }}
+                    />
+                  </Stack>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Stack spacing={1.5}>
+                    <Typography variant="subtitle1">Nettoyé</Typography>
+                    <Box
+                      component="iframe"
+                      title="transcription-nettoyee"
+                      src={`/api/assets/${item.id}/transcription_clean.txt`}
+                      sx={{
+                        width: '100%',
+                        minHeight: 260,
+                        borderRadius: 2,
+                        border: (theme) => `1px solid ${theme.palette.divider}`
+                      }}
+                    />
+                  </Stack>
+                </Grid>
+              </Grid>
+            </Stack>
+          </Paper>
         );
       case 'markdown':
         return (
-          <div className="panel">
-            <h2>Compte rendu Markdown</h2>
-            <iframe title="markdown" src={`/api/assets/${item.id}/summary.md`} />
-          </div>
+          <Paper elevation={0} sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Typography variant="h5">Compte rendu Markdown</Typography>
+              <Box
+                component="iframe"
+                title="markdown"
+                src={`/api/assets/${item.id}/summary.md`}
+                sx={{
+                  width: '100%',
+                  minHeight: 260,
+                  borderRadius: 2,
+                  border: (theme) => `1px solid ${theme.palette.divider}`
+                }}
+              />
+            </Stack>
+          </Paper>
         );
       case 'vtt':
         return (
-          <div className="panel">
-            <h2>Sous-titres WebVTT</h2>
-            <iframe title="vtt" src={`/api/assets/${item.id}/subtitles.vtt`} />
-          </div>
+          <Paper elevation={0} sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Typography variant="h5">Sous-titres WebVTT</Typography>
+              <Box
+                component="iframe"
+                title="vtt"
+                src={`/api/assets/${item.id}/subtitles.vtt`}
+                sx={{
+                  width: '100%',
+                  minHeight: 260,
+                  borderRadius: 2,
+                  border: (theme) => `1px solid ${theme.palette.divider}`
+                }}
+              />
+            </Stack>
+          </Paper>
         );
       default:
-        return <p>Onglet inconnu</p>;
+        return <Typography>Onglet inconnu</Typography>;
     }
   };
 
   return (
-    <div className="item-detail-page">
+    <Stack spacing={3}>
       <ItemTabs />
       {diarization.length > 0 ? (
-        <section className="diarization">
-          <h3>Diarisation</h3>
-          <ul>
-            {diarization.map((entry) => (
-              <li key={entry.speaker}>
-                <span>{entry.speaker}</span>
-                <strong>{entry.duration.toFixed(1)}s</strong>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <Paper elevation={0} sx={{ p: 3 }}>
+          <Stack spacing={1.5}>
+            <Typography variant="h6">Diarisation</Typography>
+            <Stack spacing={1}>
+              {diarization.map((entry) => (
+                <Stack
+                  key={entry.speaker}
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{
+                    border: (theme) => `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    px: 2,
+                    py: 1.5
+                  }}
+                >
+                  <Typography fontWeight={600}>{entry.speaker}</Typography>
+                  <Typography color="text.secondary">{entry.duration.toFixed(1)}s</Typography>
+                </Stack>
+              ))}
+            </Stack>
+          </Stack>
+        </Paper>
       ) : (
-        <p className="diarization-empty">Aucune information de diarisation.</p>
+        <Typography color="text.secondary">Aucune information de diarisation.</Typography>
       )}
       {renderContent()}
-    </div>
+    </Stack>
   );
 }
 

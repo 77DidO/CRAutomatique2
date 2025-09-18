@@ -1,7 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  TextField,
+  Typography
+} from '@mui/material';
+import { CloudUpload as CloudUploadIcon } from '@mui/icons-material';
 import { createItem, fetchTemplates } from '../services/api.js';
-import './UploadForm.css';
 
 function UploadForm({ onCreated, defaultTemplate, defaultParticipants }) {
   const [file, setFile] = useState(null);
@@ -49,57 +63,97 @@ function UploadForm({ onCreated, defaultTemplate, defaultParticipants }) {
     }
   };
 
+  const participantList = useMemo(
+    () =>
+      participants
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    [participants]
+  );
+
   return (
-    <form className="upload-form" onSubmit={handleSubmit}>
-      <div className="field">
-        <label htmlFor="file">Fichier audio / vidéo</label>
-        <input
-          id="file"
-          type="file"
-          accept="audio/*,video/*"
-          onChange={(event) => setFile(event.target.files?.[0] || null)}
+    <Paper component="form" onSubmit={handleSubmit} elevation={0} sx={{ p: 3, width: '100%' }}>
+      <Stack spacing={3}>
+        <Stack spacing={1}>
+          <Typography variant="subtitle2" color="text.secondary">
+            Fichier audio / vidéo
+          </Typography>
+          <Button component="label" startIcon={<CloudUploadIcon />} variant="outlined">
+            {file ? 'Changer de fichier' : 'Sélectionner un fichier'}
+            <input
+              id="file"
+              type="file"
+              accept="audio/*,video/*"
+              hidden
+              onChange={(event) => setFile(event.target.files?.[0] || null)}
+            />
+          </Button>
+          {file && (
+            <Typography variant="body2" color="text.secondary">
+              {file.name}
+            </Typography>
+          )}
+        </Stack>
+
+        <TextField
+          id="title"
+          label="Titre"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="Nom du traitement"
+          fullWidth
         />
-      </div>
-      <div className="field">
-        <label htmlFor="title">Titre</label>
-        <input id="title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Nom du traitement" />
-      </div>
-      <div className="field">
-        <label htmlFor="template">Gabarit</label>
-        <select id="template" value={template} onChange={(event) => setTemplate(event.target.value)}>
-          <option value="">-- Choisir --</option>
-          {templates.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="field">
-        <label htmlFor="participants">Participants</label>
-        <input
-          id="participants"
-          value={participants}
-          onChange={(event) => setParticipants(event.target.value)}
-          placeholder="Liste séparée par des virgules"
-        />
-        {participants && (
-          <ul className="participants-preview">
-            {participants
-              .split(',')
-              .map((item) => item.trim())
-              .filter(Boolean)
-              .map((participant) => (
-                <li key={participant}>{participant}</li>
+
+        <FormControl fullWidth>
+          <InputLabel id="template-label">Gabarit</InputLabel>
+          <Select
+            labelId="template-label"
+            id="template"
+            value={template}
+            label="Gabarit"
+            onChange={(event) => setTemplate(event.target.value)}
+          >
+            <MenuItem value="">
+              <em>-- Choisir --</em>
+            </MenuItem>
+            {templates.map((item) => (
+              <MenuItem key={item.id} value={item.id}>
+                {item.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <Stack spacing={1}>
+          <TextField
+            id="participants"
+            label="Participants"
+            value={participants}
+            onChange={(event) => setParticipants(event.target.value)}
+            placeholder="Liste séparée par des virgules"
+            fullWidth
+          />
+          {participantList.length > 0 && (
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {participantList.map((participant) => (
+                <Chip key={participant} label={participant} color="secondary" variant="outlined" />
               ))}
-          </ul>
+            </Box>
+          )}
+        </Stack>
+
+        {error && (
+          <Alert severity="error" onClose={() => setError('')}>
+            {error}
+          </Alert>
         )}
-      </div>
-      {error && <p className="error">{error}</p>}
-      <button type="submit" disabled={loading}>
-        {loading ? 'Traitement en cours...' : 'Lancer le traitement'}
-      </button>
-    </form>
+
+        <Button type="submit" disabled={loading} size="large">
+          {loading ? 'Traitement en cours...' : 'Lancer le traitement'}
+        </Button>
+      </Stack>
+    </Paper>
   );
 }
 
