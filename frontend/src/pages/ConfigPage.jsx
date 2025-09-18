@@ -24,6 +24,20 @@ function ConfigPage() {
     }));
   };
 
+  const handleProviderChange = (providerKey, field) => (event) => {
+    const { value } = event.target;
+    setDraft((prev) => ({
+      ...prev,
+      providers: {
+        ...(prev.providers || {}),
+        [providerKey]: {
+          ...(prev.providers?.[providerKey] || {}),
+          [field]: value
+        }
+      }
+    }));
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -36,6 +50,10 @@ function ConfigPage() {
   if (!draft) {
     return <p>Chargement...</p>;
   }
+
+  const providers = draft.providers || {};
+  const chatgpt = providers.chatgpt || {};
+  const ollama = providers.ollama || {};
 
   return (
     <form className="config-page" onSubmit={handleSubmit}>
@@ -79,20 +97,45 @@ function ConfigPage() {
         <label>
           Fournisseur
           <select name="llmProvider" value={draft.llmProvider} onChange={handleChange}>
-            <option value="openai">OpenAI</option>
+            <option value="chatgpt">ChatGPT (OpenAI)</option>
             <option value="ollama">Ollama</option>
           </select>
         </label>
-        {draft.llmProvider === 'openai' ? (
-          <label>
-            Modèle OpenAI
-            <input name="openaiModel" value={draft.openaiModel || ''} onChange={handleChange} />
-          </label>
+        {draft.llmProvider === 'ollama' ? (
+          <div className="provider-grid">
+            <label>
+              Modèle Ollama
+              <input value={ollama.model || ''} onChange={handleProviderChange('ollama', 'model')} />
+            </label>
+            <label>
+              Commande Ollama
+              <input value={ollama.command || ''} onChange={handleProviderChange('ollama', 'command')} />
+            </label>
+          </div>
         ) : (
-          <label>
-            Modèle Ollama
-            <input name="ollamaModel" value={draft.ollamaModel || ''} onChange={handleChange} />
-          </label>
+          <div className="provider-grid">
+            <label>
+              Modèle ChatGPT
+              <input value={chatgpt.model || ''} onChange={handleProviderChange('chatgpt', 'model')} />
+            </label>
+            <label>
+              Clé API ChatGPT
+              <input
+                type="password"
+                value={chatgpt.apiKey || ''}
+                onChange={handleProviderChange('chatgpt', 'apiKey')}
+                placeholder="sk-..."
+              />
+            </label>
+            <label>
+              Base URL (optionnel)
+              <input
+                value={chatgpt.baseUrl || ''}
+                onChange={handleProviderChange('chatgpt', 'baseUrl')}
+                placeholder="https://api.openai.com/v1"
+              />
+            </label>
+          </div>
         )}
       </section>
       <footer>
