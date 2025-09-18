@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import OpenAI from 'openai';
 
 import { getConfig } from './configService.js';
+import { info, warn } from '../utils/logger.js';
 
 function createChatGPTClient(providerConfig) {
   const apiKey = providerConfig.apiKey || process.env.OPENAI_API_KEY;
@@ -17,6 +18,7 @@ async function callChatGPT(prompt, providerConfig) {
   if (!providerConfig.model) {
     throw new Error('Aucun modèle ChatGPT configuré');
   }
+  info('Appel du fournisseur ChatGPT.', { model: providerConfig.model });
   const completion = await client.responses.create({
     model: providerConfig.model,
     input: prompt
@@ -31,6 +33,7 @@ async function callOllama(prompt, providerConfig) {
   if (!model) {
     return Promise.reject(new Error('Aucun modèle Ollama configuré'));
   }
+  info('Appel du fournisseur Ollama.', { command, model });
   return new Promise((resolve, reject) => {
     const chunks = [];
     const child = spawn(command, ['run', model], { stdio: ['pipe', 'pipe', 'pipe'] });
@@ -54,7 +57,9 @@ export async function generateSummary(prompt) {
   }
 
   if (providerKey === 'ollama') {
+    warn('Génération de résumé via Ollama (mode expérimental).');
     return callOllama(prompt, providerConfig);
   }
+  info('Génération de résumé via ChatGPT.');
   return callChatGPT(prompt, providerConfig);
 }
