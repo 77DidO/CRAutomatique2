@@ -9,6 +9,12 @@ Application full-stack (React + Node.js) qui transforme un fichier audio ou vid�
 
 ## Démarrage
 
+Avant de lancer les serveurs, vous pouvez installer toutes les dépendances frontend et backend en une fois depuis la racine :
+
+```bash
+./install.sh
+```
+
 1. **Backend**
    ```bash
    cd backend
