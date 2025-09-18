@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Typography
+} from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { fetchLogs } from '../services/api.js';
-import './LogsPanel.css';
 
 function LogsPanel({ jobId, polling }) {
   const [logs, setLogs] = useState([]);
@@ -40,15 +47,31 @@ function LogsPanel({ jobId, polling }) {
   }
 
   return (
-    <section className="logs-panel">
-      <header onClick={() => setExpanded((prev) => !prev)}>
-        <h3>Logs</h3>
-        <button type="button">{expanded ? 'Masquer' : 'Afficher'}</button>
-      </header>
-      {expanded && (
-        <pre>{logs.join('\n')}</pre>
-      )}
-    </section>
+    <Accordion
+      elevation={0}
+      disableGutters
+      expanded={expanded}
+      onChange={() => setExpanded((prev) => !prev)}
+      sx={{ border: (theme) => `1px solid ${theme.palette.divider}`, borderRadius: 3 }}
+    >
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <Typography variant="subtitle1">Logs</Typography>
+      </AccordionSummary>
+      <AccordionDetails>
+        <Box
+          component="pre"
+          sx={{
+            m: 0,
+            maxHeight: 260,
+            overflow: 'auto',
+            fontFamily: 'monospace',
+            fontSize: '0.85rem'
+          }}
+        >
+          {logs.join('\n')}
+        </Box>
+      </AccordionDetails>
+    </Accordion>
   );
 }
 

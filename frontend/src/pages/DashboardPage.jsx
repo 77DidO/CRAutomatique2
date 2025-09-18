@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Grid, Stack } from '@mui/material';
 import UploadForm from '../components/UploadForm.jsx';
 import StatusCard from '../components/StatusCard.jsx';
 import ResourceList from '../components/ResourceList.jsx';
 import LogsPanel from '../components/LogsPanel.jsx';
 import usePolling from '../hooks/usePolling.js';
 import { fetchConfig, fetchItem, fetchItems } from '../services/api.js';
-import './DashboardPage.css';
 
 const LOCAL_STORAGE_KEY = 'crautomatique:last-job-id';
 
@@ -59,22 +59,27 @@ function DashboardPage() {
   };
 
   return (
-    <div className="dashboard-page">
-      <div className="grid">
-        <div>
+    <Stack spacing={3}>
+      <Grid container spacing={3} alignItems="stretch">
+        <Grid item xs={12} md={5} lg={4} display="flex">
           <UploadForm
             onCreated={handleCreated}
             defaultTemplate={config?.defaultTemplate || ''}
             defaultParticipants={defaultParticipants}
           />
-        </div>
-        <div>
-          <StatusCard job={currentJob} />
-          <ResourceList resources={currentJob?.resources || []} />
-          <LogsPanel jobId={currentJob?.id} polling={currentJob && currentJob.status !== 'done' && currentJob.status !== 'error'} />
-        </div>
-      </div>
-    </div>
+        </Grid>
+        <Grid item xs={12} md={7} lg={8}>
+          <Stack spacing={3} height="100%">
+            <StatusCard job={currentJob} />
+            <ResourceList resources={currentJob?.resources || []} />
+            <LogsPanel
+              jobId={currentJob?.id}
+              polling={currentJob && currentJob.status !== 'done' && currentJob.status !== 'error'}
+            />
+          </Stack>
+        </Grid>
+      </Grid>
+    </Stack>
   );
 }
 
