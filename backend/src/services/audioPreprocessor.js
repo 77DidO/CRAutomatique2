@@ -1,14 +1,30 @@
 import fs from 'fs';
 import path from 'path';
 import ffmpeg from 'fluent-ffmpeg';
-import ffmpegStatic from 'ffmpeg-static';
-import { info, debug } from '../utils/logger.js';
+import { info, debug, warn } from '../utils/logger.js';
 
-if (!ffmpegStatic) {
-  throw new Error('Impossible de localiser l\'exécutable ffmpeg.');
+const envFfmpegPath = process.env.FFMPEG_PATH?.trim();
+let resolvedFfmpegPath = envFfmpegPath && envFfmpegPath.length > 0 ? envFfmpegPath : null;
+
+if (!resolvedFfmpegPath) {
+  const ffmpegStaticModule = await import('ffmpeg-static')
+    .then((module) => module?.default ?? module)
+    .catch((error) => {
+      debug('Module ffmpeg-static non disponible.', { error: error.message });
+      return null;
+    });
+
+  if (typeof ffmpegStaticModule === 'string' && ffmpegStaticModule.length > 0) {
+    resolvedFfmpegPath = ffmpegStaticModule;
+    debug('Binaire ffmpeg fourni par ffmpeg-static.', { ffmpegPath: resolvedFfmpegPath });
+  }
 }
 
-ffmpeg.setFfmpegPath(ffmpegStatic);
+if (resolvedFfmpegPath) {
+  ffmpeg.setFfmpegPath(resolvedFfmpegPath);
+} else {
+  warn('Aucun chemin ffmpeg explicite fourni, utilisation du ffmpeg présent dans le système.');
+}
 
 const DEFAULT_FILTERS = 'afftdn=nf=-25,equalizer=f=1000:t=q:w=1:g=3,loudnorm=I=-16:TP=-1.5:LRA=11';
 
