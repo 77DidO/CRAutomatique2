@@ -2,5 +2,6 @@ import { listTemplates, updateTemplates } from '../controllers/templatesControll
 
 export default [
   { method: 'GET', path: '/', handler: listTemplates },
-  { method: 'POST', path: '/', handler: updateTemplates }
+  { method: 'POST', path: '/', handler: updateTemplates },
+  { method: 'PUT', path: '/', handler: updateTemplates }
 ];

@@ -2,5 +2,6 @@ import { getConfigHandler, updateConfigHandler } from '../controllers/configCont
 
 export default [
   { method: 'GET', path: '/', handler: getConfigHandler },
-  { method: 'POST', path: '/', handler: updateConfigHandler }
+  { method: 'POST', path: '/', handler: updateConfigHandler },
+  { method: 'PUT', path: '/', handler: updateConfigHandler }
 ];
