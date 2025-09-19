@@ -32,7 +32,47 @@ function buildFilterChain(options = {}) {
   return filters;
 }
 
-function runFfmpeg(inputPath, outputPath, { filters, logger }) {
+let ffmpegConfigured = false;
+
+async function ensureFfmpegPath({ logger }) {
+  if (ffmpegConfigured) {
+    return;
+  }
+
+  let configuredPath = process.env.FFMPEG_PATH?.trim();
+
+  if (configuredPath) {
+    ffmpeg.setFfmpegPath(configuredPath);
+  } else {
+    try {
+      const { path: bundledFfmpegPath } = await import('@ffmpeg-installer/ffmpeg');
+
+      if (bundledFfmpegPath) {
+        configuredPath = bundledFfmpegPath;
+        ffmpeg.setFfmpegPath(configuredPath);
+      }
+    } catch (error) {
+      const isModuleNotFound =
+        error && typeof error === 'object' && 'code' in error && error.code === 'ERR_MODULE_NOT_FOUND';
+
+      if (!isModuleNotFound && logger && typeof logger.warn === 'function') {
+        logger.warn('Impossible de configurer ffmpeg via le package embarqué.', { error });
+      }
+    }
+  }
+
+  if (!configuredPath && logger && typeof logger.warn === 'function') {
+    logger.warn(
+      "Aucun binaire ffmpeg n'a été trouvé. Installez ffmpeg ou définissez la variable d'environnement FFMPEG_PATH."
+    );
+  }
+
+  ffmpegConfigured = true;
+}
+
+async function runFfmpeg(inputPath, outputPath, { filters, logger }) {
+  await ensureFfmpegPath({ logger });
+
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
       .audioChannels(1)

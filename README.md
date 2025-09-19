@@ -41,6 +41,8 @@ pwsh -File ./start.ps1
    Variables d'environnement utiles :
    - `OPENAI_API_KEY` : clé OpenAI quand le fournisseur `openai` est actif.
    - `OLLAMA_COMMAND` : chemin vers l'exécutable Ollama (défaut `ollama`).
+   - `FFMPEG_PATH` : chemin absolu vers un binaire `ffmpeg` déjà installé. Si vous installez la dépendance optionnelle
+     `@ffmpeg-installer/ffmpeg`, ce paramètre est configuré automatiquement.
 
 2. **Frontend**
    ```bash
@@ -105,3 +107,4 @@ Le pipeline intégré simule les étapes de conversion, transcription, nettoyage
 | `PORT` | Port HTTP du backend (défaut : `4000`). |
 | `OPENAI_API_KEY` | Clé OpenAI utilisée lorsque le fournisseur `openai` est sélectionné. |
 | `OLLAMA_COMMAND` | Commande CLI Ollama à exécuter (`ollama` par défaut). |
+| `FFMPEG_PATH` | Force le chemin de l'exécutable `ffmpeg` utilisé pendant le prétraitement audio. |
