@@ -25,7 +25,14 @@ export async function ensureDataEnvironment() {
 
   await ensureFile(CONFIG_FILE, {
     llmProvider: 'mock',
+    llmApiToken: '',
     openaiApiKey: '',
+    whisper: {
+      model: 'whisper-1',
+      language: 'auto',
+      translate: false,
+      temperature: 0.2
+    },
     diarization: {
       enabled: true,
       speakerCount: 'auto'
@@ -41,17 +48,20 @@ export async function ensureDataEnvironment() {
     {
       id: 'default',
       name: 'Compte rendu standard',
-      description: 'Structure générique pour les réunions et entretiens.'
+      description: 'Structure générique pour les réunions et entretiens.',
+      prompt: 'Analyse la transcription et génère un compte rendu synthétique en français, organisé en sections avec les décisions, actions et points ouverts.'
     },
     {
       id: 'meeting',
       name: 'Réunion stratégique',
-      description: 'Mise en avant des décisions, actions et risques.'
+      description: 'Mise en avant des décisions, actions et risques.',
+      prompt: 'Tu es un expert en pilotage stratégique. Résume la réunion en listant les décisions, les actions, les risques et les points à surveiller.'
     },
     {
       id: 'interview',
       name: 'Interview qualitative',
-      description: 'Focus sur les verbatims et la tonalité du discours.'
+      description: 'Focus sur les verbatims et la tonalité du discours.',
+      prompt: 'Tu es un analyste en recherche utilisateur. Dresse un portrait des intervenants, résume les verbatims marquants et note les émotions ressenties.'
     }
   ]);
 

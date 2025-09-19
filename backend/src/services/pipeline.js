@@ -60,6 +60,7 @@ function buildSummary(job, template) {
     `**Statut final :** ${job.status}\n` +
     `**Durée totale estimée :** ${Math.round(STEP_COUNT * 1.5)} minutes\n\n` +
     `## Participants\n${participantList}\n\n` +
+    (template?.prompt ? `## Prompt du gabarit\n${template.prompt}\n\n` : '') +
     `## Résumé automatique\n` +
     `Ce document a été généré automatiquement afin d'illustrer le résultat d'un pipeline de transcription.`;
 }
