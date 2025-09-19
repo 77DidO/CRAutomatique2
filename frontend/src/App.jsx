@@ -210,117 +210,179 @@ export default function App() {
   }, [health]);
 
   const latestJobs = useMemo(() => jobs.slice(0, 5), [jobs]);
+  const healthStatus = health?.status ?? 'unknown';
+  const healthChipStyle =
+    healthStatus === 'ok'
+      ? undefined
+      : healthStatus === 'offline'
+        ? { background: 'rgba(220, 38, 38, 0.12)', color: 'var(--color-error)' }
+        : { background: 'rgba(246, 139, 30, 0.16)', color: 'var(--color-secondary)' };
+  const healthSummaryLabel =
+    healthStatus === 'ok' ? 'Opérationnel' : healthStatus === 'offline' ? 'Hors ligne' : 'En attente';
+  const healthProgressValue = healthStatus === 'ok' ? 100 : healthStatus === 'offline' ? 0 : 50;
 
   return (
-    <div className="app-shell">
-      <header className="app-header">
-        <div>
-          <h1>CR Automatique</h1>
-          <p className="subtitle">Pipeline audio &amp; vidéo simulé avec suivi complet.</p>
+    <div className="pb-72">
+      <header className="navbar">
+        <div className="flex items-center gap-3">
+          <span className="font-medium text-base-content" style={{ fontSize: '1.05rem' }}>
+            CR Automatique
+          </span>
+          <span className="chip" style={healthChipStyle}>
+            {healthSummaryLabel}
+          </span>
         </div>
-        <div className="health-indicator" data-status={health?.status ?? 'unknown'}>
-          <span className="dot" />
-          <span>{healthLabel}</span>
+        <div className="flex items-center gap-2 flex-wrap">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={`btn btn-sm ${tab.id === activeTab ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </header>
 
-      <nav className="tabs">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            className={tab.id === activeTab ? 'active' : ''}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
-
-      {statusMessage && (
-        <div className="banner success" role="status">
-          {statusMessage}
-          <button type="button" onClick={() => setStatusMessage(null)} aria-label="Fermer">×</button>
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="banner error" role="alert">
-          {errorMessage}
-          <button type="button" onClick={() => setErrorMessage(null)} aria-label="Fermer">×</button>
-        </div>
-      )}
-
-      <main className="app-content">
-        {activeTab === 'dashboard' && (
-          <div className="dashboard-grid">
-            <section className="card">
-              <h2>Créer un nouveau traitement</h2>
-              <UploadForm templates={templates} onSubmit={handleJobCreated} />
-            </section>
-            <section className="card">
-              <h2>Derniers traitements</h2>
-              <JobList
-                jobs={latestJobs}
-                selectedJobId={selectedJobId}
-                onSelect={(jobId) => {
-                  setSelectedJobId(jobId);
-                  setActiveTab('history');
-                }}
-                onDelete={handleDeleteJob}
-                compact
-              />
-            </section>
-            <section className="card">
-              <h2>Résumé du traitement courant</h2>
-              <JobDetail job={selectedJob} loading={loadingJob} compact />
-            </section>
+      <div className="page-container space-y-8">
+        <div className="home-header">
+          <div>
+            <h1 className="page-title">Pilotez vos traitements audio &amp; vidéo</h1>
+            <p className="home-subtitle">Pipeline audio &amp; vidéo simulé avec suivi complet.</p>
           </div>
-        )}
-
-        {activeTab === 'history' && (
-          <div className="history-grid">
-            <section className="card">
-              <div className="card-header">
-                <h2>Historique des traitements</h2>
-                <button type="button" onClick={() => loadJobs()}>Rafraîchir</button>
+          <div className="surface-card status-summary">
+            <div className="status-line">
+              <div>
+                <p className="status-label">État du backend</p>
+                <p className="status-value">{healthSummaryLabel}</p>
+                <p className="status-message">{healthLabel}</p>
               </div>
-              <JobList
-                jobs={jobs}
-                selectedJobId={selectedJobId}
-                onSelect={setSelectedJobId}
-                onDelete={handleDeleteJob}
-              />
-            </section>
-            <section className="card">
-              <h2>Détails du traitement</h2>
-              <JobDetail job={selectedJob} loading={loadingJob} />
-            </section>
+              <div className="status-progress">
+                <div className="progress-bar" aria-hidden="true">
+                  <div className="progress-bar__value" style={{ width: `${healthProgressValue}%` }} />
+                </div>
+                <span className="status-progress-value">
+                  {healthStatus === 'unknown' ? '—' : `${healthProgressValue}%`}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {statusMessage && (
+          <div className="surface-card bg-base-200/60">
+            <div className="flex items-center justify-between gap-4">
+              <p className="m-0 text-green-600">{statusMessage}</p>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setStatusMessage(null)}
+                aria-label="Fermer le message de statut"
+              >
+                Fermer
+              </button>
+            </div>
           </div>
         )}
 
-        {activeTab === 'config' && (
-          <div className="config-grid">
-            <section className="card">
-              <h2>Configuration du pipeline</h2>
-              <ConfigPanel
-                config={config}
-                onSave={handleConfigSave}
-                loading={savingConfig}
-              />
-            </section>
-            <section className="card">
-              <h2>Gabarits &amp; prompts</h2>
-              <TemplateManager
-                templates={templates}
-                onCreate={handleTemplateCreate}
-                onUpdate={handleTemplateUpdate}
-                onDelete={handleTemplateDelete}
-              />
-            </section>
+        {errorMessage && (
+          <div className="surface-card bg-base-200/60">
+            <div className="flex items-center justify-between gap-4">
+              <p className="m-0 error-text">{errorMessage}</p>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setErrorMessage(null)}
+                aria-label="Fermer le message d'erreur"
+              >
+                Fermer
+              </button>
+            </div>
           </div>
         )}
-      </main>
+
+        <main className="space-y-8">
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6">
+              <section className="surface-card">
+                <h2 className="section-title">Créer un nouveau traitement</h2>
+                <p className="text-base-content/70 text-sm">
+                  Ajoutez un fichier audio ou vidéo pour lancer un nouveau pipeline de transcription et de synthèse.
+                </p>
+                <UploadForm templates={templates} onSubmit={handleJobCreated} />
+              </section>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <section className="surface-card">
+                  <h2 className="section-title">Derniers traitements</h2>
+                  <JobList
+                    jobs={latestJobs}
+                    selectedJobId={selectedJobId}
+                    onSelect={(jobId) => {
+                      setSelectedJobId(jobId);
+                      setActiveTab('history');
+                    }}
+                    onDelete={handleDeleteJob}
+                    compact
+                  />
+                </section>
+                <section className="surface-card">
+                  <h2 className="section-title">Résumé du traitement courant</h2>
+                  <JobDetail job={selectedJob} loading={loadingJob} compact />
+                </section>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'history' && (
+            <div className="grid gap-6 md:grid-cols-2">
+              <section className="surface-card">
+                <div className="status-line">
+                  <div>
+                    <h2 className="section-title">Historique des traitements</h2>
+                    <p className="status-message">
+                      Consultez l'ensemble des traitements lancés et reprenez-en un en un clic.
+                    </p>
+                  </div>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => loadJobs()}>
+                    Rafraîchir
+                  </button>
+                </div>
+                <JobList
+                  jobs={jobs}
+                  selectedJobId={selectedJobId}
+                  onSelect={setSelectedJobId}
+                  onDelete={handleDeleteJob}
+                />
+              </section>
+              <section className="surface-card">
+                <h2 className="section-title">Détails du traitement</h2>
+                <JobDetail job={selectedJob} loading={loadingJob} />
+              </section>
+            </div>
+          )}
+
+          {activeTab === 'config' && (
+            <div className="grid gap-6 md:grid-cols-2">
+              <section className="surface-card">
+                <h2 className="section-title">Configuration du pipeline</h2>
+                <ConfigPanel config={config} onSave={handleConfigSave} loading={savingConfig} />
+              </section>
+              <section className="surface-card">
+                <h2 className="section-title">Gabarits &amp; prompts</h2>
+                <TemplateManager
+                  templates={templates}
+                  onCreate={handleTemplateCreate}
+                  onUpdate={handleTemplateUpdate}
+                  onDelete={handleTemplateDelete}
+                />
+              </section>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
