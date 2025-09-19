@@ -46,7 +46,41 @@ function buildVtt(segments = []) {
   return `${lines.join('\n')}\n`;
 }
 
-async function transcribeWithOpenAI(filePath, { model, language, baseUrl } = {}) {
+function resolveResponseFormat(model = '', requestedFormat) {
+  if (!requestedFormat) {
+    return undefined;
+  }
+  const normalizedModel = String(model || '').toLowerCase();
+  if (normalizedModel.includes('gpt-4o-mini-transcribe') && requestedFormat === 'verbose_json') {
+    warn(
+      "Le format de réponse 'verbose_json' n'est pas pris en charge par ce modèle. Utilisation du format 'json'.",
+      { model }
+    );
+    return 'json';
+  }
+  return requestedFormat;
+}
+
+function ensureSegments(rawSegments = [], fallbackText = '') {
+  const segments = normalizeSegments(rawSegments);
+  if (segments.length > 0) {
+    return segments;
+  }
+  const text = (fallbackText || '').trim();
+  if (!text) {
+    return [];
+  }
+  return [
+    {
+      speaker: 'SPEAKER_00',
+      start: 0,
+      end: 0,
+      text
+    }
+  ];
+}
+
+async function transcribeWithOpenAI(filePath, { model, language, baseUrl, response_format: requestedFormat } = {}) {
   const apiKey = getOpenAIApiKey();
   if (!apiKey) {
     throw new Error('Clé API OpenAI manquante pour la transcription.');
@@ -56,17 +90,22 @@ async function transcribeWithOpenAI(filePath, { model, language, baseUrl } = {})
   const resolvedBaseUrl = baseUrl || config?.providers?.chatgpt?.baseUrl || undefined;
   const client = new OpenAI({ apiKey, ...(resolvedBaseUrl ? { baseURL: resolvedBaseUrl } : {}) });
   debug('Envoi du fichier au service OpenAI Whisper', { model, language });
+  const effectiveModel = model || 'gpt-4o-mini-transcribe';
+  const responseFormat = resolveResponseFormat(effectiveModel, requestedFormat || 'verbose_json');
   const response = await client.audio.transcriptions.create({
     file: fs.createReadStream(filePath),
-    model: model || 'gpt-4o-mini-transcribe',
-    response_format: 'verbose_json',
+    model: effectiveModel,
+    ...(responseFormat ? { response_format: responseFormat } : {}),
     ...(language ? { language } : {})
   });
 
-  const segments = normalizeSegments(response.segments || []);
+  const segments = ensureSegments(response.segments || [], response.text);
   const text = (response.text || '').trim();
   const vtt = buildVtt(segments);
-  info('Transcription récupérée via OpenAI', { model: model || 'gpt-4o-mini-transcribe' });
+  info('Transcription récupérée via OpenAI', {
+    model: effectiveModel,
+    responseFormat
+  });
   return { text, segments, vtt, raw: response };
 }
 
