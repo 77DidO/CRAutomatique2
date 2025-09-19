@@ -8,7 +8,7 @@ const TABS = [
   { id: 'vtt', label: 'Sous-titres' }
 ];
 
-function ItemTabs({ basePath }) {
+function ItemTabs({ basePath = '/item' }) {
   const { id, tab = 'overview' } = useParams();
   return (
     <div className="surface-card">
@@ -29,10 +29,6 @@ function ItemTabs({ basePath }) {
 
 ItemTabs.propTypes = {
   basePath: PropTypes.string
-};
-
-ItemTabs.defaultProps = {
-  basePath: '/item'
 };
 
 export default ItemTabs;
