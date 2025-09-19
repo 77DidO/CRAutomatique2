@@ -26,8 +26,18 @@ function ItemDetailPage() {
         const segmentResource = data.resources?.find((resource) => resource.type === 'segments.json');
         if (segmentResource) {
           fetch(segmentResource.url)
-            .then((response) => response.json())
-            .then(setSegments)
+            .then((response) => {
+              if (!response.ok) {
+                setSegments([]);
+                return null;
+              }
+              return response.json();
+            })
+            .then((data) => {
+              if (data !== null) {
+                setSegments(Array.isArray(data) ? data : []);
+              }
+            })
             .catch(() => setSegments([]));
         }
       })
