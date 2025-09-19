@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { info, warn } from '../utils/logger.js';
-import { DEFAULT_TEMPLATE_ID } from '../constants/templates.js';
+import { DEFAULT_TEMPLATE_ID, DEFAULT_TEMPLATES, ensureTemplateList } from '../constants/templates.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,6 +10,7 @@ const CONFIG_PATH = path.join(__dirname, '../../data/config.json');
 
 const DEFAULT_CONFIG = {
   defaultTemplate: DEFAULT_TEMPLATE_ID,
+  templates: DEFAULT_TEMPLATES.map((template) => ({ ...template })),
   participants: [],
   diarization: true,
   enableSummary: true,
@@ -165,6 +166,11 @@ function normalizeDiarization(rawValue) {
   return normalized;
 }
 
+function normalizeTemplates(rawTemplates) {
+  const templates = ensureTemplateList(rawTemplates);
+  return templates.map((template) => ({ ...template }));
+}
+
 function normalizeConfig(config = {}) {
   const {
     providers: rawProviders,
@@ -179,11 +185,14 @@ function normalizeConfig(config = {}) {
     chunkOverlap,
     defaultTemplate,
     participants,
+    templates: rawTemplates,
     ...rest
   } = config;
 
   const parsedChunkSize = Number(chunkSize);
   const parsedChunkOverlap = Number(chunkOverlap);
+
+  const mergedTemplates = normalizeTemplates(rawTemplates);
 
   const merged = {
     ...DEFAULT_CONFIG,
@@ -202,11 +211,32 @@ function normalizeConfig(config = {}) {
       ollamaModel,
       ollamaCommand
     }),
-    transcription: mergeTranscription(rawTranscription)
+    transcription: mergeTranscription(rawTranscription),
+    templates: mergedTemplates
   };
 
   const provider = merged.llmProvider === 'openai' ? 'chatgpt' : merged.llmProvider;
   merged.llmProvider = provider in merged.providers ? provider : DEFAULT_CONFIG.llmProvider;
+
+  const preferredTemplateId =
+    typeof defaultTemplate === 'string' && defaultTemplate.trim()
+      ? defaultTemplate.trim()
+      : merged.defaultTemplate;
+  const availableTemplateIds = new Set(mergedTemplates.map((template) => template.id));
+  if (availableTemplateIds.size === 0) {
+    merged.templates = DEFAULT_TEMPLATES.map((template) => ({ ...template }));
+    availableTemplateIds.clear();
+    merged.templates.forEach((template) => availableTemplateIds.add(template.id));
+  }
+
+  if (!availableTemplateIds.has(preferredTemplateId)) {
+    const defaultCandidate = availableTemplateIds.has(DEFAULT_TEMPLATE_ID)
+      ? DEFAULT_TEMPLATE_ID
+      : merged.templates[0]?.id || DEFAULT_TEMPLATE_ID;
+    merged.defaultTemplate = defaultCandidate;
+  } else {
+    merged.defaultTemplate = preferredTemplateId;
+  }
 
   return merged;
 }

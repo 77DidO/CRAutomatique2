@@ -67,12 +67,15 @@ async function handleClean(job) {
 }
 
 async function handleSummarize(job) {
-  const { enableSummary, defaultTemplate } = getConfig();
+  const { enableSummary, defaultTemplate, templates } = getConfig();
   if (!enableSummary) {
     return job;
   }
   const templateId = job.template || defaultTemplate || DEFAULT_TEMPLATE_ID;
-  const prompt = buildSummaryPrompt(templateId, job.cleanTranscription || '');
+  const prompt = buildSummaryPrompt(templateId, job.cleanTranscription || '', {
+    templates,
+    defaultTemplateId: defaultTemplate
+  });
   let summary = 'Résumé indisponible.';
   try {
     summary = await generateSummary(prompt);
