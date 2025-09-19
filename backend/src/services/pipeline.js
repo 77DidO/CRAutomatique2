@@ -5,6 +5,7 @@ import { upsertJobUpdate } from './jobStore.js';
 import { ensureJobDirectory, writeTextFile, writeJsonFile } from '../utils/fileSystem.js';
 import { generateSummary } from './llmService.js';
 import { preprocessAudio } from './audioPreprocessor.js';
+import { transcribeAudio } from './transcriptionService.js';
 import { info, warn, error as logError, debug } from '../utils/logger.js';
 
 const STEPS = ['queued', 'preconvert', 'transcribe', 'clean', 'summarize', 'done'];
@@ -35,14 +36,22 @@ async function handlePreconvert(job) {
 }
 
 async function handleTranscription(job) {
-  const text = `Transcription simulée pour ${job.originalFilename}.`;
+  if (!job.processedPath) {
+    throw new Error('Fichier traité introuvable pour la transcription.');
+  }
+
+  const { text, segments, vtt } = await transcribeAudio(job.processedPath);
   writeTextFile(job.id, 'transcription_raw.txt', text);
-  writeJsonFile(job.id, 'segments.json', [
-    { speaker: 'SPEAKER_00', start: 0, end: 10, text }
-  ]);
-  writeTextFile(job.id, 'subtitles.vtt', 'WEBVTT\n\n00:00.000 --> 00:10.000\n' + text);
-  debug('Transcription simulée générée', { jobId: job.id });
-  return { ...job, transcription: text };
+  writeJsonFile(job.id, 'segments.json', segments);
+  writeTextFile(job.id, 'subtitles.vtt', vtt);
+  appendLog(job.id, job.logs, `Transcription générée (${segments.length} segments).`);
+  info('Transcription finalisée', { jobId: job.id, segments: segments.length });
+  return {
+    ...job,
+    transcription: text,
+    transcriptionSegments: segments,
+    subtitlesVtt: vtt
+  };
 }
 
 function cleanText(rawText) {
