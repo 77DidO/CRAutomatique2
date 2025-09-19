@@ -1,7 +1,9 @@
+import { Router } from 'express';
 import { listTemplates, updateTemplates } from '../controllers/templatesController.js';
 
-export default [
-  { method: 'GET', path: '/', handler: listTemplates },
-  { method: 'POST', path: '/', handler: updateTemplates },
-  { method: 'PUT', path: '/', handler: updateTemplates }
-];
+const router = Router();
+
+router.get('/', listTemplates);
+router.put('/', updateTemplates);
+
+export default router;

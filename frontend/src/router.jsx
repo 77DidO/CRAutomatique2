@@ -1,4 +1,11 @@
-import { Navigate, Outlet, createBrowserRouter, createRoutesFromElements, Route, useLocation } from 'react-router-dom';
+import {
+  Navigate,
+  Outlet,
+  createBrowserRouter,
+  createRoutesFromElements,
+  Route,
+  useLocation
+} from 'react-router-dom';
 import Layout from './layout/Layout.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import HistoryPage from './pages/HistoryPage.jsx';
@@ -15,6 +22,24 @@ function AppLayout() {
   );
 }
 
+const rawBaseName =
+  import.meta.env.VITE_BASE_PATH
+  || import.meta.env.BASE_URL
+  || '/';
+
+const normalizedBaseName = (() => {
+  if (!rawBaseName) {
+    return '/';
+  }
+  const trimmed = rawBaseName.trim();
+  if (!trimmed || trimmed === '/') {
+    return '/';
+  }
+  const withLeading = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  const withoutTrailing = withLeading.replace(/\/+$/, '');
+  return withoutTrailing || '/';
+})();
+
 export const router = createBrowserRouter(
   createRoutesFromElements(
     <Route element={<AppLayout />}>
@@ -27,6 +52,7 @@ export const router = createBrowserRouter(
     </Route>
   ),
   {
+    basename: normalizedBaseName,
     future: {
       v7_startTransition: true,
       v7_relativeSplatPath: true
