@@ -2,18 +2,16 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { info, warn } from '../utils/logger.js';
+import { DEFAULT_TEMPLATE_ID } from '../constants/templates.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const CONFIG_PATH = path.join(__dirname, '../../data/config.json');
 
 const DEFAULT_CONFIG = {
-  diarization: {
-    enable: true,
-    speaker_count: null,
-    min_speakers: null,
-    max_speakers: null
-  },
+  defaultTemplate: DEFAULT_TEMPLATE_ID,
+  participants: [],
+  diarization: true,
   enableSummary: true,
   llmProvider: 'chatgpt',
   transcription: {

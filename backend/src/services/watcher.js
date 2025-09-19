@@ -6,6 +6,8 @@ import { listJobs, getJob, saveJob, deleteJob, upsertJobUpdate } from './jobStor
 import { ensureJobDirectory, removeJobDirectory, getJobFilePath } from '../utils/fileSystem.js';
 import { processJob } from './pipeline.js';
 import { info, warn, error as logError, debug } from '../utils/logger.js';
+import { getConfig } from './configService.js';
+import { DEFAULT_TEMPLATE_ID } from '../constants/templates.js';
 
 const uploadDir = path.join(process.cwd(), 'backend', 'data', 'uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -82,11 +84,14 @@ export function createJobFromUpload({ file, body }) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+  const config = getConfig();
+  const templateInput = typeof body.template === 'string' ? body.template.trim() : '';
+  const template = templateInput || config?.defaultTemplate || DEFAULT_TEMPLATE_ID;
   const now = new Date().toISOString();
   const job = {
     id,
     title: body.title || file.originalname,
-    template: body.template,
+    template,
     participants,
     status: 'queued',
     progress: 0,
@@ -99,7 +104,7 @@ export function createJobFromUpload({ file, body }) {
   };
   ensureJobDirectory(id);
   saveJob(job);
-  info('Nouveau job créé', { jobId: id, filename: file.originalname });
+  info('Nouveau job créé', { jobId: id, filename: file.originalname, template });
   return job;
 }
 

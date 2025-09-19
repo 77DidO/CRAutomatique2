@@ -4,6 +4,7 @@ import { getConfig } from './configService.js';
 import { upsertJobUpdate } from './jobStore.js';
 import { ensureJobDirectory, writeTextFile, writeJsonFile } from '../utils/fileSystem.js';
 import { generateSummary } from './llmService.js';
+import { buildSummaryPrompt, DEFAULT_TEMPLATE_ID } from '../constants/templates.js';
 import { preprocessAudio } from './audioPreprocessor.js';
 import { transcribeAudio } from './transcriptionService.js';
 import { info, warn, error as logError, debug } from '../utils/logger.js';
@@ -66,22 +67,24 @@ async function handleClean(job) {
 }
 
 async function handleSummarize(job) {
-  const { enableSummary } = getConfig();
+  const { enableSummary, defaultTemplate } = getConfig();
   if (!enableSummary) {
     return job;
   }
-  const prompt = `Résumé en français de cette réunion:\n${job.cleanTranscription}`;
+  const templateId = job.template || defaultTemplate || DEFAULT_TEMPLATE_ID;
+  const prompt = buildSummaryPrompt(templateId, job.cleanTranscription || '');
   let summary = 'Résumé indisponible.';
   try {
     summary = await generateSummary(prompt);
-    info('Résumé généré par le service LLM', { jobId: job.id });
+    info('Résumé généré par le service LLM', { jobId: job.id, template: templateId });
   } catch (error) {
     summary = `Résumé impossible: ${error.message}`;
     warn('Échec de la génération du résumé', { jobId: job.id, message: error.message });
   }
   writeTextFile(job.id, 'summary.md', summary);
   writeTextFile(job.id, 'summary.html', `<article>${summary}</article>`);
-  debug('Résumé écrit sur disque', { jobId: job.id });
+  appendLog(job.id, job.logs, `Résumé généré avec le gabarit ${templateId}.`);
+  debug('Résumé écrit sur disque', { jobId: job.id, template: templateId });
   return { ...job, summary };
 }
 
