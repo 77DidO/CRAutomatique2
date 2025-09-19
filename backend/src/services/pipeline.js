@@ -1,4 +1,6 @@
+import { createReadStream } from 'fs';
 import { writeFile } from 'fs/promises';
+import OpenAI from 'openai';
 import { jobAssetPath } from '../config/paths.js';
 
 export const PIPELINE_STEPS = [
@@ -95,7 +97,7 @@ function buildVtt(job) {
   ].join('\n');
 }
 
-async function writeOutputs(jobId, job, template) {
+async function writeMockOutputs(jobId, job, template) {
   const outputs = [
     {
       filename: 'transcription_raw.txt',
@@ -125,8 +127,264 @@ async function writeOutputs(jobId, job, template) {
   return outputs.map(({ builder, ...rest }) => rest);
 }
 
-export async function runPipeline({ jobId, jobStore, templateStore }) {
+function formatTimestamp(seconds) {
+  const numeric = Number(seconds ?? 0);
+  if (Number.isNaN(numeric) || !Number.isFinite(numeric)) {
+    return '00:00:00.000';
+  }
+
+  const totalMs = Math.max(0, Math.round(numeric * 1000));
+  const hours = String(Math.floor(totalMs / 3600000)).padStart(2, '0');
+  const minutes = String(Math.floor((totalMs % 3600000) / 60000)).padStart(2, '0');
+  const secondsPart = String(Math.floor((totalMs % 60000) / 1000)).padStart(2, '0');
+  const milliseconds = String(totalMs % 1000).padStart(3, '0');
+
+  return `${hours}:${minutes}:${secondsPart}.${milliseconds}`;
+}
+
+function createVttFromSegments(segments) {
+  if (!Array.isArray(segments) || segments.length === 0) {
+    return '';
+  }
+
+  const lines = ['WEBVTT', ''];
+  segments.forEach((segment, index) => {
+    const rawText = typeof segment?.text === 'string' ? segment.text.trim() : '';
+    if (!rawText) {
+      return;
+    }
+
+    const start = formatTimestamp(segment?.start ?? index * 5);
+    const end = formatTimestamp(segment?.end ?? segment?.start ?? (index + 1) * 5);
+    lines.push(`${index + 1}`, `${start} --> ${end}`, rawText, '');
+  });
+
+  return lines.join('\n').trimEnd();
+}
+
+async function writeOpenAIOutputs({ jobId, job, template, context, pipeline }) {
+  const outputs = [];
+  const activeTemplate = template ?? context.template ?? null;
+
+  if (pipeline?.transcription !== false) {
+    const transcriptionContent = (context.transcriptionText ?? '').trim().length > 0
+      ? context.transcriptionText.trim()
+      : buildTranscription(job);
+    await writeFile(
+      jobAssetPath(jobId, 'transcription_raw.txt'),
+      `${transcriptionContent}\n`,
+      'utf8'
+    );
+    outputs.push({
+      filename: 'transcription_raw.txt',
+      label: 'Transcription brute',
+      mimeType: 'text/plain'
+    });
+  }
+
+  if (pipeline?.summary !== false) {
+    const summaryContent = (context.summaryMarkdown ?? '').trim().length > 0
+      ? context.summaryMarkdown.trim()
+      : buildSummary(job, activeTemplate);
+    await writeFile(
+      jobAssetPath(jobId, 'summary.md'),
+      `${summaryContent}\n`,
+      'utf8'
+    );
+    outputs.push({
+      filename: 'summary.md',
+      label: 'Synthèse Markdown',
+      mimeType: 'text/markdown'
+    });
+  }
+
+  if (pipeline?.subtitles !== false) {
+    const vttFromSegments = createVttFromSegments(context.transcriptionSegments ?? []);
+    const subtitleContent = (context.subtitlesVtt ?? '').trim().length > 0
+      ? context.subtitlesVtt.trim()
+      : (vttFromSegments || '').trim().length > 0
+        ? vttFromSegments.trim()
+        : buildVtt(job);
+    await writeFile(
+      jobAssetPath(jobId, 'subtitles.vtt'),
+      `${subtitleContent}\n`,
+      'utf8'
+    );
+    outputs.push({
+      filename: 'subtitles.vtt',
+      label: 'Sous-titres VTT',
+      mimeType: 'text/vtt'
+    });
+  }
+
+  return outputs;
+}
+
+function createMockPipelineOperations({ template }) {
+  return {
+    handlers: PIPELINE_STEPS.reduce((acc, step) => ({
+      ...acc,
+      [step.id]: async ({ step: currentStep }) => {
+        await delay(currentStep.duration);
+      }
+    }), {}),
+    async writeOutputs({ jobId, job, template: activeTemplate }) {
+      return writeMockOutputs(jobId, job, activeTemplate ?? template ?? null);
+    }
+  };
+}
+
+function createOpenAIPipelineOperations({ jobId, jobStore, templateStore, config, context }) {
+  const apiKey = (config?.openaiApiKey ?? config?.llmApiToken ?? process.env.OPENAI_API_KEY ?? '').trim();
+  if (!apiKey) {
+    throw new Error('Clé API OpenAI manquante dans la configuration.');
+  }
+
+  const openai = new OpenAI({ apiKey });
+  const whisperConfig = config?.whisper ?? {};
+  const pipeline = config?.pipeline ?? {};
+
+  return {
+    handlers: {
+      ingest: async () => {},
+      transcription: async () => {
+        if (pipeline?.transcription === false) {
+          return;
+        }
+
+        const job = jobStore.get(jobId);
+        if (!job?.source?.storedName) {
+          throw new Error('Source du job introuvable pour la transcription.');
+        }
+
+        const sourcePath = jobAssetPath(jobId, job.source.storedName);
+        const requestPayload = {
+          file: createReadStream(sourcePath),
+          model: whisperConfig?.model ?? 'whisper-1',
+          response_format: 'verbose_json',
+          temperature: typeof whisperConfig?.temperature === 'number'
+            ? whisperConfig.temperature
+            : 0.2
+        };
+
+        if (whisperConfig?.language && whisperConfig.language !== 'auto') {
+          requestPayload.language = whisperConfig.language;
+        }
+        if (whisperConfig?.translate === true) {
+          requestPayload.translate = true;
+        }
+
+        const transcription = await openai.audio.transcriptions.create(requestPayload);
+        context.transcriptionText = (transcription?.text ?? '').trim();
+        context.transcriptionSegments = Array.isArray(transcription?.segments)
+          ? transcription.segments
+          : [];
+
+        if (pipeline?.subtitles !== false && !context.subtitlesVtt) {
+          const vtt = createVttFromSegments(context.transcriptionSegments);
+          if (vtt.trim().length > 0) {
+            context.subtitlesVtt = vtt;
+          }
+        }
+      },
+      cleanup: async () => {},
+      summaries: async () => {
+        if (pipeline?.summary === false) {
+          return;
+        }
+
+        const transcript = context.transcriptionText;
+        if (!transcript) {
+          return;
+        }
+
+        const job = jobStore.get(jobId);
+        context.template = context.template ?? templateStore.getById(job?.template ?? '') ?? null;
+        const template = context.template;
+        const instructions = (template?.prompt ?? '').trim().length > 0
+          ? template.prompt.trim()
+          : 'Produis un compte rendu structuré en Markdown à partir de la transcription fournie.';
+
+        const participants = Array.isArray(job?.participants) && job.participants.length > 0
+          ? job.participants.join(', ')
+          : 'Aucun participant renseigné';
+
+        const messages = [
+          {
+            role: 'system',
+            content: 'Tu es un assistant qui produit des comptes rendus détaillés et structurés en Markdown à partir de transcriptions audio.'
+          },
+          {
+            role: 'user',
+            content: [
+              `Titre du média : ${job?.title ?? 'Sans titre'}`,
+              `Participants : ${participants}`,
+              '',
+              'Instructions :',
+              instructions,
+              '',
+              'Transcription :',
+              transcript
+            ].join('\n')
+          }
+        ];
+
+        const chatModel = (config?.openai?.chatModel ?? config?.chatModel ?? 'gpt-4o-mini').trim();
+        const temperature = typeof config?.openai?.temperature === 'number'
+          ? config.openai.temperature
+          : 0.7;
+
+        const completion = await openai.chat.completions.create({
+          model: chatModel,
+          messages,
+          temperature
+        });
+
+        const summary = completion?.choices?.[0]?.message?.content?.trim();
+        if (summary) {
+          context.summaryMarkdown = summary;
+        }
+      }
+    },
+    async writeOutputs({ jobId: currentJobId, job, template }) {
+      return writeOpenAIOutputs({
+        jobId: currentJobId,
+        job,
+        template,
+        context,
+        pipeline
+      });
+    }
+  };
+}
+
+export async function runPipeline({ jobId, jobStore, templateStore, configStore }) {
+  const context = {
+    transcriptionText: '',
+    transcriptionSegments: [],
+    summaryMarkdown: '',
+    subtitlesVtt: '',
+    template: null
+  };
+
   try {
+    const config = configStore?.get ? await configStore.get() : {};
+    context.config = config;
+    const provider = typeof config?.llmProvider === 'string'
+      ? config.llmProvider.toLowerCase()
+      : 'mock';
+
+    const initialJob = jobStore.get(jobId);
+    if (!initialJob) {
+      throw new Error('Job introuvable.');
+    }
+
+    context.template = templateStore.getById(initialJob.template ?? '') ?? null;
+
+    const operations = provider === 'openai'
+      ? createOpenAIPipelineOperations({ jobId, jobStore, templateStore, config, context })
+      : createMockPipelineOperations({ template: context.template });
+
     for (let index = 0; index < PIPELINE_STEPS.length; index += 1) {
       const step = PIPELINE_STEPS[index];
 
@@ -155,7 +413,13 @@ export async function runPipeline({ jobId, jobStore, templateStore }) {
       });
 
       await jobStore.appendLog(jobId, step.startLog);
-      await delay(step.duration);
+
+      const handler = operations.handlers?.[step.id];
+      if (handler) {
+        await handler({ jobId, jobStore, templateStore, step, context });
+      } else {
+        await delay(step.duration);
+      }
 
       await jobStore.update(jobId, (job) => {
         job.steps = job.steps.map((stepState) => {
@@ -175,16 +439,23 @@ export async function runPipeline({ jobId, jobStore, templateStore }) {
       await jobStore.appendLog(jobId, step.endLog);
     }
 
-    const job = jobStore.get(jobId);
-    const template = templateStore.getById(job?.template ?? '');
-    const outputs = await writeOutputs(jobId, job, template);
+    const latestJob = jobStore.get(jobId);
+    if (!latestJob) {
+      throw new Error('Job introuvable après le traitement.');
+    }
+
+    const outputs = await operations.writeOutputs({
+      jobId,
+      job: latestJob,
+      template: context.template
+    });
 
     await jobStore.update(jobId, (current) => {
       current.status = 'completed';
       current.completedAt = new Date().toISOString();
       current.progress = 1;
       current.currentStep = null;
-      current.outputs = outputs;
+      current.outputs = outputs ?? [];
       current.steps = current.steps.map((stepState) => ({
         ...stepState,
         status: 'done',
@@ -195,12 +466,19 @@ export async function runPipeline({ jobId, jobStore, templateStore }) {
 
     await jobStore.appendLog(jobId, 'Traitement terminé avec succès.');
   } catch (error) {
+    console.error('Pipeline error', error);
     const existing = jobStore.get(jobId);
     if (!existing) {
       return;
     }
 
-    await jobStore.appendLog(jobId, `Échec du pipeline : ${error.message}`);
+    const message = error?.message ?? 'Erreur inconnue';
+    try {
+      await jobStore.appendLog(jobId, `Échec du pipeline : ${message}`);
+    } catch (logError) {
+      console.error('Impossible d\'écrire le journal d\'erreur du pipeline.', logError);
+    }
+
     await jobStore.update(jobId, (job) => {
       job.status = 'failed';
       job.currentStep = null;
