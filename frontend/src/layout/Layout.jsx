@@ -8,6 +8,22 @@ const NAV_ITEMS = [
   { path: '/config', label: 'Configuration' }
 ];
 
+const HomeIcon = () => (
+  <svg
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    className="navbar-home-icon"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="m3 11 9-7 9 7" />
+    <path d="M19 10v10a1 1 0 0 1-1 1h-4v-6h-4v6H6a1 1 0 0 1-1-1V10" />
+  </svg>
+);
+
 const SunIcon = () => (
   <svg
     aria-hidden="true"
@@ -46,11 +62,28 @@ function Layout({ currentPath, children }) {
   const isDark = theme === 'dark';
   const toggleLabel = isDark ? 'Activer le thème clair' : 'Activer le thème sombre';
 
+  const isHome = currentPath === '/';
+
   return (
     <div className="pb-72">
       <header className="navbar">
-        <RouterLink to="/" className="link cursor-pointer text-base-content font-medium text-sm">
-          Compte rendu automatique
+        <RouterLink
+          to="/"
+          className={
+            isHome
+              ? 'navbar-home-link'
+              : 'link cursor-pointer text-base-content font-medium text-sm navbar-title-link'
+          }
+          aria-label={isHome ? "Revenir à l'accueil" : undefined}
+        >
+          {isHome ? (
+            <>
+              <HomeIcon />
+              <span className="sr-only">Accueil CRAutomatique</span>
+            </>
+          ) : (
+            'Compte rendu automatique'
+          )}
         </RouterLink>
         <div className="navbar-actions">
           <nav className="navbar-links">
