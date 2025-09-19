@@ -229,7 +229,6 @@ function normalizeConfig(config = {}) {
     }),
     transcription: mergeTranscription(rawTranscription),
     templates: mergedTemplates,
- codex/add-rubrics-to-config-and-update-ui
     rubrics: normalizeRubrics(rawRubrics)
 
   };

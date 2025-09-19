@@ -4,8 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js",
-    "lint": "eslint ."
+    "start": "node src/index.js"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
