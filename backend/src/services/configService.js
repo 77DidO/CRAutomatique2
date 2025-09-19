@@ -111,13 +111,12 @@ function mergeProviders(rawProviders = {}, legacyConfig = {}) {
 function normalizeDiarization(rawValue) {
   if (typeof rawValue === 'boolean') {
     return {
-      ...DEFAULT_CONFIG.diarization,
       enable: rawValue
     };
   }
 
   if (!rawValue || typeof rawValue !== 'object') {
-    return { ...DEFAULT_CONFIG.diarization };
+    return { enable: Boolean(DEFAULT_CONFIG.diarization) };
   }
 
   const parseNumber = (value) => {
@@ -144,12 +143,26 @@ function normalizeDiarization(rawValue) {
     return Boolean(value);
   };
 
-  return {
-    enable: parseBoolean(rawValue.enable ?? rawValue),
-    speaker_count: parseNumber(rawValue.speaker_count),
-    min_speakers: parseNumber(rawValue.min_speakers),
-    max_speakers: parseNumber(rawValue.max_speakers)
+  const normalized = {
+    enable: parseBoolean(rawValue.enable ?? rawValue)
   };
+
+  const speakerCount = parseNumber(rawValue.speaker_count);
+  if (speakerCount !== null) {
+    normalized.speaker_count = speakerCount;
+  }
+
+  const minSpeakers = parseNumber(rawValue.min_speakers);
+  if (minSpeakers !== null) {
+    normalized.min_speakers = minSpeakers;
+  }
+
+  const maxSpeakers = parseNumber(rawValue.max_speakers);
+  if (maxSpeakers !== null) {
+    normalized.max_speakers = maxSpeakers;
+  }
+
+  return normalized;
 }
 
 function normalizeConfig(config = {}) {
