@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 
-function DashboardHero({ title, subtitle, actions }) {
+function DashboardHero({ title = 'Compte rendu automatique', subtitle, actions = null }) {
   return (
     <section className="dashboard-hero">
       <div className="dashboard-hero__content">
@@ -16,12 +16,6 @@ DashboardHero.propTypes = {
   title: PropTypes.string,
   subtitle: PropTypes.string,
   actions: PropTypes.node
-};
-
-DashboardHero.defaultProps = {
-  title: 'Compte rendu automatique',
-  subtitle: undefined,
-  actions: null
 };
 
 export default DashboardHero;
