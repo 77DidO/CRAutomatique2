@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Col, Row, Stack } from 'react-bootstrap';
 import UploadForm from '../components/UploadForm.jsx';
 import StatusCard from '../components/StatusCard.jsx';
 import ResourceList from '../components/ResourceList.jsx';
@@ -59,27 +58,25 @@ function DashboardPage() {
   };
 
   return (
-    <Stack gap={4}>
-      <Row className="g-4 align-items-stretch">
-        <Col xs={12} md={5} lg={4} className="d-flex">
+    <div className="space-y-6 pb-24">
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-6">
           <UploadForm
             onCreated={handleCreated}
             defaultTemplate={config?.defaultTemplate || ''}
             defaultParticipants={defaultParticipants}
           />
-        </Col>
-        <Col xs={12} md={7} lg={8}>
-          <Stack gap={4} className="h-100">
-            <StatusCard job={currentJob} />
-            <ResourceList resources={currentJob?.resources || []} />
-            <LogsPanel
-              jobId={currentJob?.id}
-              polling={currentJob && currentJob.status !== 'done' && currentJob.status !== 'error'}
-            />
-          </Stack>
-        </Col>
-      </Row>
-    </Stack>
+        </div>
+        <div className="space-y-6">
+          <StatusCard job={currentJob} />
+          <ResourceList resources={currentJob?.resources || []} />
+        </div>
+      </div>
+      <LogsPanel
+        jobId={currentJob?.id}
+        polling={currentJob && currentJob.status !== 'done' && currentJob.status !== 'error'}
+      />
+    </div>
   );
 }
 

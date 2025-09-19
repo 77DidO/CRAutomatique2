@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Card, Col, Row, Stack } from 'react-bootstrap';
 import ItemTabs from '../components/ItemTabs.jsx';
 import { fetchItem } from '../services/api.js';
 
@@ -52,152 +51,135 @@ function ItemDetailPage() {
     switch (tab) {
       case 'overview':
         return (
-          <Card className="shadow-sm border-0">
-            <Card.Body>
-              <Stack gap={3}>
-                <div>
-                  <h4 className="mb-1">{item.title}</h4>
-                  <div className="text-muted small">Créé le {new Date(item.createdAt).toLocaleString()}</div>
-                  <div className="text-muted small">Gabarit : {item.template || '—'}</div>
+          <section className="surface-card result-card">
+            <div>
+              <h2 className="section-title m-0">{item.title}</h2>
+              <p className="text-sm text-base-content/70 m-0 mt-4">
+                Créé le {new Date(item.createdAt).toLocaleString()}
+              </p>
+              <p className="text-sm text-base-content/70 m-0">Gabarit : {item.template || '—'}</p>
+            </div>
+            {summaryHtml ? (
+              <div className="prose" dangerouslySetInnerHTML={{ __html: summaryHtml }} />
+            ) : item.summary ? (
+              <p className="m-0">{item.summary}</p>
+            ) : (
+              <p className="text-base-content/70 m-0">Résumé non disponible.</p>
+            )}
+            {item.resources?.length > 0 && (
+              <div>
+                <h3 className="section-title">Téléchargements</h3>
+                <div className="resource-list">
+                  {item.resources.map((resource) => (
+                    <a
+                      key={resource.url}
+                      href={resource.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="resource-link"
+                    >
+                      <span>{resource.type}</span>
+                      <span className="resource-link__suffix" aria-hidden>
+                        ↗
+                      </span>
+                    </a>
+                  ))}
                 </div>
-                {summaryHtml ? (
-                  <div
-                    className="border rounded-4 p-3"
-                    dangerouslySetInnerHTML={{ __html: summaryHtml }}
-                  />
-                ) : item.summary ? (
-                  <p className="mb-0">{item.summary}</p>
-                ) : (
-                  <p className="mb-0 text-muted">Résumé non disponible.</p>
-                )}
-                {item.resources?.length > 0 && (
-                  <div>
-                    <h6>Téléchargements</h6>
-                    <Stack direction="horizontal" gap={2} className="flex-wrap">
-                      {item.resources.map((resource) => (
-                        <Button
-                          key={resource.url}
-                          as="a"
-                          href={resource.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          variant="outline-primary"
-                        >
-                          {resource.type}
-                        </Button>
-                      ))}
-                    </Stack>
-                  </div>
-                )}
-              </Stack>
-            </Card.Body>
-          </Card>
+              </div>
+            )}
+          </section>
         );
       case 'audio': {
         const audioResource = item.resources?.find((resource) => resource.type === item.originalFilename);
         return (
-          <Card className="shadow-sm border-0">
-            <Card.Body className="d-flex flex-column gap-3">
-              <h4 className="mb-0">Source audio</h4>
-              {audioResource ? (
-                <audio controls src={audioResource.url} className="w-100" />
-              ) : (
-                <p className="mb-0 text-muted">Audio non disponible.</p>
-              )}
-            </Card.Body>
-          </Card>
+          <section className="surface-card result-card">
+            <h2 className="section-title m-0">Source audio</h2>
+            {audioResource ? (
+              <audio controls src={audioResource.url} className="audio-player" />
+            ) : (
+              <p className="text-base-content/70 m-0">Audio non disponible.</p>
+            )}
+          </section>
         );
       }
       case 'texts':
         return (
-          <Card className="shadow-sm border-0">
-            <Card.Body className="d-flex flex-column gap-3">
-              <h4 className="mb-0">Transcriptions</h4>
-              <Row className="g-3">
-                <Col xs={12} md={6}>
-                  <Stack gap={2}>
-                    <h6 className="mb-0">Brut</h6>
-                    <iframe
-                      title="transcription-brute"
-                      src={`/api/assets/${item.id}/transcription_raw.txt`}
-                      className="w-100 rounded-4 border"
-                      style={{ minHeight: 260 }}
-                    />
-                  </Stack>
-                </Col>
-                <Col xs={12} md={6}>
-                  <Stack gap={2}>
-                    <h6 className="mb-0">Nettoyé</h6>
-                    <iframe
-                      title="transcription-nettoyee"
-                      src={`/api/assets/${item.id}/transcription_clean.txt`}
-                      className="w-100 rounded-4 border"
-                      style={{ minHeight: 260 }}
-                    />
-                  </Stack>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
+          <section className="surface-card result-card">
+            <h2 className="section-title m-0">Transcriptions</h2>
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-6">
+                <h3 className="section-title m-0">Brut</h3>
+                <iframe
+                  title="transcription-brute"
+                  src={`/api/assets/${item.id}/transcription_raw.txt`}
+                  className="w-full rounded-xl border border-base-300"
+                  style={{ minHeight: 260 }}
+                />
+              </div>
+              <div className="space-y-6">
+                <h3 className="section-title m-0">Nettoyé</h3>
+                <iframe
+                  title="transcription-nettoyee"
+                  src={`/api/assets/${item.id}/transcription_clean.txt`}
+                  className="w-full rounded-xl border border-base-300"
+                  style={{ minHeight: 260 }}
+                />
+              </div>
+            </div>
+          </section>
         );
       case 'markdown':
         return (
-          <Card className="shadow-sm border-0">
-            <Card.Body className="d-flex flex-column gap-3">
-              <h4 className="mb-0">Compte rendu Markdown</h4>
-              <iframe
-                title="markdown"
-                src={`/api/assets/${item.id}/summary.md`}
-                className="w-100 rounded-4 border"
-                style={{ minHeight: 260 }}
-              />
-            </Card.Body>
-          </Card>
+          <section className="surface-card result-card">
+            <h2 className="section-title m-0">Compte rendu Markdown</h2>
+            <iframe
+              title="markdown"
+              src={`/api/assets/${item.id}/summary.md`}
+              className="w-full rounded-xl border border-base-300"
+              style={{ minHeight: 260 }}
+            />
+          </section>
         );
       case 'vtt':
         return (
-          <Card className="shadow-sm border-0">
-            <Card.Body className="d-flex flex-column gap-3">
-              <h4 className="mb-0">Sous-titres WebVTT</h4>
-              <iframe
-                title="vtt"
-                src={`/api/assets/${item.id}/subtitles.vtt`}
-                className="w-100 rounded-4 border"
-                style={{ minHeight: 260 }}
-              />
-            </Card.Body>
-          </Card>
+          <section className="surface-card result-card">
+            <h2 className="section-title m-0">Sous-titres WebVTT</h2>
+            <iframe
+              title="vtt"
+              src={`/api/assets/${item.id}/subtitles.vtt`}
+              className="w-full rounded-xl border border-base-300"
+              style={{ minHeight: 260 }}
+            />
+          </section>
         );
       default:
         return <p>Onglet inconnu</p>;
     }
   };
 
+  const totalDuration = diarization.reduce((acc, entry) => acc + entry.duration, 0);
+
   return (
-    <Stack gap={3}>
+    <div className="space-y-6 pb-48">
       <ItemTabs />
       {diarization.length > 0 ? (
-        <Card className="shadow-sm border-0">
-          <Card.Body className="d-flex flex-column gap-3">
-            <h5 className="mb-0">Diarisation</h5>
-            <Stack gap={2}>
-              {diarization.map((entry) => (
-                <div
-                  key={entry.speaker}
-                  className="d-flex justify-content-between align-items-center border rounded-4 px-3 py-2"
-                >
-                  <span className="fw-semibold">{entry.speaker}</span>
-                  <span className="text-muted">{entry.duration.toFixed(1)}s</span>
-                </div>
-              ))}
-            </Stack>
-          </Card.Body>
-        </Card>
+        <div className="diarization-summary">
+          {diarization.map((entry) => {
+            const percentage = totalDuration ? ((entry.duration / totalDuration) * 100).toFixed(1) : null;
+            return (
+              <div key={entry.speaker} className="diarization-card">
+                <p className="diarization-card__title">{entry.speaker}</p>
+                <p className="diarization-card__metric">{entry.duration.toFixed(1)} s</p>
+                {percentage && <p className="diarization-card__meta">{percentage}% du temps</p>}
+              </div>
+            );
+          })}
+        </div>
       ) : (
-        <p className="text-muted">Aucune information de diarisation.</p>
+        <p className="text-base-content/70">Aucune information de diarisation.</p>
       )}
       {renderContent()}
-    </Stack>
+    </div>
   );
 }
 
