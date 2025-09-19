@@ -64,8 +64,22 @@ function normalizeTemplateList(templates) {
   return sanitized.length > 0 ? sanitized : DEFAULT_TEMPLATES.map((template) => ({ ...template }));
 }
 
+function normalizeRubricsList(rubrics) {
+  if (!Array.isArray(rubrics)) {
+    return [];
+  }
+  return rubrics
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter((item) => item.length > 0);
+}
+
 export function buildSummaryPrompt(templateId, text, options = {}) {
-  const { templates = DEFAULT_TEMPLATES, languageInstruction = LANGUAGE_INSTRUCTION, defaultTemplateId } = options;
+  const {
+    templates = DEFAULT_TEMPLATES,
+    languageInstruction = LANGUAGE_INSTRUCTION,
+    defaultTemplateId,
+    rubrics
+  } = options;
   const availableTemplates = normalizeTemplateList(templates);
   const fallbackId = defaultTemplateId && availableTemplates.some((tpl) => tpl.id === defaultTemplateId)
     ? defaultTemplateId
@@ -91,7 +105,17 @@ export function buildSummaryPrompt(templateId, text, options = {}) {
   const replacePlaceholder = (value, placeholder, replacement) => value.split(placeholder).join(replacement);
 
   const withInstruction = replacePlaceholder(safePromptTemplate, '{language_instruction}', resolvedInstruction);
-  return replacePlaceholder(withInstruction, '{text}', safeText);
+
+  const normalizedRubrics = normalizeRubricsList(rubrics);
+  const rubricsList = normalizedRubrics.map((item, index) => `${index + 1}. ${item}`).join('\n');
+  let promptWithRubrics = replacePlaceholder(withInstruction, '{rubrics}', rubricsList);
+
+  if (normalizedRubrics.length > 0 && !withInstruction.includes('{rubrics}')) {
+    const instruction = `\n\nStructure le résumé avec les rubriques suivantes (dans l'ordre) :\n${rubricsList}`;
+    promptWithRubrics = `${withInstruction}${instruction}`;
+  }
+
+  return replacePlaceholder(promptWithRubrics, '{text}', safeText);
 }
 
 export { normalizeTemplateList as ensureTemplateList };

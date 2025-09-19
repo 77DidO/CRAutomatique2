@@ -9,6 +9,8 @@ const DEFAULT_DIARIZATION = {
   max_speakers: null
 };
 
+const DEFAULT_RUBRICS = ['Thème', 'Participants', 'Décisions', 'Actions à venir'];
+
 const parseBoolean = (value) => {
   if (typeof value === 'boolean') {
     return value;
@@ -53,17 +55,35 @@ const ensureDiarizationDraft = (rawValue) => {
   };
 };
 
+const ensureRubricDraft = (rubrics) => {
+  if (!Array.isArray(rubrics) || rubrics.length === 0) {
+    return [...DEFAULT_RUBRICS];
+  }
+
+  const sanitized = rubrics
+    .map((rubric) => (typeof rubric === 'string' ? rubric.trim() : ''))
+    .filter((rubric) => rubric.length > 0);
+
+  if (sanitized.length === 0) {
+    return [...DEFAULT_RUBRICS];
+  }
+
+  return sanitized;
+};
+
 const prepareDraft = (config) => {
   if (!config || typeof config !== 'object') {
     return {
-      diarization: { ...DEFAULT_DIARIZATION }
+      diarization: { ...DEFAULT_DIARIZATION },
+      rubrics: [...DEFAULT_RUBRICS]
     };
   }
 
-  const { defaultTemplate, participants, diarization, templates: _templates, ...rest } = config;
+  const { defaultTemplate, participants, diarization, templates: _templates, rubrics, ...rest } = config;
   return {
     ...rest,
-    diarization: ensureDiarizationDraft(diarization)
+    diarization: ensureDiarizationDraft(diarization),
+    rubrics: ensureRubricDraft(rubrics)
   };
 };
 
@@ -226,6 +246,41 @@ function ConfigPage() {
     }));
   };
 
+  const handleRubricChange = (index) => (event) => {
+    const { value } = event.target;
+    setDraft((prev) => {
+      const previous = Array.isArray(prev?.rubrics) ? prev.rubrics : [];
+      const nextRubrics = previous.map((rubric, rubricIndex) =>
+        rubricIndex === index ? value : rubric
+      );
+      return {
+        ...prev,
+        rubrics: nextRubrics
+      };
+    });
+  };
+
+  const handleRemoveRubric = (index) => () => {
+    setDraft((prev) => {
+      const previous = Array.isArray(prev?.rubrics) ? prev.rubrics : [];
+      const nextRubrics = previous.filter((_, rubricIndex) => rubricIndex !== index);
+      return {
+        ...prev,
+        rubrics: nextRubrics
+      };
+    });
+  };
+
+  const handleAddRubric = () => {
+    setDraft((prev) => {
+      const previous = Array.isArray(prev?.rubrics) ? prev.rubrics : [];
+      return {
+        ...prev,
+        rubrics: [...previous, '']
+      };
+    });
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -267,6 +322,11 @@ function ConfigPage() {
 
     const chunkSize = sanitizeNumber(payload.chunkSize, (number) => Number.isFinite(number) && number > 0);
     const chunkOverlap = sanitizeNumber(payload.chunkOverlap, (number) => Number.isFinite(number) && number >= 0);
+
+    const normalizedRubrics = Array.isArray(draft.rubrics) ? draft.rubrics : [];
+    payload.rubrics = normalizedRubrics
+      .map((rubric) => (typeof rubric === 'string' ? rubric.trim() : ''))
+      .filter((rubric) => rubric.length > 0);
 
     if (chunkSize === undefined) {
       delete payload.chunkSize;
@@ -332,6 +392,7 @@ function ConfigPage() {
   const providers = draft.providers || {};
   const chatgpt = providers.chatgpt || {};
   const ollama = providers.ollama || {};
+  const rubrics = Array.isArray(draft.rubrics) ? draft.rubrics : [];
 
   return (
     <section className="surface-card">
@@ -421,6 +482,56 @@ function ConfigPage() {
               onChange={handleChange}
             />
           </label>
+
+          <div className="space-y-3 rounded-xl border border-base-300 bg-base-200/60 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="m-0 text-lg font-semibold">Rubriques du résumé</h3>
+                <p className="text-base-content/70 m-0">
+                  Définissez l'ordre et l'intitulé des sections utilisées lors de la génération des comptes rendus.
+                </p>
+              </div>
+              <button type="button" className="btn btn-outline btn-sm" onClick={handleAddRubric}>
+                Ajouter une rubrique
+              </button>
+            </div>
+
+            {rubrics.length === 0 ? (
+              <p className="m-0 italic text-base-content/70">
+                Aucune rubrique définie. Ajoutez-en pour guider la structure des synthèses.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {rubrics.map((rubric, index) => {
+                  const inputId = `rubric-${index}`;
+                  return (
+                    <div key={inputId} className="space-y-2 rounded-lg border border-base-300 bg-base-100 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <label className="form-label m-0" htmlFor={inputId}>
+                          Rubrique {index + 1}
+                        </label>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={handleRemoveRubric(index)}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                      <input
+                        id={inputId}
+                        type="text"
+                        className="input input-bordered w-full"
+                        value={rubric}
+                        onChange={handleRubricChange(index)}
+                        placeholder={`Titre de rubrique ${index + 1}`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-6">
