@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import MarkdownReport from './MarkdownReport.jsx';
 const STEP_ORDER = ['queued', 'preconvert', 'transcribe', 'clean', 'summarize', 'done'];
 
 function StatusCard({ job }) {
@@ -24,6 +25,8 @@ function StatusCard({ job }) {
     }
     return 'chip';
   })();
+
+  const summaryResource = job.resources?.find((resource) => resource.type === 'summary.md');
 
   return (
     <section className="surface-card status-summary">
@@ -82,10 +85,16 @@ function StatusCard({ job }) {
         </div>
       )}
 
-      {job.summary && job.status === 'done' && (
-        <div className="prose">
-          <h3>Résumé</h3>
-          <p>{job.summary.slice(0, 280)}…</p>
+      {job.status === 'done' && (
+        <div>
+          <h3 className="section-title m-0">Compte rendu</h3>
+          {summaryResource ? (
+            <MarkdownReport resourceUrl={summaryResource.url} preview />
+          ) : job.summary ? (
+            <p className="m-0">{job.summary}</p>
+          ) : (
+            <p className="text-base-content/70 m-0">Le compte rendu est en cours de préparation…</p>
+          )}
         </div>
       )}
 
@@ -103,7 +112,13 @@ StatusCard.propTypes = {
     participants: PropTypes.arrayOf(PropTypes.string),
     progress: PropTypes.number,
     summary: PropTypes.string,
-    error: PropTypes.string
+    error: PropTypes.string,
+    resources: PropTypes.arrayOf(
+      PropTypes.shape({
+        type: PropTypes.string,
+        url: PropTypes.string
+      })
+    )
   })
 };
 

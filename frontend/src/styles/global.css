@@ -200,6 +200,107 @@ textarea {
   font-weight: 600;
 }
 
+.markdown-report {
+  position: relative;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-soft);
+  color: inherit;
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.markdown-report:hover {
+  border-color: var(--color-primary-border);
+  box-shadow: var(--shadow-soft);
+}
+
+.markdown-report__content {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.markdown-report__content pre {
+  padding: 0.75rem;
+  background: var(--color-logs-text-bg);
+  border-radius: 0.75rem;
+}
+
+.markdown-report__content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  font-size: 0.95rem;
+}
+
+.markdown-report__content table th,
+.markdown-report__content table td {
+  border: 1px solid var(--color-table-border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.markdown-report__content table thead {
+  background: var(--color-table-header);
+}
+
+.markdown-report--preview {
+  padding-bottom: 0.75rem;
+}
+
+.markdown-report--clamped .markdown-report__content {
+  max-height: 14rem;
+  overflow: hidden;
+}
+
+.markdown-report--clamped::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2.75rem;
+  height: 3.5rem;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), var(--color-surface-soft));
+}
+
+[data-theme='dark'] .markdown-report--clamped::after {
+  background: linear-gradient(to bottom, rgba(15, 23, 42, 0), var(--color-surface-soft));
+}
+
+.markdown-report__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.markdown-report__toggle {
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.markdown-report__toggle:hover,
+.markdown-report__toggle:focus-visible {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+}
+
+.markdown-report--loading,
+.markdown-report--error,
+.markdown-report--empty {
+  padding: 1rem 1.25rem;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-soft);
+}
+
 .font-mono {
   font-family: var(--font-mono);
 }
