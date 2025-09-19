@@ -135,10 +135,17 @@ async function transcribeWithOpenAI(
     });
   } catch (error) {
     const errorMessage = error?.error?.message || error?.message || '';
-    if (
+    const normalizedMessage = errorMessage.toLowerCase();
+    const shouldRetryWithJson =
       preferredFormat === 'verbose_json'
-      && /verbose_json/i.test(errorMessage || '')
-    ) {
+      && (
+        /verbose_json/.test(normalizedMessage)
+        || /response[_\s-]*format/.test(normalizedMessage)
+        || /format/.test(normalizedMessage)
+        || error?.status === 400
+      );
+
+    if (shouldRetryWithJson) {
       warn(
         "Le format de réponse 'verbose_json' n'est pas disponible, tentative avec le format 'json'.",
         { model: effectiveModel, message: errorMessage }
