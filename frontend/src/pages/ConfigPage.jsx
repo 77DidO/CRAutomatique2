@@ -135,7 +135,6 @@ function ConfigPage() {
               </Stack>
             </div>
 
-
             <div>
               <h5>Pipeline</h5>
               <Stack gap={2} className="mt-3">
@@ -155,6 +154,7 @@ function ConfigPage() {
                   checked={draft.enableSummary}
                   onChange={handleChange}
                 />
+
               </Stack>
             </div>
 
