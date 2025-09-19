@@ -16,6 +16,7 @@ const DEFAULT_CONFIG = {
   enableSummary: true,
   llmProvider: 'chatgpt',
   rubrics: ['Thème', 'Participants', 'Décisions', 'Actions à venir'],
+
   transcription: {
     provider: 'openai',
     openai: {
@@ -189,6 +190,7 @@ function normalizeConfig(config = {}) {
     providers: rawProviders,
     transcription: rawTranscription,
     diarization: rawDiarization,
+    ui: rawUI,
     openaiModel,
     openaiApiKey,
     openaiBaseUrl,
@@ -227,7 +229,9 @@ function normalizeConfig(config = {}) {
     }),
     transcription: mergeTranscription(rawTranscription),
     templates: mergedTemplates,
+ codex/add-rubrics-to-config-and-update-ui
     rubrics: normalizeRubrics(rawRubrics)
+
   };
 
   const provider = merged.llmProvider === 'openai' ? 'chatgpt' : merged.llmProvider;
