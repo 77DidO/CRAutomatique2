@@ -13,6 +13,21 @@ const DEFAULT_CONFIG = {
   diarization: true,
   enableSummary: true,
   llmProvider: 'chatgpt',
+  transcription: {
+    provider: 'openai',
+    openai: {
+      model: 'gpt-4o-mini-transcribe',
+      language: '',
+      baseUrl: '',
+      apiKey: ''
+    },
+    whisper: {
+      binaryPath: 'whisper',
+      model: 'small',
+      language: '',
+      additionalArgs: []
+    }
+  },
   providers: {
     chatgpt: {
       label: 'ChatGPT (OpenAI)',
@@ -32,6 +47,33 @@ const DEFAULT_CONFIG = {
 };
 
 let cachedConfig = null;
+
+function mergeTranscription(raw = {}) {
+  const base = JSON.parse(JSON.stringify(DEFAULT_CONFIG.transcription));
+  if (!raw || typeof raw !== 'object') {
+    return base;
+  }
+
+  const provider = typeof raw.provider === 'string' ? raw.provider : base.provider;
+  const openai = {
+    ...base.openai,
+    ...(raw.openai && typeof raw.openai === 'object' ? raw.openai : {})
+  };
+  const whisper = {
+    ...base.whisper,
+    ...(raw.whisper && typeof raw.whisper === 'object' ? raw.whisper : {})
+  };
+
+  if (!Array.isArray(whisper.additionalArgs)) {
+    whisper.additionalArgs = base.whisper.additionalArgs.slice();
+  }
+
+  return {
+    provider,
+    openai,
+    whisper
+  };
+}
 
 function mergeProviders(rawProviders = {}, legacyConfig = {}) {
   const providers = Object.fromEntries(
@@ -68,6 +110,7 @@ function mergeProviders(rawProviders = {}, legacyConfig = {}) {
 function normalizeConfig(config = {}) {
   const {
     providers: rawProviders,
+    transcription: rawTranscription,
     openaiModel,
     openaiApiKey,
     openaiBaseUrl,
@@ -96,7 +139,8 @@ function normalizeConfig(config = {}) {
       openaiBaseUrl,
       ollamaModel,
       ollamaCommand
-    })
+    }),
+    transcription: mergeTranscription(rawTranscription)
   };
 
   const provider = merged.llmProvider === 'openai' ? 'chatgpt' : merged.llmProvider;
@@ -133,6 +177,16 @@ export function saveConfig(partialConfig) {
   cachedConfig = nextConfig;
   info('Configuration sauvegardée.', { llmProvider: cachedConfig.llmProvider });
   return cachedConfig;
+}
+
+export function getOpenAIApiKey() {
+  const config = getConfig();
+  return (
+    config?.transcription?.openai?.apiKey
+      || config?.providers?.chatgpt?.apiKey
+      || process.env.OPENAI_API_KEY
+      || ''
+  );
 }
 
 export { CONFIG_PATH };
