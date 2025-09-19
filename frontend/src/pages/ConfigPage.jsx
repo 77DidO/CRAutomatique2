@@ -1,18 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Button,
-  FormControl,
-  FormControlLabel,
-  Grid,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  Stack,
-  Switch,
-  TextField,
-  Typography
-} from '@mui/material';
+import { Button, Card, Col, Form, Row, Stack } from 'react-bootstrap';
 import { fetchConfig, updateConfig } from '../services/api.js';
 
 function ConfigPage() {
@@ -107,159 +94,152 @@ function ConfigPage() {
   const ollama = providers.ollama || {};
 
   return (
-    <Paper component="form" onSubmit={handleSubmit} elevation={0} sx={{ p: 3 }}>
-      <Stack spacing={3}>
-        <Typography variant="h5">Configuration</Typography>
+    <Card className="shadow-sm border-0">
+      <Card.Body>
+        <Form onSubmit={handleSubmit} className="d-flex flex-column gap-4">
+          <div>
+            <h4>Configuration</h4>
+          </div>
 
-        <Stack spacing={2}>
-          <Typography variant="h6">Général</Typography>
-          <TextField
-            label="Gabarit par défaut"
-            name="defaultTemplate"
-            value={draft.defaultTemplate || ''}
-            onChange={handleChange}
-            fullWidth
-          />
-          <TextField
-            label="Participants par défaut"
-            name="participants"
-            value={(draft.participants || []).join(', ')}
-            onChange={(event) =>
-              setDraft((prev) => ({
-                ...prev,
-                participants: event.target.value
-                  .split(',')
-                  .map((item) => item.trim())
-                  .filter(Boolean)
-              }))
-            }
-            helperText="Séparer les participants par une virgule"
-            fullWidth
-          />
-        </Stack>
+          <Stack gap={3}>
+            <div>
+              <h5>Général</h5>
+              <Stack gap={3} className="mt-3">
+                <Form.Group controlId="defaultTemplate">
+                  <Form.Label>Gabarit par défaut</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="defaultTemplate"
+                    value={draft.defaultTemplate || ''}
+                    onChange={handleChange}
+                  />
+                </Form.Group>
+                <Form.Group controlId="participants">
+                  <Form.Label>Participants par défaut</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="participants"
+                    value={(draft.participants || []).join(', ')}
+                    onChange={(event) =>
+                      setDraft((prev) => ({
+                        ...prev,
+                        participants: event.target.value
+                          .split(',')
+                          .map((item) => item.trim())
+                          .filter(Boolean)
+                      }))
+                    }
+                  />
+                  <Form.Text>Séparer les participants par une virgule</Form.Text>
+                </Form.Group>
+              </Stack>
+            </div>
 
-        <Stack spacing={2}>
-          <Typography variant="h6">Pipeline</Typography>
-          <FormControlLabel
-            control={<Switch name="diarization" checked={draft.diarization} onChange={handleChange} />}
-            label="Activer la diarisation"
-          />
-          <FormControlLabel
-            control={<Switch name="enableSummary" checked={draft.enableSummary} onChange={handleChange} />}
-            label="Générer la synthèse Markdown"
-          />
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Taille des segments"
-                name="chunkSize"
-                type="number"
-                value={draft.chunkSize ?? ''}
-                onChange={handleChange}
-                helperText="Nombre de caractères utilisés pour découper la transcription"
-                inputProps={{ min: 1, step: 50 }}
-                fullWidth
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Chevauchement des segments"
-                name="chunkOverlap"
-                type="number"
-                value={draft.chunkOverlap ?? ''}
-                onChange={handleChange}
-                helperText="Nombre de caractères partagés entre deux segments"
-                inputProps={{ min: 0, step: 10 }}
-                fullWidth
-              />
-            </Grid>
-          </Grid>
-        </Stack>
 
-        <Stack spacing={2}>
-          <Typography variant="h6">LLM</Typography>
-          <FormControl fullWidth>
-            <InputLabel id="llm-provider-label">Fournisseur</InputLabel>
-            <Select
-              labelId="llm-provider-label"
-              name="llmProvider"
-              value={draft.llmProvider}
-              label="Fournisseur"
-              onChange={handleChange}
-            >
-              <MenuItem value="chatgpt">ChatGPT (OpenAI)</MenuItem>
-              <MenuItem value="ollama">Ollama</MenuItem>
-            </Select>
-          </FormControl>
+            <div>
+              <h5>Pipeline</h5>
+              <Stack gap={2} className="mt-3">
+                <Form.Check
+                  type="switch"
+                  id="diarization"
+                  name="diarization"
+                  label="Activer la diarisation"
+                  checked={draft.diarization}
+                  onChange={handleChange}
+                />
+                <Form.Check
+                  type="switch"
+                  id="enableSummary"
+                  name="enableSummary"
+                  label="Générer la synthèse Markdown"
+                  checked={draft.enableSummary}
+                  onChange={handleChange}
+                />
+              </Stack>
+            </div>
 
-          {draft.llmProvider === 'ollama' ? (
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Modèle Ollama"
-                  value={ollama.model || ''}
-                  onChange={handleProviderChange('ollama', 'model')}
-                  fullWidth
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Commande Ollama"
-                  value={ollama.command || ''}
-                  onChange={handleProviderChange('ollama', 'command')}
-                  fullWidth
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  label="Hôte Ollama"
-                  value={ollama.host || ''}
-                  onChange={handleProviderChange('ollama', 'host')}
-                  placeholder="http://localhost:11434"
-                  fullWidth
-                />
-              </Grid>
-            </Grid>
-          ) : (
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  label="Modèle ChatGPT"
-                  value={chatgpt.model || ''}
-                  onChange={handleProviderChange('chatgpt', 'model')}
-                  fullWidth
-                />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  label="Clé API ChatGPT"
-                  type="password"
-                  value={chatgpt.apiKey || ''}
-                  onChange={handleProviderChange('chatgpt', 'apiKey')}
-                  placeholder="sk-..."
-                  fullWidth
-                />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  label="Base URL (optionnel)"
-                  value={chatgpt.baseUrl || ''}
-                  onChange={handleProviderChange('chatgpt', 'baseUrl')}
-                  placeholder="https://api.openai.com/v1"
-                  fullWidth
-                />
-              </Grid>
-            </Grid>
-          )}
-        </Stack>
+            <div>
+              <h5>LLM</h5>
+              <Stack gap={3} className="mt-3">
+                <Form.Group controlId="llmProvider">
+                  <Form.Label>Fournisseur</Form.Label>
+                  <Form.Select name="llmProvider" value={draft.llmProvider} onChange={handleChange}>
+                    <option value="chatgpt">ChatGPT (OpenAI)</option>
+                    <option value="ollama">Ollama</option>
+                  </Form.Select>
+                </Form.Group>
 
-        <Stack direction="row" justifyContent="flex-end">
-          <Button type="submit" disabled={!hasChanged || saving}>
-            {saving ? 'Enregistrement...' : 'Sauvegarder'}
-          </Button>
-        </Stack>
-      </Stack>
-    </Paper>
+                {draft.llmProvider === 'ollama' ? (
+                  <Row className="g-3">
+                    <Col xs={12} md={6}>
+                      <Form.Group controlId="ollamaModel">
+                        <Form.Label>Modèle Ollama</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={ollama.model || ''}
+                          onChange={handleProviderChange('ollama', 'model')}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col xs={12} md={6}>
+                      <Form.Group controlId="ollamaCommand">
+                        <Form.Label>Commande Ollama</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={ollama.command || ''}
+                          onChange={handleProviderChange('ollama', 'command')}
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                ) : (
+                  <Row className="g-3">
+                    <Col xs={12} md={4}>
+                      <Form.Group controlId="chatgptModel">
+                        <Form.Label>Modèle ChatGPT</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={chatgpt.model || ''}
+                          onChange={handleProviderChange('chatgpt', 'model')}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col xs={12} md={4}>
+                      <Form.Group controlId="chatgptApiKey">
+                        <Form.Label>Clé API ChatGPT</Form.Label>
+                        <Form.Control
+                          type="password"
+                          value={chatgpt.apiKey || ''}
+                          onChange={handleProviderChange('chatgpt', 'apiKey')}
+                          placeholder="sk-..."
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col xs={12} md={4}>
+                      <Form.Group controlId="chatgptBaseUrl">
+                        <Form.Label>Base URL (optionnel)</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={chatgpt.baseUrl || ''}
+                          onChange={handleProviderChange('chatgpt', 'baseUrl')}
+                          placeholder="https://api.openai.com/v1"
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                )}
+              </Stack>
+            </div>
+          </Stack>
+
+          <div className="d-flex justify-content-end">
+            <Button type="submit" disabled={!hasChanged || saving}>
+              {saving ? 'Enregistrement...' : 'Sauvegarder'}
+            </Button>
+          </div>
+        </Form>
+      </Card.Body>
+    </Card>
   );
 }
 

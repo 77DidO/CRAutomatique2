@@ -1,14 +1,6 @@
 import PropTypes from 'prop-types';
 import { Link as RouterLink } from 'react-router-dom';
-import {
-  AppBar,
-  Box,
-  Container,
-  Tab,
-  Tabs,
-  Toolbar,
-  Typography
-} from '@mui/material';
+import { Container, Nav, Navbar } from 'react-bootstrap';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Dashboard' },
@@ -20,52 +12,32 @@ function Layout({ currentPath, children }) {
   const active =
     NAV_ITEMS.find((item) => item.path !== '/' && currentPath.startsWith(item.path)) || NAV_ITEMS[0];
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar
-        position="sticky"
-        color="transparent"
-        elevation={0}
-        sx={{
-          backdropFilter: 'blur(16px)',
-          borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-          py: { xs: 1.5, md: 2.5 }
-        }}
-      >
-        <Toolbar sx={{ display: 'flex', alignItems: 'center', gap: { xs: 2, md: 4 }, flexWrap: 'wrap' }}>
-          <Typography variant="h6" color="text.primary" sx={{ flexGrow: { xs: 1, md: 0 } }}>
-            Compte rendu automatique
-          </Typography>
-          <Tabs
-            value={active.path}
-            textColor="primary"
-            indicatorColor="primary"
-            variant="scrollable"
-            scrollButtons="auto"
-            onChange={() => {}}
-            sx={{ ml: { xs: 0, md: 'auto' } }}
-          >
-            {NAV_ITEMS.map((item) => (
-              <Tab
-                key={item.path}
-                label={item.label}
-                value={item.path}
-                component={RouterLink}
-                to={item.path}
-                sx={{
-                  borderRadius: 999,
-                  '&.Mui-selected': {
-                    fontWeight: 600
-                  }
-                }}
-              />
-            ))}
-          </Tabs>
-        </Toolbar>
-      </AppBar>
-      <Container component="main" maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+    <div className="min-vh-100 bg-light">
+      <Navbar bg="white" expand="md" className="shadow-sm border-bottom sticky-top" collapseOnSelect>
+        <Container>
+          <Navbar.Brand className="fw-semibold text-primary">Compte rendu automatique</Navbar.Brand>
+          <Navbar.Toggle aria-controls="main-nav" />
+          <Navbar.Collapse id="main-nav" className="justify-content-end">
+            <Nav activeKey={active.path} className="gap-1">
+              {NAV_ITEMS.map((item) => (
+                <Nav.Link
+                  key={item.path}
+                  as={RouterLink}
+                  to={item.path}
+                  eventKey={item.path}
+                  className="rounded-pill px-3"
+                >
+                  {item.label}
+                </Nav.Link>
+              ))}
+            </Nav>
+          </Navbar.Collapse>
+        </Container>
+      </Navbar>
+      <Container as="main" className="py-4 py-md-5">
         {children}
       </Container>
-    </Box>
+    </div>
   );
 }
 

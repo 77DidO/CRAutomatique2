@@ -1,13 +1,6 @@
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Box,
-  Typography
-} from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { Accordion } from 'react-bootstrap';
 import { fetchLogs } from '../services/api.js';
 
 function LogsPanel({ jobId, polling }) {
@@ -48,29 +41,18 @@ function LogsPanel({ jobId, polling }) {
 
   return (
     <Accordion
-      elevation={0}
-      disableGutters
-      expanded={expanded}
-      onChange={() => setExpanded((prev) => !prev)}
-      sx={{ border: (theme) => `1px solid ${theme.palette.divider}`, borderRadius: 3 }}
+      activeKey={expanded ? '0' : null}
+      onSelect={(eventKey) => setExpanded(eventKey === '0')}
+      className="shadow-sm border-0"
     >
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Typography variant="subtitle1">Logs</Typography>
-      </AccordionSummary>
-      <AccordionDetails>
-        <Box
-          component="pre"
-          sx={{
-            m: 0,
-            maxHeight: 260,
-            overflow: 'auto',
-            fontFamily: 'monospace',
-            fontSize: '0.85rem'
-          }}
-        >
-          {logs.join('\n')}
-        </Box>
-      </AccordionDetails>
+      <Accordion.Item eventKey="0">
+        <Accordion.Header>Logs</Accordion.Header>
+        <Accordion.Body>
+          <pre className="mb-0 bg-light rounded p-3" style={{ maxHeight: 260, overflow: 'auto' }}>
+            {logs.join('\n')}
+          </pre>
+        </Accordion.Body>
+      </Accordion.Item>
     </Accordion>
   );
 }

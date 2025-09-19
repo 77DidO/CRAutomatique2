@@ -1,20 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  Stack,
-  TextField,
-  Typography
-} from '@mui/material';
-import { CloudUpload as CloudUploadIcon } from '@mui/icons-material';
+import { Alert, Badge, Button, Card, Form, Stack } from 'react-bootstrap';
 import { createItem, fetchTemplates } from '../services/api.js';
 
 function UploadForm({ onCreated, defaultTemplate, defaultParticipants }) {
@@ -73,87 +59,75 @@ function UploadForm({ onCreated, defaultTemplate, defaultParticipants }) {
   );
 
   return (
-    <Paper component="form" onSubmit={handleSubmit} elevation={0} sx={{ p: 3, width: '100%' }}>
-      <Stack spacing={3}>
-        <Stack spacing={1}>
-          <Typography variant="subtitle2" color="text.secondary">
-            Fichier audio / vidéo
-          </Typography>
-          <Button component="label" startIcon={<CloudUploadIcon />} variant="outlined">
-            {file ? 'Changer de fichier' : 'Sélectionner un fichier'}
-            <input
-              id="file"
+    <Card className="w-100 shadow-sm border-0 flex-fill">
+      <Card.Body>
+        <Form onSubmit={handleSubmit} className="d-flex flex-column gap-3">
+          <div>
+            <Form.Label className="text-uppercase text-muted small">Fichier audio / vidéo</Form.Label>
+            <Form.Control
               type="file"
+              id="file"
               accept="audio/*,video/*"
-              hidden
               onChange={(event) => setFile(event.target.files?.[0] || null)}
             />
-          </Button>
-          {file && (
-            <Typography variant="body2" color="text.secondary">
-              {file.name}
-            </Typography>
-          )}
-        </Stack>
+            {file && <div className="text-muted small mt-1">{file.name}</div>}
+          </div>
 
-        <TextField
-          id="title"
-          label="Titre"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder="Nom du traitement"
-          fullWidth
-        />
+          <Form.Group controlId="title">
+            <Form.Label>Titre</Form.Label>
+            <Form.Control
+              type="text"
+              value={title}
+              placeholder="Nom du traitement"
+              onChange={(event) => setTitle(event.target.value)}
+            />
+          </Form.Group>
 
-        <FormControl fullWidth>
-          <InputLabel id="template-label">Gabarit</InputLabel>
-          <Select
-            labelId="template-label"
-            id="template"
-            value={template}
-            label="Gabarit"
-            onChange={(event) => setTemplate(event.target.value)}
-          >
-            <MenuItem value="">
-              <em>-- Choisir --</em>
-            </MenuItem>
-            {templates.map((item) => (
-              <MenuItem key={item.id} value={item.id}>
-                {item.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <Stack spacing={1}>
-          <TextField
-            id="participants"
-            label="Participants"
-            value={participants}
-            onChange={(event) => setParticipants(event.target.value)}
-            placeholder="Liste séparée par des virgules"
-            fullWidth
-          />
-          {participantList.length > 0 && (
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {participantList.map((participant) => (
-                <Chip key={participant} label={participant} color="secondary" variant="outlined" />
+          <Form.Group controlId="template">
+            <Form.Label>Gabarit</Form.Label>
+            <Form.Select value={template} onChange={(event) => setTemplate(event.target.value)}>
+              <option value="">-- Choisir --</option>
+              {templates.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
               ))}
-            </Box>
+            </Form.Select>
+          </Form.Group>
+
+          <Form.Group controlId="participants">
+            <Form.Label>Participants</Form.Label>
+            <Form.Control
+              type="text"
+              value={participants}
+              placeholder="Liste séparée par des virgules"
+              onChange={(event) => setParticipants(event.target.value)}
+            />
+            {participantList.length > 0 && (
+              <Stack direction="horizontal" gap={2} className="flex-wrap mt-2">
+                {participantList.map((participant) => (
+                  <Badge key={participant} bg="info" text="dark" pill>
+                    {participant}
+                  </Badge>
+                ))}
+              </Stack>
+            )}
+          </Form.Group>
+
+          {error && (
+            <Alert variant="danger" onClose={() => setError('')} dismissible>
+              {error}
+            </Alert>
           )}
-        </Stack>
 
-        {error && (
-          <Alert severity="error" onClose={() => setError('')}>
-            {error}
-          </Alert>
-        )}
-
-        <Button type="submit" disabled={loading} size="large">
-          {loading ? 'Traitement en cours...' : 'Lancer le traitement'}
-        </Button>
-      </Stack>
-    </Paper>
+          <div className="d-grid">
+            <Button type="submit" disabled={loading} size="lg">
+              {loading ? 'Traitement en cours...' : 'Lancer le traitement'}
+            </Button>
+          </div>
+        </Form>
+      </Card.Body>
+    </Card>
   );
 }
 

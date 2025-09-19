@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Grid, Stack } from '@mui/material';
+import { Col, Row, Stack } from 'react-bootstrap';
 import UploadForm from '../components/UploadForm.jsx';
 import StatusCard from '../components/StatusCard.jsx';
 import ResourceList from '../components/ResourceList.jsx';
@@ -59,17 +59,17 @@ function DashboardPage() {
   };
 
   return (
-    <Stack spacing={3}>
-      <Grid container spacing={3} alignItems="stretch">
-        <Grid item xs={12} md={5} lg={4} display="flex">
+    <Stack gap={4}>
+      <Row className="g-4 align-items-stretch">
+        <Col xs={12} md={5} lg={4} className="d-flex">
           <UploadForm
             onCreated={handleCreated}
             defaultTemplate={config?.defaultTemplate || ''}
             defaultParticipants={defaultParticipants}
           />
-        </Grid>
-        <Grid item xs={12} md={7} lg={8}>
-          <Stack spacing={3} height="100%">
+        </Col>
+        <Col xs={12} md={7} lg={8}>
+          <Stack gap={4} className="h-100">
             <StatusCard job={currentJob} />
             <ResourceList resources={currentJob?.resources || []} />
             <LogsPanel
@@ -77,8 +77,8 @@ function DashboardPage() {
               polling={currentJob && currentJob.status !== 'done' && currentJob.status !== 'error'}
             />
           </Stack>
-        </Grid>
-      </Grid>
+        </Col>
+      </Row>
     </Stack>
   );
 }
