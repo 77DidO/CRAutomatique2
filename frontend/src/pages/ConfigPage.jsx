@@ -18,9 +18,17 @@ function ConfigPage() {
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target;
+    let nextValue;
+    if (type === 'checkbox') {
+      nextValue = checked;
+    } else if (type === 'number') {
+      nextValue = value === '' ? '' : Number(value);
+    } else {
+      nextValue = value;
+    }
     setDraft((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: nextValue
     }));
   };
 
@@ -41,7 +49,37 @@ function ConfigPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
-    const next = await updateConfig(draft);
+    const payload = {
+      ...draft,
+      providers: Object.fromEntries(
+        Object.entries(draft.providers || {}).map(([key, value]) => [key, { ...value }])
+      )
+    };
+
+    const sanitizeNumber = (input, predicate) => {
+      if (input === '' || input === null || input === undefined) {
+        return undefined;
+      }
+      const parsed = Number(input);
+      return predicate(parsed) ? parsed : undefined;
+    };
+
+    const chunkSize = sanitizeNumber(payload.chunkSize, (number) => Number.isFinite(number) && number > 0);
+    const chunkOverlap = sanitizeNumber(payload.chunkOverlap, (number) => Number.isFinite(number) && number >= 0);
+
+    if (chunkSize === undefined) {
+      delete payload.chunkSize;
+    } else {
+      payload.chunkSize = chunkSize;
+    }
+
+    if (chunkOverlap === undefined) {
+      delete payload.chunkOverlap;
+    } else {
+      payload.chunkOverlap = chunkOverlap;
+    }
+
+    const next = await updateConfig(payload);
     setConfig(next);
     setDraft(next);
     setSaving(false);
@@ -96,6 +134,7 @@ function ConfigPage() {
                 </Form.Group>
               </Stack>
             </div>
+
 
             <div>
               <h5>Pipeline</h5>
