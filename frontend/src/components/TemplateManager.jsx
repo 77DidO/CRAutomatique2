@@ -118,82 +118,111 @@ export default function TemplateManager({ templates = [], onCreate, onUpdate, on
   };
 
   return (
-    <div className="template-manager">
-      <div className="template-grid">
-        <aside className="template-list">
-          <h3>Gabarits existants</h3>
-          {templates.length === 0 && <p className="helper">Aucun gabarit enregistré pour le moment.</p>}
-          <ul>
-            {templates.map((template) => (
-              <li key={template.id}>
+    <div className="space-y-6">
+      <div className="grid gap-6 md:grid-cols-2">
+        <aside className="bg-base-200/60 rounded-xl p-4 space-y-6">
+          <h3 className="section-title m-0">Gabarits existants</h3>
+          {templates.length === 0 && (
+            <p className="text-base-content/70 text-sm m-0">Aucun gabarit enregistré pour le moment.</p>
+          )}
+          {templates.length > 0 && (
+            <div className="diarization-segment-list">
+              {templates.map((template) => (
                 <button
+                  key={template.id}
                   type="button"
-                  className={template.id === selectedId ? 'active' : ''}
+                  className="w-full text-left"
                   onClick={() => setSelectedId(template.id)}
+                  style={{ border: 'none', background: 'transparent', padding: 0 }}
                 >
-                  <span className="template-name">{template.name}</span>
-                  <span className="template-description">{template.description || 'Sans description'}</span>
+                  <div
+                    className={`diarization-segment ${template.id === selectedId ? 'history-row--active' : ''}`}
+                  >
+                    <p className="m-0 font-medium text-base-content">{template.name}</p>
+                    <p className="m-0 text-xs text-base-content/70">
+                      {template.description || 'Sans description'}
+                    </p>
+                  </div>
                 </button>
-              </li>
-            ))}
-          </ul>
+              ))}
+            </div>
+          )}
         </aside>
-        <div className="template-editor">
+        <div className="bg-base-100 rounded-xl p-4 space-y-6 shadow-lg">
           {selectedTemplate ? (
-            <form onSubmit={handleEditSubmit}>
-              <div className="field">
-                <label htmlFor="template-name">Nom</label>
+            <form className="space-y-6" onSubmit={handleEditSubmit}>
+              <div className="form-field">
+                <label className="form-label" htmlFor="template-name">
+                  Nom
+                </label>
                 <input
                   id="template-name"
+                  className="input input-bordered"
                   type="text"
                   value={editForm.name}
                   onChange={(event) => handleEditChange('name', event.target.value)}
                   required
                 />
               </div>
-              <div className="field">
-                <label htmlFor="template-description">Description</label>
+              <div className="form-field">
+                <label className="form-label" htmlFor="template-description">
+                  Description
+                </label>
                 <textarea
                   id="template-description"
+                  className="textarea"
                   value={editForm.description}
                   onChange={(event) => handleEditChange('description', event.target.value)}
                   rows={3}
                 />
               </div>
-              <div className="field">
-                <label htmlFor="template-prompt">Prompt</label>
+              <div className="form-field">
+                <label className="form-label" htmlFor="template-prompt">
+                  Prompt
+                </label>
                 <textarea
                   id="template-prompt"
+                  className="textarea"
                   value={editForm.prompt}
                   onChange={(event) => handleEditChange('prompt', event.target.value)}
                   rows={8}
                   required
                 />
-                <p className="helper">Rédigez les consignes destinées au modèle pour produire le compte rendu souhaité.</p>
+                <p className="form-helper">
+                  Rédigez les consignes destinées au modèle pour produire le compte rendu souhaité.
+                </p>
               </div>
-              {editError && <p className="form-error">{editError}</p>}
+              {editError && <p className="error-text text-sm m-0">{editError}</p>}
               <div className="form-actions">
-                <button type="submit" disabled={saving}>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
                   {saving ? 'Enregistrement…' : 'Enregistrer'}
                 </button>
-                <button type="button" className="danger" onClick={handleDelete} disabled={saving || deleting}>
+                <button
+                  type="button"
+                  className="btn btn-error btn-sm"
+                  onClick={handleDelete}
+                  disabled={saving || deleting}
+                >
                   {deleting ? 'Suppression…' : 'Supprimer'}
                 </button>
               </div>
             </form>
           ) : (
-            <p className="helper">Sélectionnez un gabarit pour le modifier.</p>
+            <p className="text-base-content/70 text-sm m-0">Sélectionnez un gabarit pour le modifier.</p>
           )}
         </div>
       </div>
 
-      <div className="template-new">
-        <h3>Ajouter un gabarit</h3>
-        <form onSubmit={handleCreate}>
-          <div className="field">
-            <label htmlFor="new-template-name">Nom</label>
+      <div className="bg-base-200/60 rounded-xl p-4 space-y-6">
+        <h3 className="section-title m-0">Ajouter un gabarit</h3>
+        <form className="space-y-6" onSubmit={handleCreate}>
+          <div className="form-field">
+            <label className="form-label" htmlFor="new-template-name">
+              Nom
+            </label>
             <input
               id="new-template-name"
+              className="input input-bordered"
               type="text"
               value={newForm.name}
               onChange={(event) => handleNewChange('name', event.target.value)}
@@ -201,19 +230,25 @@ export default function TemplateManager({ templates = [], onCreate, onUpdate, on
               required
             />
           </div>
-          <div className="field">
-            <label htmlFor="new-template-description">Description</label>
+          <div className="form-field">
+            <label className="form-label" htmlFor="new-template-description">
+              Description
+            </label>
             <textarea
               id="new-template-description"
+              className="textarea"
               value={newForm.description}
               onChange={(event) => handleNewChange('description', event.target.value)}
               rows={3}
             />
           </div>
-          <div className="field">
-            <label htmlFor="new-template-prompt">Prompt</label>
+          <div className="form-field">
+            <label className="form-label" htmlFor="new-template-prompt">
+              Prompt
+            </label>
             <textarea
               id="new-template-prompt"
+              className="textarea"
               value={newForm.prompt}
               onChange={(event) => handleNewChange('prompt', event.target.value)}
               rows={6}
@@ -221,8 +256,8 @@ export default function TemplateManager({ templates = [], onCreate, onUpdate, on
               required
             />
           </div>
-          {createError && <p className="form-error">{createError}</p>}
-          <button type="submit" disabled={creating}>
+          {createError && <p className="error-text text-sm m-0">{createError}</p>}
+          <button type="submit" className="btn btn-primary btn-sm" disabled={creating}>
             {creating ? 'Ajout…' : 'Ajouter le gabarit'}
           </button>
         </form>
