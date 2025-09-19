@@ -121,6 +121,9 @@ export function removeJob(id) {
   if (job.uploadPath && fs.existsSync(job.uploadPath)) {
     fs.unlinkSync(job.uploadPath);
   }
+  if (job.processedPath && fs.existsSync(job.processedPath)) {
+    fs.unlinkSync(job.processedPath);
+  }
   removeJobDirectory(id);
   deleteJob(id);
 }

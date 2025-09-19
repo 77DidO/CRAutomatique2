@@ -4,6 +4,7 @@ import { getConfig } from './configService.js';
 import { upsertJobUpdate } from './jobStore.js';
 import { ensureJobDirectory, writeTextFile, writeJsonFile } from '../utils/fileSystem.js';
 import { generateSummary } from './llmService.js';
+import { preprocessAudio } from './audioPreprocessor.js';
 import { info, warn, error as logError, debug } from '../utils/logger.js';
 
 const STEPS = ['queued', 'preconvert', 'transcribe', 'clean', 'summarize', 'done'];
@@ -23,7 +24,14 @@ async function handlePreconvert(job) {
   const sourcePath = path.join(dir, job.originalFilename);
   fs.copyFileSync(job.uploadPath, sourcePath);
   debug('Fichier source copié pour le job', { jobId: job.id, sourcePath });
-  return { ...job, sourcePath };
+  try {
+    const processedPath = await preprocessAudio(sourcePath, dir);
+    info('Fichier audio prétraité pour le job', { jobId: job.id, processedPath });
+    return { ...job, sourcePath, processedPath };
+  } catch (error) {
+    logError('Échec du prétraitement audio', { jobId: job.id, message: error.message });
+    throw error;
+  }
 }
 
 async function handleTranscription(job) {
