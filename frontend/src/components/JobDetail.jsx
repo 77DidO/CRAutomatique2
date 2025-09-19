@@ -45,6 +45,38 @@ function StepList({ steps }) {
   );
 }
 
+function formatDuration(start, end) {
+  if (!start) {
+    return null;
+  }
+
+  const startTime = new Date(start).getTime();
+  const endTime = end ? new Date(end).getTime() : Date.now();
+
+  if (Number.isNaN(startTime) || Number.isNaN(endTime)) {
+    return null;
+  }
+
+  const diff = Math.max(0, endTime - startTime);
+  const totalSeconds = Math.round(diff / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const parts = [];
+  if (hours > 0) {
+    parts.push(`${hours} h`);
+  }
+  if (minutes > 0) {
+    parts.push(`${minutes} min`);
+  }
+  if (hours === 0 && seconds > 0) {
+    parts.push(`${seconds} s`);
+  }
+
+  return parts.length > 0 ? parts.join(' ') : "moins d'une seconde";
+}
+
 function LogList({ logs, compact }) {
   if (!logs?.length) {
     return <p className="text-base-content/70 text-sm m-0">Aucun log disponible.</p>;
@@ -75,9 +107,50 @@ export default function JobDetail({ job, loading, compact = false }) {
 
   const progressPercent = Math.round((job.progress ?? 0) * 100);
   const participants = job.participants?.length ? job.participants.join(', ') : '—';
+  const firstStepStart = job.steps?.find((step) => step.startedAt)?.startedAt ?? job.createdAt;
+  const finishedAt = job.completedAt ?? job.updatedAt;
+  const completedDuration =
+    job.status === 'completed' || job.status === 'failed'
+      ? formatDuration(firstStepStart, finishedAt)
+      : null;
+  const inProgressDuration =
+    job.status === 'processing' || job.status === 'queued'
+      ? formatDuration(firstStepStart, null)
+      : null;
+
+  let summaryIcon = '⏳';
+  let summaryTitle = 'Traitement en cours';
+  let summaryDescription =
+    inProgressDuration
+      ? `Durée écoulée : ${inProgressDuration}.`
+      : "En attente de démarrage du pipeline.";
+
+  if (job.status === 'completed') {
+    summaryIcon = '✅';
+    summaryTitle = 'Traitement terminé';
+    summaryDescription = completedDuration
+      ? `Durée totale : ${completedDuration}.`
+      : `Clôturé le ${formatDate(job.completedAt ?? job.updatedAt)}.`;
+  } else if (job.status === 'failed') {
+    summaryIcon = '⚠️';
+    summaryTitle = 'Traitement en échec';
+    summaryDescription = `Dernière mise à jour : ${formatDate(job.updatedAt)}.`;
+  } else if (job.status === 'queued') {
+    summaryIcon = '🗂️';
+    summaryTitle = 'Traitement en attente';
+  }
 
   return (
     <div className={`result-card ${compact ? 'space-y-6' : 'space-y-8'}`}>
+      <div className="result-summary" role="status">
+        <span className="result-summary__icon" aria-hidden="true">
+          {summaryIcon}
+        </span>
+        <div className="result-summary__text">
+          <p className="result-summary__title">{summaryTitle}</p>
+          <p className="result-summary__subtitle">{summaryDescription}</p>
+        </div>
+      </div>
       <div className="status-line">
         <div>
           <p className="status-label">Traitement sélectionné</p>
