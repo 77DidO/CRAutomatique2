@@ -1,15 +1,8 @@
 import PropTypes from 'prop-types';
 
-const VARIANT_CLASSNAMES = {
-  banner: 'dashboard-hero--banner',
-  card: 'dashboard-hero--card'
-};
-
-function DashboardHero({ title, subtitle, actions, variant }) {
-  const variantClass = VARIANT_CLASSNAMES[variant] ?? VARIANT_CLASSNAMES.banner;
-
+function DashboardHero({ title, subtitle, actions }) {
   return (
-    <section className={`dashboard-hero ${variantClass}`}>
+    <section className="dashboard-hero">
       <div className="dashboard-hero__content">
         <h1 className="dashboard-hero__title">{title}</h1>
         {subtitle ? <p className="dashboard-hero__subtitle">{subtitle}</p> : null}
@@ -22,15 +15,13 @@ function DashboardHero({ title, subtitle, actions, variant }) {
 DashboardHero.propTypes = {
   title: PropTypes.string,
   subtitle: PropTypes.string,
-  actions: PropTypes.node,
-  variant: PropTypes.oneOf(['banner', 'card'])
+  actions: PropTypes.node
 };
 
 DashboardHero.defaultProps = {
   title: 'Compte rendu automatique',
   subtitle: undefined,
-  actions: null,
-  variant: 'banner'
+  actions: null
 };
 
 export default DashboardHero;
