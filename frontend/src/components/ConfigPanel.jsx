@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 const DEFAULT_CONFIG = {
   llmProvider: 'mock',
+  openaiApiKey: '',
   diarization: {
     enabled: true,
     speakerCount: 'auto'
@@ -14,16 +15,18 @@ const DEFAULT_CONFIG = {
 };
 
 function mergeConfig(config) {
+  const safeConfig = config && typeof config === 'object' ? config : {};
+
   return {
     ...DEFAULT_CONFIG,
-    ...config,
+    ...safeConfig,
     diarization: {
       ...DEFAULT_CONFIG.diarization,
-      ...(config?.diarization ?? {})
+      ...(safeConfig.diarization ?? {})
     },
     pipeline: {
       ...DEFAULT_CONFIG.pipeline,
-      ...(config?.pipeline ?? {})
+      ...(safeConfig.pipeline ?? {})
     }
   };
 }
@@ -92,6 +95,23 @@ export default function ConfigPanel({ config, onSave, loading }) {
           />
         </div>
       </fieldset>
+
+      {localConfig.llmProvider === 'openai' && (
+        <div className="field">
+          <label htmlFor="config-openai-key">Clé API OpenAI</label>
+          <input
+            id="config-openai-key"
+            type="password"
+            value={localConfig.openaiApiKey ?? ''}
+            onChange={(event) => updateField(['openaiApiKey'], event.target.value)}
+            placeholder="sk-..."
+            autoComplete="off"
+          />
+          <p className="helper">
+            La clé est stockée côté serveur et sera utilisée lorsque le fournisseur OpenAI est sélectionné.
+          </p>
+        </div>
+      )}
 
       <fieldset>
         <legend>Étapes du pipeline</legend>
