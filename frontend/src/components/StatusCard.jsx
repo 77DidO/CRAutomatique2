@@ -2,7 +2,7 @@ import PropTypes from 'prop-types';
 import MarkdownReport from './MarkdownReport.jsx';
 const STEP_ORDER = ['queued', 'preconvert', 'transcribe', 'clean', 'summarize', 'done'];
 
-function StatusCard({ job }) {
+function StatusCard({ job = null }) {
   if (!job) {
     return (
       <section className="surface-card">
@@ -120,10 +120,6 @@ StatusCard.propTypes = {
       })
     )
   })
-};
-
-StatusCard.defaultProps = {
-  job: null
 };
 
 export default StatusCard;
