@@ -118,54 +118,77 @@ async function transcribeWithOpenAI(
         ? { diarization: { enable: true } }
         : {};
 
-  const basePayload = {
-    file: fs.createReadStream(filePath),
-    model: effectiveModel,
-    ...(language ? { language } : {}),
-    ...diarizationOption
-  };
+  const formatCandidates = [];
+  const fallbackOrder = ['verbose_json', 'json', 'text', ''];
+
+  if (preferredFormat) {
+    formatCandidates.push(preferredFormat);
+  }
+
+  fallbackOrder.forEach((format) => {
+    if (!formatCandidates.includes(format)) {
+      formatCandidates.push(format);
+    }
+  });
 
   let response;
   let responseFormatUsed = preferredFormat;
+  let lastError;
 
-  try {
-    response = await client.audio.transcriptions.create({
-      ...basePayload,
-      ...(preferredFormat ? { response_format: preferredFormat } : {})
-    });
-  } catch (error) {
-    const errorMessage = error?.error?.message || error?.message || '';
-    const formatUnsupported =
-      preferredFormat
-      && /format/i.test(errorMessage)
-      && /support/i.test(errorMessage);
-    if (
-      preferredFormat === 'verbose_json'
-        && /verbose_json/i.test(errorMessage || '')
-    ) {
-      warn(
-        "Le format de réponse 'verbose_json' n'est pas disponible, tentative avec le format 'json'.",
-        { model: effectiveModel, message: errorMessage }
+  for (const format of formatCandidates) {
+    const payload = {
+      file: fs.createReadStream(filePath),
+      model: effectiveModel,
+      ...(language ? { language } : {}),
+      ...diarizationOption,
+      ...(format ? { response_format: format } : {})
+    };
+
+    try {
+      response = await client.audio.transcriptions.create(payload);
+      responseFormatUsed = format || 'text';
+      if (!format && preferredFormat) {
+        responseFormatUsed = preferredFormat;
+      }
+      break;
+    } catch (error) {
+      lastError = error;
+      if (payload.file && typeof payload.file.destroy === 'function') {
+        payload.file.destroy();
+      }
+      const errorMessage = error?.error?.message || error?.message || '';
+      const lowerMessage = (errorMessage || '').toLowerCase();
+      const formatUnsupported = Boolean(
+        error?.error?.param === 'response_format' ||
+          (lowerMessage &&
+            (/response_format/.test(lowerMessage) ||
+              (/format/.test(lowerMessage) &&
+                (/support/.test(lowerMessage) || /compatible/.test(lowerMessage) || /available/.test(lowerMessage)))))
       );
-      response = await client.audio.transcriptions.create({
-        ...basePayload,
-        response_format: 'json'
-      });
-      responseFormatUsed = 'json';
-    } else if (formatUnsupported) {
-      const fallbackFormat = preferredFormat === 'json' ? 'text' : 'json';
+
+      if (!formatUnsupported) {
+        throw error;
+      }
+
+      const nextFormat = formatCandidates[formatCandidates.indexOf(format) + 1];
+      if (!nextFormat) {
+        throw error;
+      }
+
       warn(
-        'Le format de réponse demandé est indisponible pour ce modèle, tentative avec un format alternatif.',
-        { model: effectiveModel, preferredFormat, fallbackFormat, message: errorMessage }
+        "Le format de réponse demandé est indisponible pour ce modèle, tentative avec un format alternatif.",
+        {
+          model: effectiveModel,
+          attemptedFormat: format || '(par défaut)',
+          nextFormat: nextFormat || '(par défaut)',
+          message: errorMessage
+        }
       );
-      response = await client.audio.transcriptions.create({
-        ...basePayload,
-        response_format: fallbackFormat
-      });
-      responseFormatUsed = fallbackFormat;
-    } else {
-      throw error;
     }
+  }
+
+  if (!response) {
+    throw lastError || new Error('Échec de la transcription, aucun format valide disponible.');
   }
 
   let segments = ensureSegments(response.segments || [], response.text);
