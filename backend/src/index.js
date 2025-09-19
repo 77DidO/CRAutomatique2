@@ -1,47 +1,33 @@
-import express from 'express';
-import cors from 'cors';
-import bodyParser from 'body-parser';
+import { createApp } from './app.js';
+import { ensureDataEnvironment } from './config/environment.js';
+import { JobStore } from './storage/jobStore.js';
+import { ConfigStore } from './storage/configStore.js';
+import { TemplateStore } from './storage/templateStore.js';
 
-import itemsRouter from './routes/items.js';
-import configRouter from './routes/config.js';
-import templatesRouter from './routes/templates.js';
-import { initJobWatcher } from './services/watcher.js';
-import { ensureDataDirectories, getJobsDir } from './utils/fileSystem.js';
-import { loadConfig } from './services/configService.js';
-import { info, error as logError } from './utils/logger.js';
+async function bootstrap() {
+  await ensureDataEnvironment();
 
-const PORT = Number(process.env.PORT) || 4000;
+  const jobStore = new JobStore();
+  const configStore = new ConfigStore();
+  const templateStore = new TemplateStore();
 
-ensureDataDirectories();
-loadConfig();
+  await Promise.all([
+    jobStore.init(),
+    configStore.init(),
+    templateStore.init()
+  ]);
 
-const app = express();
+  await Promise.all(jobStore.list().map((job) => jobStore.ensureJobDirectory(job.id)));
 
-app.use(cors());
-app.use(bodyParser.json({ limit: '5mb' }));
-app.use(bodyParser.urlencoded({ extended: true }));
+  const app = createApp({ jobStore, configStore, templateStore });
+  const port = Number.parseInt(process.env.PORT ?? '4000', 10);
 
-app.use('/api/items', itemsRouter);
-app.use('/api/config', configRouter);
-app.use('/api/templates', templatesRouter);
-app.use('/api/assets', express.static(getJobsDir()));
+  app.listen(port, () => {
+    console.log(`Backend prêt sur le port ${port}`);
+  });
+}
 
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
+bootstrap().catch((error) => {
+  console.error('Impossible de démarrer le serveur :', error);
+  process.exit(1);
 });
-
-// eslint-disable-next-line no-unused-vars
-app.use((err, _req, res, _next) => {
-  logError('Unhandled error', { message: err.message, stack: err.stack });
-  if (res.headersSent) {
-    return;
-  }
-  res.status(500).json({ error: 'Internal server error', details: err.message });
-});
-
-app.listen(PORT, () => {
-  info(`API server running on port ${PORT}`);
-});
-
-info('Initialisation du watcher de jobs.');
-initJobWatcher();

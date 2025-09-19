@@ -1,151 +1,209 @@
-import fs from 'fs';
-import path from 'path';
-import { getConfig } from './configService.js';
-import { upsertJobUpdate } from './jobStore.js';
-import { ensureJobDirectory, writeTextFile, writeJsonFile } from '../utils/fileSystem.js';
-import { generateSummary } from './llmService.js';
-import { buildSummaryPrompt, DEFAULT_TEMPLATE_ID } from '../constants/templates.js';
-import { preprocessAudio } from './audioPreprocessor.js';
-import { transcribeAudio } from './transcriptionService.js';
-import { info, warn, error as logError, debug } from '../utils/logger.js';
+import { writeFile } from 'fs/promises';
+import { jobAssetPath } from '../config/paths.js';
 
-const STEPS = ['queued', 'preconvert', 'transcribe', 'clean', 'summarize', 'done'];
-
-function appendLog(jobId, logs, message) {
-  const timestamp = new Date().toISOString();
-  logs.push(`[${timestamp}] ${message}`);
-  writeTextFile(jobId, 'logs.txt', logs.join('\n'));
-}
-
-async function simulateProcessingDelay(delayMs) {
-  await new Promise((resolve) => setTimeout(resolve, delayMs));
-}
-
-async function handlePreconvert(job) {
-  const dir = ensureJobDirectory(job.id);
-  const sourcePath = path.join(dir, job.originalFilename);
-  fs.copyFileSync(job.uploadPath, sourcePath);
-  debug('Fichier source copié pour le job', { jobId: job.id, sourcePath });
-  try {
-    const processedPath = await preprocessAudio(sourcePath, dir);
-    info('Fichier audio prétraité pour le job', { jobId: job.id, processedPath });
-    return { ...job, sourcePath, processedPath };
-  } catch (error) {
-    logError('Échec du prétraitement audio', { jobId: job.id, message: error.message });
-    throw error;
+export const PIPELINE_STEPS = [
+  {
+    id: 'ingest',
+    label: 'Préparation du média',
+    duration: 1200,
+    startLog: 'Analyse du média et vérification du format.',
+    endLog: 'Préparation terminée.'
+  },
+  {
+    id: 'transcription',
+    label: 'Transcription',
+    duration: 2200,
+    startLog: 'Transcription automatique en cours.',
+    endLog: 'Transcription générée.'
+  },
+  {
+    id: 'cleanup',
+    label: 'Nettoyage & segmentation',
+    duration: 1400,
+    startLog: 'Nettoyage des artefacts et découpage en séquences.',
+    endLog: 'Nettoyage terminé.'
+  },
+  {
+    id: 'summaries',
+    label: 'Synthèse & exports',
+    duration: 1800,
+    startLog: 'Génération des synthèses, sous-titres et résumés.',
+    endLog: 'Exports disponibles.'
   }
+];
+
+const STEP_COUNT = PIPELINE_STEPS.length;
+
+export function createInitialSteps() {
+  return PIPELINE_STEPS.map((step) => ({
+    id: step.id,
+    label: step.label,
+    status: 'pending',
+    startedAt: null,
+    finishedAt: null
+  }));
 }
 
-async function handleTranscription(job) {
-  if (!job.processedPath) {
-    throw new Error('Fichier traité introuvable pour la transcription.');
-  }
-
-  const { text, segments, vtt } = await transcribeAudio(job.processedPath);
-  writeTextFile(job.id, 'transcription_raw.txt', text);
-  writeJsonFile(job.id, 'segments.json', segments);
-  writeTextFile(job.id, 'subtitles.vtt', vtt);
-  appendLog(job.id, job.logs, `Transcription générée (${segments.length} segments).`);
-  info('Transcription finalisée', { jobId: job.id, segments: segments.length });
-  return {
-    ...job,
-    transcription: text,
-    transcriptionSegments: segments,
-    subtitlesVtt: vtt
-  };
-}
-
-function cleanText(rawText) {
-  return rawText.replace(/\s+/g, ' ').trim();
-}
-
-async function handleClean(job) {
-  const clean = cleanText(job.transcription || '');
-  writeTextFile(job.id, 'transcription_clean.txt', clean);
-  debug('Transcription nettoyée écrite', { jobId: job.id });
-  return { ...job, cleanTranscription: clean };
-}
-
-async function handleSummarize(job) {
-  const { enableSummary, defaultTemplate, templates, rubrics } = getConfig();
-  if (!enableSummary) {
-    return job;
-  }
-  const templateId = job.template || defaultTemplate || DEFAULT_TEMPLATE_ID;
-  const prompt = buildSummaryPrompt(templateId, job.cleanTranscription || '', {
-    templates,
-    defaultTemplateId: defaultTemplate,
-    rubrics
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
   });
-  let summary = 'Résumé indisponible.';
-  try {
-    summary = await generateSummary(prompt);
-    info('Résumé généré par le service LLM', { jobId: job.id, template: templateId });
-  } catch (error) {
-    summary = `Résumé impossible: ${error.message}`;
-    warn('Échec de la génération du résumé', { jobId: job.id, message: error.message });
-  }
-  writeTextFile(job.id, 'summary.md', summary);
-  writeTextFile(job.id, 'summary.html', `<article>${summary}</article>`);
-  appendLog(job.id, job.logs, `Résumé généré avec le gabarit ${templateId}.`);
-  debug('Résumé écrit sur disque', { jobId: job.id, template: templateId });
-  return { ...job, summary };
 }
 
-const STEP_HANDLERS = {
-  preconvert: handlePreconvert,
-  transcribe: handleTranscription,
-  clean: handleClean,
-  summarize: handleSummarize
-};
+function buildSummary(job, template) {
+  const participantList = job.participants?.length
+    ? job.participants.map((participant) => `- ${participant}`).join('\n')
+    : '- Aucun participant déclaré';
 
-export async function processJob(job, onProgress) {
-  const logs = job.logs || [];
-  let currentJob = { ...job, logs };
-  for (const step of STEPS.slice(1)) {
-    if (step === 'done') {
-      currentJob = {
-        ...currentJob,
-        status: 'done',
-        progress: 100,
-        completedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      appendLog(job.id, logs, 'Traitement terminé.');
-      info('Job terminé', { jobId: job.id });
-      upsertJobUpdate(job.id, () => currentJob);
-      onProgress?.(currentJob);
-      break;
+  return `# Synthèse du traitement « ${job.title} »\n\n` +
+    `**Gabarit utilisé :** ${template?.name ?? job.template}\n\n` +
+    `**Statut final :** ${job.status}\n` +
+    `**Durée totale estimée :** ${Math.round(STEP_COUNT * 1.5)} minutes\n\n` +
+    `## Participants\n${participantList}\n\n` +
+    `## Résumé automatique\n` +
+    `Ce document a été généré automatiquement afin d'illustrer le résultat d'un pipeline de transcription.`;
+}
+
+function buildTranscription(job) {
+  return [
+    `Transcription simulée pour « ${job.title} »`,
+    '',
+    '00:00:00.000 --> 00:00:10.000',
+    'Bonjour à tous, merci de participer à cette session.',
+    '',
+    '00:00:10.000 --> 00:00:18.000',
+    'Ce texte sert d\'exemple de transcription générée par la plateforme.',
+    '',
+    '00:00:18.000 --> 00:00:30.000',
+    'Les vraies intégrations pourront remplacer ce contenu par une sortie réelle.'
+  ].join('\n');
+}
+
+function buildVtt(job) {
+  return [
+    'WEBVTT',
+    '',
+    '00:00:00.000 --> 00:00:05.000',
+    'Bonjour et bienvenue.',
+    '',
+    '00:00:05.000 --> 00:00:12.000',
+    `Traitement simulé pour ${job.title}.`,
+    '',
+    '00:00:12.000 --> 00:00:18.000',
+    'Merci pour votre attention.'
+  ].join('\n');
+}
+
+async function writeOutputs(jobId, job, template) {
+  const outputs = [
+    {
+      filename: 'transcription_raw.txt',
+      label: 'Transcription brute',
+      mimeType: 'text/plain',
+      builder: buildTranscription
+    },
+    {
+      filename: 'summary.md',
+      label: 'Synthèse Markdown',
+      mimeType: 'text/markdown',
+      builder: buildSummary
+    },
+    {
+      filename: 'subtitles.vtt',
+      label: 'Sous-titres VTT',
+      mimeType: 'text/vtt',
+      builder: buildVtt
     }
-    appendLog(job.id, logs, `Début de l'étape ${step}`);
-    info('Début d\'étape', { jobId: job.id, step });
-    currentJob = { ...currentJob, status: step, updatedAt: new Date().toISOString() };
-    upsertJobUpdate(job.id, () => currentJob);
-    onProgress?.(currentJob);
-    try {
-      await simulateProcessingDelay(300);
-      const handler = STEP_HANDLERS[step];
-      if (handler) {
-        debug('Exécution du handler d\'étape', { jobId: job.id, step });
-        currentJob = await handler(currentJob);
-      }
-      appendLog(job.id, logs, `Fin de l'étape ${step}`);
-      info('Fin d\'étape', { jobId: job.id, step });
-      currentJob = {
-        ...currentJob,
-        progress: Math.min(95, (STEPS.indexOf(step) / (STEPS.length - 1)) * 100),
-        updatedAt: new Date().toISOString()
-      };
-      upsertJobUpdate(job.id, () => currentJob);
-      onProgress?.(currentJob);
-    } catch (error) {
-      appendLog(job.id, logs, `Erreur à l'étape ${step}: ${error.message}`);
-      warn('Erreur durant une étape', { jobId: job.id, step, message: error.message });
-      currentJob = { ...currentJob, status: 'error', error: error.message, updatedAt: new Date().toISOString() };
-      upsertJobUpdate(job.id, () => currentJob);
-      onProgress?.(currentJob);
-      logError('Arrêt du job suite à une erreur', { jobId: job.id, step, message: error.message });
+  ];
+
+  for (const output of outputs) {
+    const content = output.builder(job, template);
+    await writeFile(jobAssetPath(jobId, output.filename), `${content}\n`, 'utf8');
+  }
+
+  return outputs.map(({ builder, ...rest }) => rest);
+}
+
+export async function runPipeline({ jobId, jobStore, templateStore }) {
+  try {
+    for (let index = 0; index < PIPELINE_STEPS.length; index += 1) {
+      const step = PIPELINE_STEPS[index];
+
+      await jobStore.update(jobId, (job) => {
+        job.status = 'processing';
+        job.currentStep = step.id;
+        job.steps = job.steps.map((stepState) => {
+          if (stepState.id === step.id) {
+            return {
+              ...stepState,
+              status: 'running',
+              startedAt: stepState.startedAt ?? new Date().toISOString()
+            };
+          }
+          if (stepState.status === 'running') {
+            return {
+              ...stepState,
+              status: 'done',
+              finishedAt: new Date().toISOString()
+            };
+          }
+          return stepState;
+        });
+        job.progress = index / STEP_COUNT;
+        return job;
+      });
+
+      await jobStore.appendLog(jobId, step.startLog);
+      await delay(step.duration);
+
+      await jobStore.update(jobId, (job) => {
+        job.steps = job.steps.map((stepState) => {
+          if (stepState.id === step.id) {
+            return {
+              ...stepState,
+              status: 'done',
+              finishedAt: new Date().toISOString()
+            };
+          }
+          return stepState;
+        });
+        job.progress = (index + 1) / STEP_COUNT;
+        return job;
+      });
+
+      await jobStore.appendLog(jobId, step.endLog);
+    }
+
+    const job = jobStore.get(jobId);
+    const template = templateStore.getById(job?.template ?? '');
+    const outputs = await writeOutputs(jobId, job, template);
+
+    await jobStore.update(jobId, (current) => {
+      current.status = 'completed';
+      current.completedAt = new Date().toISOString();
+      current.progress = 1;
+      current.currentStep = null;
+      current.outputs = outputs;
+      current.steps = current.steps.map((stepState) => ({
+        ...stepState,
+        status: 'done',
+        finishedAt: stepState.finishedAt ?? new Date().toISOString()
+      }));
+      return current;
+    });
+
+    await jobStore.appendLog(jobId, 'Traitement terminé avec succès.');
+  } catch (error) {
+    const existing = jobStore.get(jobId);
+    if (!existing) {
       return;
     }
+
+    await jobStore.appendLog(jobId, `Échec du pipeline : ${error.message}`);
+    await jobStore.update(jobId, (job) => {
+      job.status = 'failed';
+      job.currentStep = null;
+      return job;
+    });
   }
 }
