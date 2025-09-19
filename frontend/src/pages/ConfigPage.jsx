@@ -31,9 +31,17 @@ function ConfigPage() {
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target;
+    let nextValue;
+    if (type === 'checkbox') {
+      nextValue = checked;
+    } else if (type === 'number') {
+      nextValue = value === '' ? '' : Number(value);
+    } else {
+      nextValue = value;
+    }
     setDraft((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: nextValue
     }));
   };
 
@@ -54,7 +62,37 @@ function ConfigPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
-    const next = await updateConfig(draft);
+    const payload = {
+      ...draft,
+      providers: Object.fromEntries(
+        Object.entries(draft.providers || {}).map(([key, value]) => [key, { ...value }])
+      )
+    };
+
+    const sanitizeNumber = (input, predicate) => {
+      if (input === '' || input === null || input === undefined) {
+        return undefined;
+      }
+      const parsed = Number(input);
+      return predicate(parsed) ? parsed : undefined;
+    };
+
+    const chunkSize = sanitizeNumber(payload.chunkSize, (number) => Number.isFinite(number) && number > 0);
+    const chunkOverlap = sanitizeNumber(payload.chunkOverlap, (number) => Number.isFinite(number) && number >= 0);
+
+    if (chunkSize === undefined) {
+      delete payload.chunkSize;
+    } else {
+      payload.chunkSize = chunkSize;
+    }
+
+    if (chunkOverlap === undefined) {
+      delete payload.chunkOverlap;
+    } else {
+      payload.chunkOverlap = chunkOverlap;
+    }
+
+    const next = await updateConfig(payload);
     setConfig(next);
     setDraft(next);
     setSaving(false);
@@ -110,6 +148,32 @@ function ConfigPage() {
             control={<Switch name="enableSummary" checked={draft.enableSummary} onChange={handleChange} />}
             label="Générer la synthèse Markdown"
           />
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Taille des segments"
+                name="chunkSize"
+                type="number"
+                value={draft.chunkSize ?? ''}
+                onChange={handleChange}
+                helperText="Nombre de caractères utilisés pour découper la transcription"
+                inputProps={{ min: 1, step: 50 }}
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Chevauchement des segments"
+                name="chunkOverlap"
+                type="number"
+                value={draft.chunkOverlap ?? ''}
+                onChange={handleChange}
+                helperText="Nombre de caractères partagés entre deux segments"
+                inputProps={{ min: 0, step: 10 }}
+                fullWidth
+              />
+            </Grid>
+          </Grid>
         </Stack>
 
         <Stack spacing={2}>
@@ -143,6 +207,15 @@ function ConfigPage() {
                   label="Commande Ollama"
                   value={ollama.command || ''}
                   onChange={handleProviderChange('ollama', 'command')}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Hôte Ollama"
+                  value={ollama.host || ''}
+                  onChange={handleProviderChange('ollama', 'host')}
+                  placeholder="http://localhost:11434"
                   fullWidth
                 />
               </Grid>
