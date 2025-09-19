@@ -15,6 +15,10 @@ const DEFAULT_CONFIG = {
   diarization: true,
   enableSummary: true,
   llmProvider: 'chatgpt',
+  ui: {
+    dashboardHeroSubtitle:
+      'Automatisez la rédaction de vos comptes rendus audio en toute sérénité : nous transcrivons, structurons et archivons vos dossiers en quelques minutes.'
+  },
   transcription: {
     provider: 'openai',
     openai: {
@@ -171,11 +175,29 @@ function normalizeTemplates(rawTemplates) {
   return templates.map((template) => ({ ...template }));
 }
 
+function normalizeUI(rawValue = {}) {
+  if (!rawValue || typeof rawValue !== 'object') {
+    return { ...DEFAULT_CONFIG.ui };
+  }
+
+  const dashboardHeroSubtitle =
+    typeof rawValue.dashboardHeroSubtitle === 'string'
+      ? rawValue.dashboardHeroSubtitle
+      : DEFAULT_CONFIG.ui.dashboardHeroSubtitle;
+
+  return {
+    ...DEFAULT_CONFIG.ui,
+    ...rawValue,
+    dashboardHeroSubtitle
+  };
+}
+
 function normalizeConfig(config = {}) {
   const {
     providers: rawProviders,
     transcription: rawTranscription,
     diarization: rawDiarization,
+    ui: rawUI,
     openaiModel,
     openaiApiKey,
     openaiBaseUrl,
@@ -212,7 +234,8 @@ function normalizeConfig(config = {}) {
       ollamaCommand
     }),
     transcription: mergeTranscription(rawTranscription),
-    templates: mergedTemplates
+    templates: mergedTemplates,
+    ui: normalizeUI(rawUI)
   };
 
   const provider = merged.llmProvider === 'openai' ? 'chatgpt' : merged.llmProvider;
