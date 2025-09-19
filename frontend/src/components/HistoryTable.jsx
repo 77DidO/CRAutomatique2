@@ -1,69 +1,59 @@
 import PropTypes from 'prop-types';
 import { Link as RouterLink } from 'react-router-dom';
-import { Button, Card, Stack, Table } from 'react-bootstrap';
-
 function HistoryTable({ items, onDelete }) {
   if (!items.length) {
-    return (
-      <Card className="shadow-sm border-0">
-        <Card.Body className="text-center text-muted">
-          Aucun traitement terminé pour le moment.
-        </Card.Body>
-      </Card>
-    );
+    return <div className="surface-card history-empty">Aucun traitement terminé pour le moment.</div>;
   }
   return (
-    <Card className="shadow-sm border-0">
-      <Card.Body className="p-0">
-        <Table responsive hover className="mb-0 align-middle">
-          <thead className="table-light">
+    <div className="surface-card">
+      <div className="history-table-wrapper">
+        <table className="history-table">
+          <thead>
             <tr>
               <th>Date</th>
               <th>Titre</th>
               <th>Gabarit</th>
               <th>Status</th>
-              <th className="text-end">Actions</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td>{new Date(item.createdAt).toLocaleString()}</td>
-                <td>{item.title}</td>
-                <td>{item.template || '—'}</td>
-                <td className="text-uppercase fw-semibold">
-                  <span
-                    className={
-                      item.status === 'done'
-                        ? 'text-success'
-                        : item.status === 'error'
-                          ? 'text-danger'
-                          : 'text-body'
-                    }
-                  >
-                    {item.status}
-                  </span>
-                </td>
-                <td>
-                  <Stack direction="horizontal" gap={2} className="justify-content-end">
-                    <Button as={RouterLink} to={`/item/${item.id}`} size="sm">
-                      Consulter
-                    </Button>
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={() => onDelete(item.id)}
-                    >
-                      Supprimer
-                    </Button>
-                  </Stack>
-                </td>
-              </tr>
-            ))}
+            {items.map((item) => {
+              const statusClass =
+                item.status === 'done'
+                  ? 'text-green-600'
+                  : item.status === 'error'
+                    ? 'error-text'
+                    : 'text-base-content';
+              return (
+                <tr key={item.id}>
+                  <td>{new Date(item.createdAt).toLocaleString()}</td>
+                  <td>{item.title}</td>
+                  <td>{item.template || '—'}</td>
+                  <td className={`text-sm font-medium ${statusClass}`}>
+                    {item.status.toUpperCase()}
+                  </td>
+                  <td>
+                    <div className="status-actions" style={{ justifyContent: 'flex-end' }}>
+                      <RouterLink to={`/item/${item.id}`} className="btn btn-secondary btn-sm">
+                        Consulter
+                      </RouterLink>
+                      <button
+                        type="button"
+                        className="btn btn-error btn-sm"
+                        onClick={() => onDelete(item.id)}
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
-        </Table>
-      </Card.Body>
-    </Card>
+        </table>
+      </div>
+    </div>
   );
 }
 
