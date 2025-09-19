@@ -15,6 +15,7 @@ const DEFAULT_CONFIG = {
   diarization: true,
   enableSummary: true,
   llmProvider: 'chatgpt',
+  rubrics: ['Thème', 'Participants', 'Décisions', 'Actions à venir'],
   transcription: {
     provider: 'openai',
     openai: {
@@ -171,6 +172,18 @@ function normalizeTemplates(rawTemplates) {
   return templates.map((template) => ({ ...template }));
 }
 
+function normalizeRubrics(rawRubrics) {
+  if (!Array.isArray(rawRubrics)) {
+    return DEFAULT_CONFIG.rubrics.slice();
+  }
+
+  const sanitized = rawRubrics
+    .map((rubric) => (typeof rubric === 'string' ? rubric.trim() : ''))
+    .filter((rubric) => rubric.length > 0);
+
+  return sanitized.length > 0 ? sanitized : DEFAULT_CONFIG.rubrics.slice();
+}
+
 function normalizeConfig(config = {}) {
   const {
     providers: rawProviders,
@@ -186,6 +199,7 @@ function normalizeConfig(config = {}) {
     defaultTemplate,
     participants,
     templates: rawTemplates,
+    rubrics: rawRubrics,
     ...rest
   } = config;
 
@@ -212,7 +226,8 @@ function normalizeConfig(config = {}) {
       ollamaCommand
     }),
     transcription: mergeTranscription(rawTranscription),
-    templates: mergedTemplates
+    templates: mergedTemplates,
+    rubrics: normalizeRubrics(rawRubrics)
   };
 
   const provider = merged.llmProvider === 'openai' ? 'chatgpt' : merged.llmProvider;
