@@ -255,7 +255,7 @@ function ConfigPage() {
           )}
         </div>
 
-        <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
+        <div className="form-actions form-actions--end">
           <button type="submit" className="btn btn-primary" disabled={!hasChanged || saving}>
             {saving ? 'Enregistrement…' : 'Sauvegarder'}
           </button>

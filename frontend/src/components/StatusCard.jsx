@@ -15,14 +15,14 @@ function StatusCard({ job }) {
       ? Math.min(Math.max(job.progress, 0), 100)
       : null;
 
-  const statusStyle = (() => {
+  const statusChipClass = (() => {
     if (job.status === 'error') {
-      return { background: 'rgba(220, 38, 38, 0.12)', color: 'var(--color-error)' };
+      return 'chip chip--error';
     }
     if (job.status === 'done') {
-      return { background: 'rgba(21, 128, 61, 0.12)', color: 'var(--color-success)' };
+      return 'chip chip--success';
     }
-    return {};
+    return 'chip';
   })();
 
   return (
@@ -34,7 +34,7 @@ function StatusCard({ job }) {
           <p className="status-message">Gabarit utilisé : {job.template || '—'}</p>
         </div>
         <div className="status-actions">
-          <span className="chip" style={statusStyle}>
+          <span className={statusChipClass}>
             {job.status.toUpperCase()}
           </span>
         </div>
@@ -44,12 +44,12 @@ function StatusCard({ job }) {
         <span className="status-progress-value">
           {progressValue !== null ? `${Math.round(progressValue)}%` : 'En cours'}
         </span>
-        <div className="progress-bar" aria-hidden={progressValue === null}>
-          <div
-            className="progress-bar__value"
-            style={{ width: `${progressValue !== null ? progressValue : 100}%` }}
-          />
-        </div>
+        <progress
+          className="progress progress-primary"
+          max="100"
+          value={progressValue !== null ? progressValue : undefined}
+          aria-label="Progression du traitement"
+        />
       </div>
 
       <div>

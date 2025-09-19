@@ -112,8 +112,7 @@ function ItemDetailPage() {
                 <iframe
                   title="transcription-brute"
                   src={`/api/assets/${item.id}/transcription_raw.txt`}
-                  className="w-full rounded-xl border border-base-300"
-                  style={{ minHeight: 260 }}
+                  className="w-full rounded-xl border border-base-300 embed-frame"
                 />
               </div>
               <div className="space-y-6">
@@ -121,8 +120,7 @@ function ItemDetailPage() {
                 <iframe
                   title="transcription-nettoyee"
                   src={`/api/assets/${item.id}/transcription_clean.txt`}
-                  className="w-full rounded-xl border border-base-300"
-                  style={{ minHeight: 260 }}
+                  className="w-full rounded-xl border border-base-300 embed-frame"
                 />
               </div>
             </div>
@@ -135,8 +133,7 @@ function ItemDetailPage() {
             <iframe
               title="markdown"
               src={`/api/assets/${item.id}/summary.md`}
-              className="w-full rounded-xl border border-base-300"
-              style={{ minHeight: 260 }}
+              className="w-full rounded-xl border border-base-300 embed-frame"
             />
           </section>
         );
@@ -147,8 +144,7 @@ function ItemDetailPage() {
             <iframe
               title="vtt"
               src={`/api/assets/${item.id}/subtitles.vtt`}
-              className="w-full rounded-xl border border-base-300"
-              style={{ minHeight: 260 }}
+              className="w-full rounded-xl border border-base-300 embed-frame"
             />
           </section>
         );
