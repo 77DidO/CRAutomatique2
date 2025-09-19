@@ -5,14 +5,18 @@ import { deleteItem, fetchItems } from '../services/api.js';
 function HistoryPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const load = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await fetchItems();
       setItems(data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
     } catch (error) {
-      console.error(error);
+      console.error('Impossible de charger l\'historique.', error);
+      setItems([]);
+      setError("Impossible de récupérer l'historique. Vérifiez la connexion au serveur et réessayez.");
     } finally {
       setLoading(false);
     }
@@ -42,7 +46,15 @@ function HistoryPage() {
           </button>
         </div>
       </div>
-      {loading ? <p className="text-base-content/70">Chargement…</p> : <HistoryTable items={items} onDelete={handleDelete} />}
+      {loading ? (
+        <p className="text-base-content/70">Chargement…</p>
+      ) : error ? (
+        <p role="alert" className="status-message error-text">
+          {error}
+        </p>
+      ) : (
+        <HistoryTable items={items} onDelete={handleDelete} />
+      )}
     </div>
   );
 }
