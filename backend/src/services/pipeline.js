@@ -193,6 +193,43 @@ function isMissingModelError(error) {
   return message.includes('does not exist') || message.includes('not found');
 }
 
+function extractErrorCode(error) {
+  if (!error) {
+    return '';
+  }
+
+  return String(
+    error?.code
+    ?? error?.cause?.code
+    ?? error?.error?.code
+    ?? error?.data?.code
+    ?? ''
+  ).toUpperCase();
+}
+
+function extractStatusCode(error) {
+  return error?.status ?? error?.statusCode ?? error?.response?.status ?? null;
+}
+
+function isTransientNetworkError(error) {
+  const code = extractErrorCode(error);
+  if (code && ['ECONNRESET', 'ECONNABORTED', 'ETIMEDOUT', 'ECONNREFUSED', 'EPIPE', 'EAI_AGAIN'].includes(code)) {
+    return true;
+  }
+
+  const status = extractStatusCode(error);
+  if (typeof status === 'number' && (status === 429 || (status >= 500 && status < 600))) {
+    return true;
+  }
+
+  const message = (error?.message ?? '').toLowerCase();
+  if (!code && message.includes('socket hang up')) {
+    return true;
+  }
+
+  return false;
+}
+
 async function writeOpenAIOutputs({ jobId, job, template, context, pipeline }) {
   const outputs = [];
   const activeTemplate = template ?? context.template ?? null;
@@ -294,33 +331,51 @@ function createOpenAIPipelineOperations({ jobId, jobStore, templateStore, config
           : 0.2;
 
         const modelsToTry = resolveTranscriptionModels(whisperConfig?.model);
+        const maxAttemptsPerModel = Math.max(
+          1,
+          Number.isInteger(whisperConfig?.maxRetries) ? whisperConfig.maxRetries : 3
+        );
         let transcription = null;
         let lastError = null;
 
-        for (let index = 0; index < modelsToTry.length; index += 1) {
+        for (let index = 0; index < modelsToTry.length && !transcription; index += 1) {
           const modelName = modelsToTry[index];
-          const requestPayload = {
-            file: createReadStream(sourcePath),
-            model: modelName,
-            response_format: 'verbose_json',
-            temperature
-          };
 
-          if (whisperConfig?.language && whisperConfig.language !== 'auto') {
-            requestPayload.language = whisperConfig.language;
-          }
-          if (whisperConfig?.translate === true) {
-            requestPayload.translate = true;
-          }
+          for (let attempt = 1; attempt <= maxAttemptsPerModel && !transcription; attempt += 1) {
+            const requestPayload = {
+              file: createReadStream(sourcePath),
+              model: modelName,
+              response_format: 'verbose_json',
+              temperature
+            };
 
-          try {
-            transcription = await openai.audio.transcriptions.create(requestPayload);
-            context.transcriptionModel = modelName;
-            break;
-          } catch (error) {
-            lastError = error;
-            const shouldRetry = index < modelsToTry.length - 1 && isMissingModelError(error);
-            if (!shouldRetry) {
+            if (whisperConfig?.language && whisperConfig.language !== 'auto') {
+              requestPayload.language = whisperConfig.language;
+            }
+            if (whisperConfig?.translate === true) {
+              requestPayload.translate = true;
+            }
+
+            try {
+              transcription = await openai.audio.transcriptions.create(requestPayload);
+              context.transcriptionModel = modelName;
+            } catch (error) {
+              lastError = error;
+              const transient = isTransientNetworkError(error);
+              const missingModel = isMissingModelError(error);
+              const hasMoreAttempts = attempt < maxAttemptsPerModel;
+              const hasAlternateModel = index < modelsToTry.length - 1;
+
+              if (transient && hasMoreAttempts) {
+                const backoffMs = Math.min(2000, attempt * 500);
+                await delay(backoffMs);
+                continue;
+              }
+
+              if (missingModel && hasAlternateModel) {
+                break;
+              }
+
               throw error;
             }
           }
