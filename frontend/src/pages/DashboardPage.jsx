@@ -1,21 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import UploadForm from '../components/UploadForm.jsx';
 import StatusCard from '../components/StatusCard.jsx';
 import ResourceList from '../components/ResourceList.jsx';
 import LogsPanel from '../components/LogsPanel.jsx';
 import usePolling from '../hooks/usePolling.js';
-import { fetchConfig, fetchItem, fetchItems } from '../services/api.js';
+import { fetchItem, fetchItems } from '../services/api.js';
 
 const LOCAL_STORAGE_KEY = 'crautomatique:last-job-id';
 
 function DashboardPage() {
-  const [config, setConfig] = useState(null);
   const [currentJob, setCurrentJob] = useState(null);
   const [jobId, setJobId] = useState(localStorage.getItem(LOCAL_STORAGE_KEY));
-
-  useEffect(() => {
-    fetchConfig().then(setConfig);
-  }, []);
 
   const loadCurrentJob = async () => {
     if (jobId) {
@@ -49,8 +44,6 @@ function DashboardPage() {
     }
   }, [jobId]);
 
-  const defaultParticipants = useMemo(() => currentJob?.participants || config?.participants || [], [config, currentJob]);
-
   const handleCreated = (job) => {
     setJobId(job.id);
     localStorage.setItem(LOCAL_STORAGE_KEY, job.id);
@@ -63,8 +56,6 @@ function DashboardPage() {
         <div className="space-y-6">
           <UploadForm
             onCreated={handleCreated}
-            defaultTemplate={config?.defaultTemplate || ''}
-            defaultParticipants={defaultParticipants}
           />
         </div>
         <div className="space-y-6">
