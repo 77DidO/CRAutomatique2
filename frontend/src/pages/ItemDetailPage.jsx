@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ItemTabs from '../components/ItemTabs.jsx';
+import MarkdownReport from '../components/MarkdownReport.jsx';
 import { fetchItem } from '../services/api.js';
 
 function computeDiarizationSummary(segments = []) {
@@ -17,7 +18,6 @@ function ItemDetailPage() {
   const navigate = useNavigate();
   const [item, setItem] = useState(null);
   const [segments, setSegments] = useState([]);
-  const [summaryHtml, setSummaryHtml] = useState('');
 
   useEffect(() => {
     fetchItem(id)
@@ -30,13 +30,6 @@ function ItemDetailPage() {
             .then(setSegments)
             .catch(() => setSegments([]));
         }
-        const summaryResource = data.resources?.find((resource) => resource.type === 'summary.html');
-        if (summaryResource) {
-          fetch(summaryResource.url)
-            .then((response) => response.text())
-            .then(setSummaryHtml)
-            .catch(() => setSummaryHtml(''));
-        }
       })
       .catch(() => navigate('/history'));
   }, [id, navigate]);
@@ -46,6 +39,8 @@ function ItemDetailPage() {
   if (!item) {
     return <p>Chargement...</p>;
   }
+
+  const summaryResource = item.resources?.find((resource) => resource.type === 'summary.md');
 
   const renderContent = () => {
     switch (tab) {
@@ -59,8 +54,8 @@ function ItemDetailPage() {
               </p>
               <p className="text-sm text-base-content/70 m-0">Gabarit : {item.template || '—'}</p>
             </div>
-            {summaryHtml ? (
-              <div className="prose" dangerouslySetInnerHTML={{ __html: summaryHtml }} />
+            {summaryResource ? (
+              <MarkdownReport resourceUrl={summaryResource.url} preview />
             ) : item.summary ? (
               <p className="m-0">{item.summary}</p>
             ) : (
@@ -130,11 +125,11 @@ function ItemDetailPage() {
         return (
           <section className="surface-card result-card">
             <h2 className="section-title m-0">Compte rendu Markdown</h2>
-            <iframe
-              title="markdown"
-              src={`/api/assets/${item.id}/summary.md`}
-              className="w-full rounded-xl border border-base-300 embed-frame"
-            />
+            {summaryResource ? (
+              <MarkdownReport resourceUrl={summaryResource.url} />
+            ) : (
+              <p className="text-base-content/70 m-0">Fichier summary.md non disponible.</p>
+            )}
           </section>
         );
       case 'vtt':
