@@ -1,6 +1,71 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchConfig, updateConfig } from '../services/api.js';
 
+const DEFAULT_DIARIZATION = {
+  enable: false,
+  speaker_count: null,
+  min_speakers: null,
+  max_speakers: null
+};
+
+const parseBoolean = (value) => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') {
+      return true;
+    }
+    if (normalized === 'false') {
+      return false;
+    }
+  }
+  return Boolean(value);
+};
+
+const toNullableNumber = (value) => {
+  if (value === '' || value === null || value === undefined) {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const ensureDiarizationDraft = (rawValue) => {
+  if (typeof rawValue === 'boolean') {
+    return {
+      ...DEFAULT_DIARIZATION,
+      enable: rawValue
+    };
+  }
+
+  if (!rawValue || typeof rawValue !== 'object') {
+    return { ...DEFAULT_DIARIZATION };
+  }
+
+  return {
+    enable: parseBoolean(rawValue.enable ?? rawValue),
+    speaker_count: toNullableNumber(rawValue.speaker_count),
+    min_speakers: toNullableNumber(rawValue.min_speakers),
+    max_speakers: toNullableNumber(rawValue.max_speakers)
+  };
+};
+
+const prepareDraft = (config) => {
+  if (!config || typeof config !== 'object') {
+    return {
+      diarization: { ...DEFAULT_DIARIZATION }
+    };
+  }
+
+  const { defaultTemplate, participants, diarization, ...rest } = config;
+  return {
+    ...rest,
+    diarization: ensureDiarizationDraft(diarization)
+  };
+};
+
 function ConfigPage() {
   const [config, setConfig] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -8,8 +73,9 @@ function ConfigPage() {
 
   useEffect(() => {
     fetchConfig().then((data) => {
-      setConfig(data);
-      setDraft(data);
+      const prepared = prepareDraft(data);
+      setConfig(prepared);
+      setDraft(prepared);
     });
   }, []);
 
@@ -29,6 +95,33 @@ function ConfigPage() {
       ...prev,
       [name]: nextValue
     }));
+  };
+
+  const handleDiarizationChange = (field) => (event) => {
+    const { type, checked, value } = event.target;
+    setDraft((prev) => {
+      const previous = prev?.diarization ? prev.diarization : { ...DEFAULT_DIARIZATION };
+      if (type === 'checkbox') {
+        return {
+          ...prev,
+          diarization: {
+            ...previous,
+            [field]: checked
+          }
+        };
+      }
+
+      const parsed = value === '' ? null : Number(value);
+      const nextValue = parsed === null || Number.isFinite(parsed) ? parsed : previous[field];
+
+      return {
+        ...prev,
+        diarization: {
+          ...previous,
+          [field]: nextValue
+        }
+      };
+    });
   };
 
   const handleProviderChange = (providerKey, field) => (event) => {
@@ -55,6 +148,13 @@ function ConfigPage() {
       )
     };
 
+    payload.diarization = {
+      enable: Boolean(draft.diarization?.enable),
+      speaker_count: toNullableNumber(draft.diarization?.speaker_count),
+      min_speakers: toNullableNumber(draft.diarization?.min_speakers),
+      max_speakers: toNullableNumber(draft.diarization?.max_speakers)
+    };
+
     const sanitizeNumber = (input, predicate) => {
       if (input === '' || input === null || input === undefined) {
         return undefined;
@@ -78,7 +178,7 @@ function ConfigPage() {
       payload.chunkOverlap = chunkOverlap;
     }
 
-    const next = await updateConfig(payload);
+    const next = prepareDraft(await updateConfig(payload));
     setConfig(next);
     setDraft(next);
     setSaving(false);
@@ -103,45 +203,13 @@ function ConfigPage() {
         </div>
 
         <div className="space-y-6">
-          <h2 className="section-title m-0">Général</h2>
-          <div className="form-field">
-            <label htmlFor="defaultTemplate" className="form-label">
-              Gabarit par défaut
-            </label>
-            <input
-              id="defaultTemplate"
-              name="defaultTemplate"
-              type="text"
-              className="input input-bordered"
-              value={draft.defaultTemplate || ''}
-              onChange={handleChange}
-            />
-          </div>
-          <div className="form-field">
-            <label htmlFor="participants" className="form-label">
-              Participants par défaut
-            </label>
-            <input
-              id="participants"
-              type="text"
-              className="input input-bordered"
-              value={(draft.participants || []).join(', ')}
-              onChange={(event) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  participants: event.target.value
-                    .split(',')
-                    .map((item) => item.trim())
-                    .filter(Boolean)
-                }))
-              }
-            />
-            <p className="form-helper">Séparer les participants par une virgule</p>
-          </div>
-        </div>
-
-        <div className="space-y-6">
           <h2 className="section-title m-0">Pipeline</h2>
+          <p className="text-base-content/70 m-0">
+            Activez la diarisation pour détecter plusieurs locuteurs. Indiquez un nombre exact ou
+            une plage (minimum/maximum) si nécessaire et laissez les champs vides pour conserver la
+            détection automatique. Les anciens paramètres de gabarit et de participants par défaut
+            ont été retirés au profit de ce formulaire.
+          </p>
           <label htmlFor="diarization" className="form-field">
             <span className="form-label">Activer la diarisation</span>
             <input
@@ -149,10 +217,58 @@ function ConfigPage() {
               type="checkbox"
               name="diarization"
               className="toggle toggle-primary"
-              checked={draft.diarization}
-              onChange={handleChange}
+              checked={draft.diarization?.enable || false}
+              onChange={handleDiarizationChange('enable')}
             />
           </label>
+          <div className="form-grid">
+            <div className="form-field">
+              <label htmlFor="speakerCount" className="form-label">
+                Nombre exact de locuteurs
+              </label>
+              <input
+                id="speakerCount"
+                type="number"
+                min="1"
+                className="input input-bordered"
+                placeholder="Détection automatique si vide"
+                value={draft.diarization?.speaker_count ?? ''}
+                onChange={handleDiarizationChange('speaker_count')}
+                disabled={!draft.diarization?.enable}
+              />
+              <p className="form-helper">Laisser vide pour laisser le modèle choisir.</p>
+            </div>
+            <div className="form-field">
+              <label htmlFor="minSpeakers" className="form-label">
+                Minimum de locuteurs
+              </label>
+              <input
+                id="minSpeakers"
+                type="number"
+                min="1"
+                className="input input-bordered"
+                placeholder="Optionnel"
+                value={draft.diarization?.min_speakers ?? ''}
+                onChange={handleDiarizationChange('min_speakers')}
+                disabled={!draft.diarization?.enable}
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor="maxSpeakers" className="form-label">
+                Maximum de locuteurs
+              </label>
+              <input
+                id="maxSpeakers"
+                type="number"
+                min="1"
+                className="input input-bordered"
+                placeholder="Optionnel"
+                value={draft.diarization?.max_speakers ?? ''}
+                onChange={handleDiarizationChange('max_speakers')}
+                disabled={!draft.diarization?.enable}
+              />
+            </div>
+          </div>
           <label htmlFor="enableSummary" className="form-field">
             <span className="form-label">Générer la synthèse Markdown</span>
             <input

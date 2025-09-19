@@ -61,7 +61,7 @@ pwsh -File ./start.ps1
 - Téléversement audio/vidéo avec sélection de gabarit et participants.
 - Suivi en temps réel du pipeline (étapes, progression, logs, ressources générées).
 - Historique des traitements avec suppression et accès aux fiches détaillées.
-- Configuration des options pipeline/LLM persistée côté serveur.
+- Configuration des options pipeline/LLM persistée côté serveur (diarisation activable, nombre exact ou plage de locuteurs).
 - Fiche détaillée par traitement : aperçu, audio, textes, Markdown, VTT, synthèse de diarisation.
 
 ## API Express
