@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
+import multer from 'multer';
 import { listJobs, getJob, saveJob, deleteJob, upsertJobUpdate } from './jobStore.js';
 import { ensureJobDirectory, removeJobDirectory, getJobFilePath } from '../utils/fileSystem.js';
 import { processJob } from './pipeline.js';
@@ -12,6 +13,28 @@ const uploadDir = path.join(process.cwd(), 'backend', 'data', 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (_req, file, cb) => {
+    const sanitized = file.originalname.replace(/\s+/g, '_');
+    const uniqueName = `${Date.now()}-${sanitized}`;
+    cb(null, uniqueName);
+  }
+});
+
+export const uploadMiddleware = multer({
+  storage,
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('audio') && !file.mimetype.startsWith('video')) {
+      cb(new Error('Seuls les fichiers audio ou vidéo sont acceptés.'));
+    } else {
+      cb(null, true);
+    }
+  }
+});
 
 let isWatcherStarted = false;
 let runningJob = null;
@@ -54,17 +77,6 @@ function startLoop() {
 export function initJobWatcher() {
   info('Démarrage du watcher de jobs.');
   startLoop();
-}
-
-export function moveUploadedFile(tempPath, filename) {
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-  const safeName = `${Date.now()}-${filename.replace(/\s+/g, '_')}`;
-  const targetPath = path.join(uploadDir, safeName);
-  fs.copyFileSync(tempPath, targetPath);
-  fs.unlinkSync(tempPath);
-  return targetPath;
 }
 
 export function createJobFromUpload({ file, body }) {
