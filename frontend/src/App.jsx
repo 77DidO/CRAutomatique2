@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import ConfigPanel from './components/ConfigPanel.jsx';
 import JobDetail from './components/JobDetail.jsx';
 import JobList from './components/JobList.jsx';
+import JobSummaryList from './components/JobSummaryList.jsx';
 import TemplateManager from './components/TemplateManager.jsx';
 import UploadForm from './components/UploadForm.jsx';
 import {
@@ -21,7 +22,7 @@ import {
 const REFRESH_INTERVAL = 4000;
 
 const TABS = [
-  { id: 'dashboard', label: 'Tableau de bord' },
+  { id: 'dashboard', label: 'Accueil' },
   { id: 'history', label: 'Historique' },
   { id: 'config', label: 'Configuration' }
 ];
@@ -209,17 +210,9 @@ export default function App() {
     return JSON.stringify(health);
   }, [health]);
 
-  const latestJobs = useMemo(() => jobs.slice(0, 5), [jobs]);
   const healthStatus = health?.status ?? 'unknown';
-  const healthChipStyle =
-    healthStatus === 'ok'
-      ? undefined
-      : healthStatus === 'offline'
-        ? { background: 'rgba(220, 38, 38, 0.12)', color: 'var(--color-error)' }
-        : { background: 'rgba(246, 139, 30, 0.16)', color: 'var(--color-secondary)' };
   const healthSummaryLabel =
     healthStatus === 'ok' ? 'Opérationnel' : healthStatus === 'offline' ? 'Hors ligne' : 'En attente';
-  const healthProgressValue = healthStatus === 'ok' ? 100 : healthStatus === 'offline' ? 0 : 50;
 
   return (
     <div className="pb-72">
@@ -228,8 +221,8 @@ export default function App() {
           <span className="font-medium text-base-content" style={{ fontSize: '1.05rem' }}>
             CR Automatique
           </span>
-          <span className="chip" style={healthChipStyle}>
-            {healthSummaryLabel}
+          <span className="text-xs text-base-content/70" title={healthLabel}>
+            Backend : {healthSummaryLabel}
           </span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -247,28 +240,12 @@ export default function App() {
       </header>
 
       <div className="page-container space-y-8">
-        <div className="home-header">
-          <div>
-            <h1 className="page-title">Pilotez vos traitements audio &amp; vidéo</h1>
-            <p className="home-subtitle">Pipeline audio &amp; vidéo simulé avec suivi complet.</p>
-          </div>
-          <div className="surface-card status-summary">
-            <div className="status-line">
-              <div>
-                <p className="status-label">État du backend</p>
-                <p className="status-value">{healthSummaryLabel}</p>
-                <p className="status-message">{healthLabel}</p>
-              </div>
-              <div className="status-progress">
-                <div className="progress-bar" aria-hidden="true">
-                  <div className="progress-bar__value" style={{ width: `${healthProgressValue}%` }} />
-                </div>
-                <span className="status-progress-value">
-                  {healthStatus === 'unknown' ? '—' : `${healthProgressValue}%`}
-                </span>
-              </div>
-            </div>
-          </div>
+        <div className="space-y-2">
+          <h1 className="page-title">Traitement d'un fichier de compte-rendu</h1>
+          <p className="home-subtitle">
+            Déposez un média pour lancer immédiatement le pipeline simulé. Le suivi affiche la progression,
+            les exports générés et le journal en temps réel.
+          </p>
         </div>
 
         {statusMessage && (
@@ -306,44 +283,54 @@ export default function App() {
         <main className="space-y-8">
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
-              <section className="surface-card">
-                <h2 className="section-title">Créer un nouveau traitement</h2>
-                <p className="text-base-content/70 text-sm">
-                  Ajoutez un fichier audio ou vidéo pour lancer un nouveau pipeline de transcription et de synthèse.
-                </p>
+              <section className="surface-card space-y-4">
+                <div className="status-line">
+                  <div>
+                    <h2 className="section-title">Créer un nouveau traitement</h2>
+                    <p className="text-base-content/70 text-sm">
+                      Ajoutez un fichier audio ou vidéo pour démarrer un nouveau traitement de compte-rendu.
+                    </p>
+                  </div>
+                </div>
                 <UploadForm templates={templates} onSubmit={handleJobCreated} />
               </section>
 
-              <div className="grid gap-6 md:grid-cols-2">
-                <section className="surface-card">
-                  <h2 className="section-title">Derniers traitements</h2>
-                  <JobList
-                    jobs={latestJobs}
-                    selectedJobId={selectedJobId}
-                    onSelect={(jobId) => {
-                      setSelectedJobId(jobId);
-                      setActiveTab('history');
-                    }}
-                    onDelete={handleDeleteJob}
-                    compact
-                  />
-                </section>
-                <section className="surface-card">
-                  <h2 className="section-title">Résumé du traitement courant</h2>
-                  <JobDetail job={selectedJob} loading={loadingJob} compact />
-                </section>
-              </div>
+              <section className="surface-card space-y-4">
+                <div className="status-line">
+                  <div>
+                    <h2 className="section-title">Suivi du traitement en cours</h2>
+                    <p className="text-base-content/70 text-sm">
+                      La progression détaillée et les journaux restent visibles pour surveiller le pipeline.
+                    </p>
+                  </div>
+                </div>
+                <JobDetail job={selectedJob} loading={loadingJob} />
+              </section>
+
+              <section className="surface-card space-y-4">
+                <div className="status-line">
+                  <div>
+                    <h2 className="section-title">Résumés des derniers traitements</h2>
+                    <p className="text-base-content/70 text-sm">
+                      Retrouvez les informations clés (statut, durée estimée, gabarit) pour les traitements
+                      récemment exécutés.
+                    </p>
+                  </div>
+                </div>
+                <JobSummaryList jobs={jobs} />
+              </section>
             </div>
           )}
 
           {activeTab === 'history' && (
-            <div className="grid gap-6 md:grid-cols-2">
-              <section className="surface-card">
+            <div className="space-y-6">
+              <section className="surface-card space-y-4">
                 <div className="status-line">
                   <div>
                     <h2 className="section-title">Historique des traitements</h2>
                     <p className="status-message">
-                      Consultez l'ensemble des traitements lancés et reprenez-en un en un clic.
+                      Les traitements s'actualisent automatiquement. Le statut indique s'ils sont traités, en cours
+                      ou en attente.
                     </p>
                   </div>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => loadJobs()}>
