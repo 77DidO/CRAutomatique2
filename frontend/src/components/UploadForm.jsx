@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { createItem, fetchTemplates } from '../services/api.js';
 import DEFAULT_TEMPLATES from '../constants/templates.js';
 
-function UploadForm({ onCreated, defaultTemplate, defaultParticipants }) {
+function UploadForm({ onCreated }) {
   const [file, setFile] = useState(null);
-  const [templates, setTemplates] = useState(() => createTemplateList([], defaultTemplate));
-  const [template, setTemplate] = useState(defaultTemplate);
-  const [participants, setParticipants] = useState(defaultParticipants.join(', '));
+  const [templates, setTemplates] = useState(() => createTemplateList([]));
+  const [template, setTemplate] = useState('');
+  const [participants, setParticipants] = useState('');
   const [title, setTitle] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const selectedTemplateRef = useRef('');
 
   useEffect(() => {
     let ignore = false;
@@ -19,12 +20,12 @@ function UploadForm({ onCreated, defaultTemplate, defaultParticipants }) {
       try {
         const data = await fetchTemplates();
         if (!ignore) {
-          setTemplates(createTemplateList(data, defaultTemplate));
+          setTemplates(createTemplateList(data, selectedTemplateRef.current));
         }
       } catch (err) {
         console.error('Impossible de récupérer les gabarits depuis le serveur.', err);
         if (!ignore) {
-          setTemplates(createTemplateList([], defaultTemplate));
+          setTemplates(createTemplateList([], selectedTemplateRef.current));
         }
       }
     };
@@ -34,15 +35,11 @@ function UploadForm({ onCreated, defaultTemplate, defaultParticipants }) {
     return () => {
       ignore = true;
     };
-  }, [defaultTemplate]);
+  }, []);
 
   useEffect(() => {
-    setTemplate(defaultTemplate);
-  }, [defaultTemplate]);
-
-  useEffect(() => {
-    setParticipants(defaultParticipants.join(', '));
-  }, [defaultParticipants]);
+    selectedTemplateRef.current = template;
+  }, [template]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -175,14 +172,7 @@ function UploadForm({ onCreated, defaultTemplate, defaultParticipants }) {
 }
 
 UploadForm.propTypes = {
-  onCreated: PropTypes.func.isRequired,
-  defaultTemplate: PropTypes.string,
-  defaultParticipants: PropTypes.arrayOf(PropTypes.string)
-};
-
-UploadForm.defaultProps = {
-  defaultTemplate: '',
-  defaultParticipants: []
+  onCreated: PropTypes.func.isRequired
 };
 
 export default UploadForm;
