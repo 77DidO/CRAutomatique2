@@ -134,7 +134,6 @@ async function transcribeWithOpenAI(
   let response;
   let responseFormatUsed = preferredFormat;
   let lastError;
-
   for (const format of formatCandidates) {
     const payload = {
       file: fs.createReadStream(filePath),
