@@ -77,6 +77,30 @@ export async function fetchTemplates() {
   return request('/api/templates');
 }
 
+export async function createTemplate(payload) {
+  return request('/api/templates', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateTemplate(id, payload) {
+  return request(`/api/templates/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteTemplate(id) {
+  await request(`/api/templates/${id}`, { method: 'DELETE' });
+}
+
 export async function fetchConfig() {
   return request('/api/config');
 }
