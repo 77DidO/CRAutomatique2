@@ -1,52 +1,92 @@
-import axios from 'axios';
+const envUrl = (import.meta.env.VITE_BACKEND_URL ?? import.meta.env.BACKEND_URL ?? '').trim();
+const envPort = import.meta.env.VITE_BACKEND_PORT ?? import.meta.env.BACKEND_PORT ?? import.meta.env.PORT;
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-
-const client = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000
-});
-
-function unwrap(response) {
-  return response.data;
+let baseUrl = envUrl;
+if (!baseUrl && envPort) {
+  baseUrl = `http://localhost:${envPort}`;
+}
+if (!baseUrl && import.meta.env.DEV) {
+  baseUrl = 'http://localhost:4000';
 }
 
-export function fetchItems() {
-  return client.get('/items').then(unwrap);
+const API_BASE = baseUrl ? baseUrl.replace(/\/$/, '') : '';
+
+function withLeadingSlash(path) {
+  return path.startsWith('/') ? path : `/${path}`;
 }
 
-export function fetchItem(id) {
-  return client.get(`/items/${id}`).then(unwrap);
+async function request(path, options = {}) {
+  const target = `${API_BASE}${withLeadingSlash(path)}`;
+  const response = await fetch(target, options);
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  const isJson = response.headers.get('content-type')?.includes('application/json');
+  const payload = isJson ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    const message = typeof payload === 'string' ? payload : payload?.error ?? 'Erreur inattendue du serveur.';
+    throw new Error(message);
+  }
+
+  return payload;
 }
 
-export function fetchLogs(id) {
-  return client.get(`/items/${id}/logs`).then((response) => response.data?.logs || []);
+export function getApiBaseUrl() {
+  return API_BASE;
 }
 
-export function createItem(formData) {
-  return client
-    .post('/items', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    .then(unwrap);
+export async function fetchHealth() {
+  return request('/health');
 }
 
-export function deleteItem(id) {
-  return client.delete(`/items/${id}`);
+export async function fetchJobs() {
+  return request('/api/items');
 }
 
-export function fetchConfig() {
-  return client.get('/config').then(unwrap);
+export async function fetchJob(id) {
+  return request(`/api/items/${id}`);
 }
 
-export function updateConfig(config) {
-  return client.put('/config', config).then(unwrap);
+export async function fetchLogs(id) {
+  return request(`/api/items/${id}/logs`);
 }
 
-export function fetchTemplates() {
-  return client.get('/templates').then(unwrap);
+export async function createJob(formData) {
+  const target = `${API_BASE}/api/items`;
+  const response = await fetch(target, {
+    method: 'POST',
+    body: formData
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => ({}));
+    throw new Error(errorPayload.error ?? 'Impossible de créer le traitement.');
+  }
+
+  return response.json();
 }
 
-export function updateTemplates(templates) {
-  return client.put('/templates', { templates }).then(unwrap);
+export async function deleteJob(id) {
+  await request(`/api/items/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchTemplates() {
+  return request('/api/templates');
+}
+
+export async function fetchConfig() {
+  return request('/api/config');
+}
+
+export async function updateConfig(payload) {
+  return request('/api/config', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
 }
