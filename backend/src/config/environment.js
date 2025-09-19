@@ -25,6 +25,7 @@ export async function ensureDataEnvironment() {
 
   await ensureFile(CONFIG_FILE, {
     llmProvider: 'mock',
+    openaiApiKey: '',
     diarization: {
       enabled: true,
       speakerCount: 'auto'
