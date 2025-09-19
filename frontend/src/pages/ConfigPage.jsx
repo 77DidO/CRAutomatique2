@@ -138,17 +138,46 @@ function ConfigPage() {
   const [config, setConfig] = useState(null);
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [configError, setConfigError] = useState(null);
+  const [saveError, setSaveError] = useState(null);
   const [templates, setTemplates] = useState([]);
   const [templateDraft, setTemplateDraft] = useState([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
   const [templatesSaving, setTemplatesSaving] = useState(false);
+  const [templatesError, setTemplatesError] = useState(null);
 
   useEffect(() => {
-    fetchConfig().then((data) => {
-      const prepared = prepareDraft(data);
-      setConfig(prepared);
-      setDraft(prepared);
-    });
+    let ignore = false;
+
+    const loadConfig = async () => {
+      try {
+        const data = await fetchConfig();
+        if (ignore) {
+          return;
+        }
+        const prepared = prepareDraft(data);
+        setConfig(prepared);
+        setDraft(prepared);
+        setConfigError(null);
+      } catch (error) {
+        console.error('Impossible de charger la configuration.', error);
+        if (ignore) {
+          return;
+        }
+        const fallback = prepareDraft(null);
+        setConfig(fallback);
+        setDraft(fallback);
+        setConfigError(
+          "Impossible de récupérer la configuration actuelle. Les valeurs par défaut sont affichées."
+        );
+      }
+    };
+
+    loadConfig();
+
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -161,6 +190,7 @@ function ConfigPage() {
           const normalized = ensureTemplateDraftList(data);
           setTemplates(normalized);
           setTemplateDraft(normalized);
+          setTemplatesError(null);
         }
       } catch (error) {
         console.error('Impossible de charger les gabarits.', error);
@@ -168,6 +198,9 @@ function ConfigPage() {
           const fallback = ensureTemplateDraftList(DEFAULT_TEMPLATES);
           setTemplates(fallback);
           setTemplateDraft(fallback);
+          setTemplatesError(
+            'Impossible de charger les gabarits depuis le serveur. Les valeurs par défaut sont affichées.'
+          );
         }
       } finally {
         if (!ignore) {
@@ -284,66 +317,78 @@ function ConfigPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
-    const payload = {
-      ...draft,
-      providers: Object.fromEntries(
-        Object.entries(draft.providers || {}).map(([key, value]) => [key, { ...value }])
-      )
-    };
+    setSaveError(null);
 
-    const diarizationPayload = {
-      enable: Boolean(draft.diarization?.enable)
-    };
+    try {
+      const payload = {
+        ...draft,
+        providers: Object.fromEntries(
+          Object.entries(draft.providers || {}).map(([key, value]) => [key, { ...value }])
+        )
+      };
 
-    const speakerCount = toNullableNumber(draft.diarization?.speaker_count);
-    if (speakerCount !== null) {
-      diarizationPayload.speaker_count = speakerCount;
-    }
+      const diarizationPayload = {
+        enable: Boolean(draft.diarization?.enable)
+      };
 
-    const minSpeakers = toNullableNumber(draft.diarization?.min_speakers);
-    if (minSpeakers !== null) {
-      diarizationPayload.min_speakers = minSpeakers;
-    }
-
-    const maxSpeakers = toNullableNumber(draft.diarization?.max_speakers);
-    if (maxSpeakers !== null) {
-      diarizationPayload.max_speakers = maxSpeakers;
-    }
-
-    payload.diarization = diarizationPayload;
-
-    const sanitizeNumber = (input, predicate) => {
-      if (input === '' || input === null || input === undefined) {
-        return undefined;
+      const speakerCount = toNullableNumber(draft.diarization?.speaker_count);
+      if (speakerCount !== null) {
+        diarizationPayload.speaker_count = speakerCount;
       }
-      const parsed = Number(input);
-      return predicate(parsed) ? parsed : undefined;
-    };
 
-    const chunkSize = sanitizeNumber(payload.chunkSize, (number) => Number.isFinite(number) && number > 0);
-    const chunkOverlap = sanitizeNumber(payload.chunkOverlap, (number) => Number.isFinite(number) && number >= 0);
+      const minSpeakers = toNullableNumber(draft.diarization?.min_speakers);
+      if (minSpeakers !== null) {
+        diarizationPayload.min_speakers = minSpeakers;
+      }
 
-    const normalizedRubrics = Array.isArray(draft.rubrics) ? draft.rubrics : [];
-    payload.rubrics = normalizedRubrics
-      .map((rubric) => (typeof rubric === 'string' ? rubric.trim() : ''))
-      .filter((rubric) => rubric.length > 0);
+      const maxSpeakers = toNullableNumber(draft.diarization?.max_speakers);
+      if (maxSpeakers !== null) {
+        diarizationPayload.max_speakers = maxSpeakers;
+      }
 
-    if (chunkSize === undefined) {
-      delete payload.chunkSize;
-    } else {
-      payload.chunkSize = chunkSize;
+      payload.diarization = diarizationPayload;
+
+      const sanitizeNumber = (input, predicate) => {
+        if (input === '' || input === null || input === undefined) {
+          return undefined;
+        }
+        const parsed = Number(input);
+        return predicate(parsed) ? parsed : undefined;
+      };
+
+      const chunkSize = sanitizeNumber(payload.chunkSize, (number) => Number.isFinite(number) && number > 0);
+      const chunkOverlap = sanitizeNumber(
+        payload.chunkOverlap,
+        (number) => Number.isFinite(number) && number >= 0
+      );
+
+      const normalizedRubrics = Array.isArray(draft.rubrics) ? draft.rubrics : [];
+      payload.rubrics = normalizedRubrics
+        .map((rubric) => (typeof rubric === 'string' ? rubric.trim() : ''))
+        .filter((rubric) => rubric.length > 0);
+
+      if (chunkSize === undefined) {
+        delete payload.chunkSize;
+      } else {
+        payload.chunkSize = chunkSize;
+      }
+
+      if (chunkOverlap === undefined) {
+        delete payload.chunkOverlap;
+      } else {
+        payload.chunkOverlap = chunkOverlap;
+      }
+
+      const next = prepareDraft(await updateConfig(payload));
+      setConfig(next);
+      setDraft(next);
+      setConfigError(null);
+    } catch (error) {
+      console.error('Impossible de sauvegarder la configuration.', error);
+      setSaveError('Impossible de sauvegarder la configuration. Vérifiez la connexion au serveur et réessayez.');
+    } finally {
+      setSaving(false);
     }
-
-    if (chunkOverlap === undefined) {
-      delete payload.chunkOverlap;
-    } else {
-      payload.chunkOverlap = chunkOverlap;
-    }
-
-    const next = prepareDraft(await updateConfig(payload));
-    setConfig(next);
-    setDraft(next);
-    setSaving(false);
   };
 
   const handleTemplateFieldChange = (index, field) => (event) => {
@@ -368,6 +413,7 @@ function ConfigPage() {
 
   const handleTemplatesSubmit = async () => {
     setTemplatesSaving(true);
+    setTemplatesError(null);
     try {
       const payload = templateDraft.map((template) => ({
         id: template.id,
@@ -378,8 +424,10 @@ function ConfigPage() {
       const normalized = ensureTemplateDraftList(updated);
       setTemplates(normalized);
       setTemplateDraft(normalized);
+      setTemplatesError(null);
     } catch (error) {
       console.error('Impossible de sauvegarder les gabarits.', error);
+      setTemplatesError('Impossible de sauvegarder les gabarits. Vérifiez la connexion au serveur et réessayez.');
     } finally {
       setTemplatesSaving(false);
     }
@@ -402,6 +450,11 @@ function ConfigPage() {
           <p className="text-base-content/70 m-0">
             Ajustez les paramètres par défaut du pipeline et des fournisseurs LLM.
           </p>
+          {configError && (
+            <p role="alert" className="status-message error-text">
+              {configError}
+            </p>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -631,6 +684,12 @@ function ConfigPage() {
             <code className="mx-1">{'{language_instruction}'}</code> par les consignes de langue si présentes.
           </p>
 
+          {templatesError && (
+            <p role="alert" className="status-message error-text">
+              {templatesError}
+            </p>
+          )}
+
           {templatesLoading ? (
             <p>Chargement des gabarits…</p>
           ) : (
@@ -711,6 +770,11 @@ function ConfigPage() {
             {saving ? 'Enregistrement…' : 'Sauvegarder'}
           </button>
         </div>
+        {saveError && (
+          <p role="alert" className="status-message error-text">
+            {saveError}
+          </p>
+        )}
       </form>
     </section>
   );
