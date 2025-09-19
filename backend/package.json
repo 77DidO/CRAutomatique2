@@ -4,20 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js",
-    "lint": "eslint ."
+    "start": "node src/index.js"
   },
-  "dependencies": {
-    "body-parser": "^1.20.2",
-    "cors": "^2.8.5",
-    "ffmpeg-static": "^5.2.0",
-    "express": "^4.19.2",
-    "fluent-ffmpeg": "^2.1.2",
-    "multer": "^1.4.5-lts.1",
-    "openai": "^4.0.0",
-    "uuid": "^9.0.1"
-  },
-  "devDependencies": {
-    "eslint": "^8.57.0"
-  }
+  "dependencies": {}
 }
