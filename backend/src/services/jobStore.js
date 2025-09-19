@@ -14,8 +14,36 @@ function readStore() {
   return JSON.parse(raw);
 }
 
+const TRANSIENT_FIELDS = new Set(['transcription', 'transcriptionSegments', 'subtitlesVtt']);
+
+function sanitizeJob(job) {
+  const hasTranscription = Boolean(job.transcription?.length || job.hasTranscription);
+  const hasTranscriptionSegments = Boolean(
+    job.transcriptionSegments?.length || job.hasTranscriptionSegments
+  );
+  const hasSubtitles = Boolean(job.subtitlesVtt?.length || job.hasSubtitles);
+
+  const sanitized = { ...job };
+  for (const field of TRANSIENT_FIELDS) {
+    if (field in sanitized) {
+      delete sanitized[field];
+    }
+  }
+
+  return {
+    ...sanitized,
+    hasTranscription,
+    hasTranscriptionSegments,
+    hasSubtitles
+  };
+}
+
 function writeStore(data) {
-  fs.writeFileSync(JOB_DB_PATH, JSON.stringify(data, null, 2));
+  const nextData = {
+    ...data,
+    items: data.items.map((item) => sanitizeJob(item))
+  };
+  fs.writeFileSync(JOB_DB_PATH, JSON.stringify(nextData, null, 2));
 }
 
 export function listJobs() {
