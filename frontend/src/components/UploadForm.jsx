@@ -186,7 +186,8 @@ function createTemplateList(list, selectedTemplate) {
       ...baseList,
       {
         id: selectedTemplate,
-        label: selectedTemplate
+        label: selectedTemplate,
+        prompt: ''
       }
     ];
   }
@@ -195,5 +196,10 @@ function createTemplateList(list, selectedTemplate) {
 }
 
 function isValidTemplate(template) {
-  return template && typeof template.id === 'string' && typeof template.label === 'string';
+  return (
+    template
+    && typeof template.id === 'string'
+    && typeof template.label === 'string'
+    && typeof template.prompt === 'string'
+  );
 }
