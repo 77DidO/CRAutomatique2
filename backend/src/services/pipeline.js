@@ -2,6 +2,7 @@ import { createReadStream } from 'fs';
 import { writeFile } from 'fs/promises';
 import OpenAI from 'openai';
 import { jobAssetPath } from '../config/paths.js';
+import { preprocessAudioSource } from './audioProcessing.js';
 
 export const PIPELINE_STEPS = [
   {
@@ -235,9 +236,11 @@ async function writeOpenAIOutputs({ jobId, job, template, context, pipeline }) {
   const activeTemplate = template ?? context.template ?? null;
 
   if (pipeline?.transcription !== false) {
-    const transcriptionContent = (context.transcriptionText ?? '').trim().length > 0
-      ? context.transcriptionText.trim()
-      : buildTranscription(job);
+    const transcriptionContent = (context.transcriptionText ?? '').trim();
+    if (!transcriptionContent) {
+      throw new Error('Aucune transcription disponible pour l\'écriture des sorties.');
+    }
+
     await writeFile(
       jobAssetPath(jobId, 'transcription_raw.txt'),
       `${transcriptionContent}\n`,
@@ -251,9 +254,11 @@ async function writeOpenAIOutputs({ jobId, job, template, context, pipeline }) {
   }
 
   if (pipeline?.summary !== false) {
-    const summaryContent = (context.summaryMarkdown ?? '').trim().length > 0
-      ? context.summaryMarkdown.trim()
-      : buildSummary(job, activeTemplate);
+    const summaryContent = (context.summaryMarkdown ?? '').trim();
+    if (!summaryContent) {
+      throw new Error('Aucune synthèse disponible pour l\'écriture des sorties.');
+    }
+
     await writeFile(
       jobAssetPath(jobId, 'summary.md'),
       `${summaryContent}\n`,
@@ -268,11 +273,17 @@ async function writeOpenAIOutputs({ jobId, job, template, context, pipeline }) {
 
   if (pipeline?.subtitles !== false) {
     const vttFromSegments = createVttFromSegments(context.transcriptionSegments ?? []);
-    const subtitleContent = (context.subtitlesVtt ?? '').trim().length > 0
-      ? context.subtitlesVtt.trim()
-      : (vttFromSegments || '').trim().length > 0
-        ? vttFromSegments.trim()
-        : buildVtt(job);
+    const subtitleContent = (() => {
+      if ((context.subtitlesVtt ?? '').trim().length > 0) {
+        return context.subtitlesVtt.trim();
+      }
+      return vttFromSegments.trim();
+    })();
+
+    if (!subtitleContent) {
+      throw new Error('Aucune donnée de sous-titres disponible pour l\'écriture des sorties.');
+    }
+
     await writeFile(
       jobAssetPath(jobId, 'subtitles.vtt'),
       `${subtitleContent}\n`,
@@ -312,6 +323,50 @@ function createOpenAIPipelineOperations({ jobId, jobStore, templateStore, config
   const whisperConfig = config?.whisper ?? {};
   const pipeline = config?.pipeline ?? {};
 
+  async function ensurePreparedSource({ job, loggerPrefix }) {
+    if (context.preparedSourcePath) {
+      return context.preparedSourcePath;
+    }
+    if (context.preparingSourcePromise) {
+      return context.preparingSourcePromise;
+    }
+
+    if (!job?.source?.storedName) {
+      throw new Error('Source du job introuvable pour le prétraitement.');
+    }
+
+    const sourcePath = jobAssetPath(jobId, job.source.storedName);
+    const filterOptions = {
+      highpassFrequency: whisperConfig?.highpassFrequency,
+      lowpassFrequency: whisperConfig?.lowpassFrequency,
+      normalizationFilter: whisperConfig?.normalizationFilter,
+      customFilter: whisperConfig?.customFilter,
+      noiseReduction: whisperConfig?.noiseReduction
+    };
+
+    const logger = {
+      info: (...args) => console.info(`[pipeline:${loggerPrefix}]`, ...args),
+      error: (...args) => console.error(`[pipeline:${loggerPrefix}]`, ...args)
+    };
+
+    context.preparingSourcePromise = preprocessAudioSource({
+      jobId,
+      inputPath: sourcePath,
+      outputBasename: 'source_prepared.wav',
+      filterOptions,
+      logger
+    })
+      .then((preparedPath) => {
+        context.preparedSourcePath = preparedPath;
+        return preparedPath;
+      })
+      .finally(() => {
+        context.preparingSourcePromise = null;
+      });
+
+    return context.preparingSourcePromise;
+  }
+
   return {
     handlers: {
       ingest: async () => {},
@@ -325,7 +380,17 @@ function createOpenAIPipelineOperations({ jobId, jobStore, templateStore, config
           throw new Error('Source du job introuvable pour la transcription.');
         }
 
-        const sourcePath = jobAssetPath(jobId, job.source.storedName);
+        let sourcePath = context.preparedSourcePath;
+        if (!sourcePath) {
+          try {
+            sourcePath = await ensurePreparedSource({ job, loggerPrefix: jobId });
+          } catch (error) {
+            console.error('Prétraitement audio indisponible, utilisation du fichier original.', error);
+            await jobStore.appendLog(jobId, `Prétraitement audio indisponible : ${error?.message ?? 'Erreur inconnue'}.`);
+            sourcePath = jobAssetPath(jobId, job.source.storedName);
+          }
+        }
+
         const temperature = typeof whisperConfig?.temperature === 'number'
           ? whisperConfig.temperature
           : 0.2;
@@ -397,7 +462,20 @@ function createOpenAIPipelineOperations({ jobId, jobStore, templateStore, config
           }
         }
       },
-      cleanup: async () => {},
+      cleanup: async () => {
+        const job = jobStore.get(jobId);
+        if (!job) {
+          return;
+        }
+
+        try {
+          await ensurePreparedSource({ job, loggerPrefix: `${jobId}:cleanup` });
+        } catch (error) {
+          console.error('Erreur lors du prétraitement audio.', error);
+          await jobStore.appendLog(jobId, `Échec du prétraitement audio : ${error?.message ?? 'Erreur inconnue'}.`);
+          context.preparedSourcePath = null;
+        }
+      },
       summaries: async () => {
         if (pipeline?.summary === false) {
           return;
@@ -474,7 +552,9 @@ export async function runPipeline({ jobId, jobStore, templateStore, configStore 
     transcriptionSegments: [],
     summaryMarkdown: '',
     subtitlesVtt: '',
-    template: null
+    template: null,
+    preparedSourcePath: null,
+    preparingSourcePromise: null
   };
 
   try {
