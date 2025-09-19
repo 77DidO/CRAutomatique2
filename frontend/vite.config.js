@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
+      host: env.VITE_HOST || env.HOST || true,
       port: Number(env.VITE_PORT || 5173),
       proxy: {
         '/api': {
