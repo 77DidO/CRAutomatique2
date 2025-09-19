@@ -1,113 +1,108 @@
-import { useEffect, useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
-import UploadForm from '../components/UploadForm.jsx';
-import StatusCard from '../components/StatusCard.jsx';
-import ResourceList from '../components/ResourceList.jsx';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import UploadCard from '../components/UploadCard.jsx';
+import JobList from '../components/JobList.jsx';
+import JobStatusBadge from '../components/JobStatusBadge.jsx';
 import LogsPanel from '../components/LogsPanel.jsx';
-import DashboardHero from '../components/DashboardHero.jsx';
-import usePolling from '../hooks/usePolling.js';
-import { fetchConfig, fetchItem, fetchItems } from '../services/api.js';
-import { DEFAULT_DASHBOARD_HERO_SUBTITLE } from '../constants/uiMessages.js';
+import { fetchConfig, fetchItems } from '../services/api.js';
 
-const LOCAL_STORAGE_KEY = 'crautomatique:last-job-id';
+function sortJobs(items) {
+  return [...items].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
 
 function DashboardPage() {
-  const [currentJob, setCurrentJob] = useState(null);
-  const [jobId, setJobId] = useState(localStorage.getItem(LOCAL_STORAGE_KEY));
-  const [heroSubtitle, setHeroSubtitle] = useState(DEFAULT_DASHBOARD_HERO_SUBTITLE);
+  const [config, setConfig] = useState(null);
+  const [jobs, setJobs] = useState([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const navigate = useNavigate();
 
-  const loadCurrentJob = async () => {
-    if (jobId) {
-      try {
-        const job = await fetchItem(jobId);
-        setCurrentJob(job);
-        if (job.status === 'done' || job.status === 'error') {
-          localStorage.removeItem(LOCAL_STORAGE_KEY);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    } else {
-      const jobs = await fetchItems();
-      const active = jobs.find((item) => item.status !== 'done' && item.status !== 'error');
-      if (active) {
-        setJobId(active.id);
-      }
-    }
-  };
-
-  usePolling(() => {
-    if (jobId) {
-      loadCurrentJob();
-    }
-  }, jobId ? 2000 : null);
-
-  useEffect(() => {
-    if (jobId) {
-      loadCurrentJob();
-    }
-  }, [jobId]);
-
-  useEffect(() => {
-    let ignore = false;
-
+  const loadConfig = useCallback(() => {
     fetchConfig()
-      .then((config) => {
-        const subtitle = config?.ui?.dashboardHeroSubtitle;
-        if (!ignore && typeof subtitle === 'string') {
-          const trimmed = subtitle.trim();
-          if (trimmed) {
-            setHeroSubtitle(trimmed);
-          }
-        }
-      })
-      .catch((error) => {
-        console.error("Impossible de récupérer la configuration de l'interface.", error);
+      .then(setConfig)
+      .catch(() => {
+        setConfig(null);
       });
-
-    return () => {
-      ignore = true;
-    };
   }, []);
 
-  const handleCreated = (job) => {
-    setJobId(job.id);
-    localStorage.setItem(LOCAL_STORAGE_KEY, job.id);
-    setCurrentJob(job);
-  };
+  const loadJobs = useCallback(() => {
+    setIsLoadingJobs(true);
+    fetchItems()
+      .then((items) => {
+        setJobs(sortJobs(items));
+      })
+      .catch(() => {
+        setJobs([]);
+      })
+      .finally(() => {
+        setIsLoadingJobs(false);
+      });
+  }, []);
 
-  const heroActions = (
-    <div className="dashboard-hero__cta">
-      <a className="btn btn-primary btn-sm" href="#upload-section">
-        Importer un nouveau dossier
-      </a>
-      <RouterLink className="btn btn-secondary btn-sm" to="/history">
-        Consulter l'historique
-      </RouterLink>
-    </div>
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
+
+  useEffect(() => {
+    loadJobs();
+    const timer = setInterval(loadJobs, 5000);
+    return () => clearInterval(timer);
+  }, [loadJobs]);
+
+  const activeJob = useMemo(
+    () => jobs.find((job) => job.status !== 'done' && job.status !== 'error'),
+    [jobs]
   );
 
+  const latestJobs = useMemo(() => jobs.slice(0, 5), [jobs]);
+
+  const handleCreated = (job) => {
+    loadJobs();
+    if (job?.id) {
+      navigate(`/jobs/${job.id}`);
+    }
+  };
+
   return (
-    <div className="space-y-6 pb-24">
-      <DashboardHero
-        subtitle={heroSubtitle}
-        actions={heroActions}
-      />
-      <div className="grid gap-6 md:grid-cols-2">
-        <div id="upload-section" className="space-y-6">
-          <UploadForm
-            onCreated={handleCreated}
-          />
-        </div>
-        <div className="space-y-6">
-          <StatusCard job={currentJob} />
-          <ResourceList resources={currentJob?.resources || []} />
-        </div>
+    <div className="page">
+      <h1>Tableau de bord</h1>
+      <div className="grid grid--responsive">
+        <UploadCard
+          templates={config?.templates || []}
+          defaultTemplate={config?.defaultTemplate}
+          onCreated={handleCreated}
+        />
+        <section className="card">
+          <header className="card__header">
+            <h2 className="card__title">Traitement en cours</h2>
+          </header>
+          {activeJob ? (
+            <div className="active-job">
+              <h3>{activeJob.title}</h3>
+              <p>
+                Statut : <JobStatusBadge status={activeJob.status} />
+              </p>
+              <p>Modèle : {activeJob.template || '—'}</p>
+              <button className="btn" type="button" onClick={() => navigate(`/jobs/${activeJob.id}`)}>
+                Ouvrir le détail
+              </button>
+            </div>
+          ) : (
+            <p className="empty-placeholder">Aucun traitement en cours.</p>
+          )}
+        </section>
       </div>
+
       <LogsPanel
-        jobId={currentJob?.id}
-        polling={currentJob && currentJob.status !== 'done' && currentJob.status !== 'error'}
+        jobId={activeJob?.id}
+        isActive={Boolean(activeJob && activeJob.status !== 'done' && activeJob.status !== 'error')}
       />
+
+      <section className="card">
+        <header className="card__header">
+          <h2 className="card__title">Derniers comptes rendus</h2>
+        </header>
+        {isLoadingJobs && !latestJobs.length ? <p>Chargement…</p> : <JobList jobs={latestJobs} />}
+      </section>
     </div>
   );
 }
