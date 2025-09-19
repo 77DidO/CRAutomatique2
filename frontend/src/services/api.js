@@ -19,6 +19,11 @@ export async function fetchTemplates() {
   return data;
 }
 
+export async function updateTemplates(templates) {
+  const { data } = await client.put('/templates', { templates });
+  return data;
+}
+
 export async function createItem(formData) {
   const { data } = await client.post('/items', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
