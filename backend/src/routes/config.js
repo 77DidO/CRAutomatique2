@@ -1,10 +1,26 @@
-import { Router } from 'express';
-import { getConfigHandler, updateConfigHandler } from '../controllers/configController.js';
+import express from 'express';
 
-const router = Router();
+export function createConfigRouter({ configStore }) {
+  const router = express.Router();
 
-router.get('/', getConfigHandler);
-router.put('/', updateConfigHandler);
-router.post('/', updateConfigHandler);
+  router.get('/', async (req, res, next) => {
+    try {
+      const config = await configStore.get();
+      res.json(config);
+    } catch (error) {
+      next(error);
+    }
+  });
 
-export default router;
+  router.put('/', async (req, res, next) => {
+    try {
+      const payload = req.body ?? {};
+      const nextConfig = await configStore.merge(payload);
+      res.json(nextConfig);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  return router;
+}
