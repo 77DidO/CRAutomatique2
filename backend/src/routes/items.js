@@ -49,7 +49,7 @@ function serializeJob(job, { includeLogs = false } = {}) {
   return serialized;
 }
 
-export function createItemsRouter({ jobStore, templateStore }) {
+export function createItemsRouter({ jobStore, templateStore, configStore }) {
   const router = express.Router();
 
   router.get('/', (req, res) => {
@@ -102,7 +102,7 @@ export function createItemsRouter({ jobStore, templateStore }) {
       await jobStore.create(job);
       await jobStore.appendLog(jobId, 'Traitement en file d\'attente.');
 
-      runPipeline({ jobId, jobStore, templateStore }).catch((error) => {
+      runPipeline({ jobId, jobStore, templateStore, configStore }).catch((error) => {
         // Erreur non interceptée dans le pipeline, journaliser et signaler.
         console.error('Pipeline error', error);
       });

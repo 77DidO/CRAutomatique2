@@ -17,7 +17,7 @@ export function createApp({ jobStore, configStore, templateStore }) {
     res.json({ status: 'ok' });
   });
 
-  app.use('/api/items', createItemsRouter({ jobStore, templateStore }));
+  app.use('/api/items', createItemsRouter({ jobStore, templateStore, configStore }));
   app.use('/api/config', createConfigRouter({ configStore }));
   app.use('/api/templates', createTemplatesRouter({ templateStore }));
   app.use('/api/assets', createAssetsRouter({ jobStore }));
