@@ -32,11 +32,11 @@ function buildFilterChain(options = {}) {
   return filters;
 }
 
-let ffmpegConfigured = false;
+let ffmpegAvailability = 'unknown';
 
 async function ensureFfmpegPath({ logger }) {
-  if (ffmpegConfigured) {
-    return;
+  if (ffmpegAvailability !== 'unknown') {
+    return ffmpegAvailability === 'available';
   }
 
   let configuredPath = process.env.FFMPEG_PATH?.trim();
@@ -67,11 +67,17 @@ async function ensureFfmpegPath({ logger }) {
     );
   }
 
-  ffmpegConfigured = true;
+  ffmpegAvailability = configuredPath ? 'available' : 'unavailable';
+
+  return ffmpegAvailability === 'available';
 }
 
 async function runFfmpeg(inputPath, outputPath, { filters, logger }) {
-  await ensureFfmpegPath({ logger });
+  const ffmpegAvailable = await ensureFfmpegPath({ logger });
+
+  if (!ffmpegAvailable) {
+    throw new Error('FFmpeg est indisponible pour le prétraitement audio.');
+  }
 
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)

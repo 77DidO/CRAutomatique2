@@ -346,6 +346,7 @@ function createOpenAIPipelineOperations({ jobId, jobStore, templateStore, config
 
     const logger = {
       info: (...args) => console.info(`[pipeline:${loggerPrefix}]`, ...args),
+      warn: (...args) => console.warn(`[pipeline:${loggerPrefix}]`, ...args),
       error: (...args) => console.error(`[pipeline:${loggerPrefix}]`, ...args)
     };
 
