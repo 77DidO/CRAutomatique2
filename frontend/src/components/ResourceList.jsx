@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-function ResourceList({ resources }) {
+function ResourceList({ resources = [] }) {
   if (!resources?.length) {
     return null;
   }
@@ -33,10 +33,6 @@ ResourceList.propTypes = {
       url: PropTypes.string
     })
   )
-};
-
-ResourceList.defaultProps = {
-  resources: []
 };
 
 export default ResourceList;

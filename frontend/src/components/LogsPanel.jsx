@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { fetchLogs } from '../services/api.js';
 
-function LogsPanel({ jobId, polling }) {
+function LogsPanel({ jobId = null, polling = false }) {
   const [logs, setLogs] = useState([]);
   const [expanded, setExpanded] = useState(false);
 
@@ -79,11 +79,6 @@ function LogsPanel({ jobId, polling }) {
 LogsPanel.propTypes = {
   jobId: PropTypes.string,
   polling: PropTypes.bool
-};
-
-LogsPanel.defaultProps = {
-  jobId: null,
-  polling: false
 };
 
 export default LogsPanel;
