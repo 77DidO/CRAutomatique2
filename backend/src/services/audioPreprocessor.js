@@ -10,7 +10,7 @@ if (!ffmpegStatic) {
 
 ffmpeg.setFfmpegPath(ffmpegStatic);
 
-const DEFAULT_FILTERS = 'afftdn=nf=-25dB,equalizer=f=1000:t=q:w=1:g=3,loudnorm=I=-16:TP=-1.5:LRA=11';
+const DEFAULT_FILTERS = 'afftdn=nf=-25,equalizer=f=1000:t=q:w=1:g=3,loudnorm=I=-16:TP=-1.5:LRA=11';
 
 export function preprocessAudio(sourcePath, targetDir, { filters = DEFAULT_FILTERS } = {}) {
   if (!sourcePath) {
