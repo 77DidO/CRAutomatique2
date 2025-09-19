@@ -162,6 +162,37 @@ function createVttFromSegments(segments) {
   return lines.join('\n').trimEnd();
 }
 
+function resolveTranscriptionModels(model) {
+  const requested = (model ?? '').trim() || 'whisper-1';
+  const attempts = [requested];
+
+  if (requested === 'whisper-large-v3') {
+    attempts.push('whisper-1');
+  } else if (requested !== 'whisper-1') {
+    attempts.push('whisper-1');
+  }
+
+  return attempts.filter((value, index, array) => array.indexOf(value) === index);
+}
+
+function isMissingModelError(error) {
+  if (!error) {
+    return false;
+  }
+
+  const status = error?.status ?? error?.statusCode ?? error?.response?.status;
+  if (status === 404) {
+    return true;
+  }
+
+  const message = (error?.message ?? error?.error?.message ?? '').toLowerCase();
+  if (!message) {
+    return false;
+  }
+
+  return message.includes('does not exist') || message.includes('not found');
+}
+
 async function writeOpenAIOutputs({ jobId, job, template, context, pipeline }) {
   const outputs = [];
   const activeTemplate = template ?? context.template ?? null;
@@ -258,23 +289,47 @@ function createOpenAIPipelineOperations({ jobId, jobStore, templateStore, config
         }
 
         const sourcePath = jobAssetPath(jobId, job.source.storedName);
-        const requestPayload = {
-          file: createReadStream(sourcePath),
-          model: whisperConfig?.model ?? 'whisper-1',
-          response_format: 'verbose_json',
-          temperature: typeof whisperConfig?.temperature === 'number'
-            ? whisperConfig.temperature
-            : 0.2
-        };
+        const temperature = typeof whisperConfig?.temperature === 'number'
+          ? whisperConfig.temperature
+          : 0.2;
 
-        if (whisperConfig?.language && whisperConfig.language !== 'auto') {
-          requestPayload.language = whisperConfig.language;
-        }
-        if (whisperConfig?.translate === true) {
-          requestPayload.translate = true;
+        const modelsToTry = resolveTranscriptionModels(whisperConfig?.model);
+        let transcription = null;
+        let lastError = null;
+
+        for (let index = 0; index < modelsToTry.length; index += 1) {
+          const modelName = modelsToTry[index];
+          const requestPayload = {
+            file: createReadStream(sourcePath),
+            model: modelName,
+            response_format: 'verbose_json',
+            temperature
+          };
+
+          if (whisperConfig?.language && whisperConfig.language !== 'auto') {
+            requestPayload.language = whisperConfig.language;
+          }
+          if (whisperConfig?.translate === true) {
+            requestPayload.translate = true;
+          }
+
+          try {
+            transcription = await openai.audio.transcriptions.create(requestPayload);
+            context.transcriptionModel = modelName;
+            break;
+          } catch (error) {
+            lastError = error;
+            const shouldRetry = index < modelsToTry.length - 1 && isMissingModelError(error);
+            if (!shouldRetry) {
+              throw error;
+            }
+          }
         }
 
-        const transcription = await openai.audio.transcriptions.create(requestPayload);
+        if (!transcription) {
+          throw lastError ?? new Error('La transcription a échoué.');
+        }
+
         context.transcriptionText = (transcription?.text ?? '').trim();
         context.transcriptionSegments = Array.isArray(transcription?.segments)
           ? transcription.segments
