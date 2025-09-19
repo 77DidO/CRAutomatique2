@@ -1,10 +1,11 @@
-import { Router } from 'express';
-import { listTemplates, updateTemplates } from '../controllers/templatesController.js';
+import express from 'express';
 
-const router = Router();
+export function createTemplatesRouter({ templateStore }) {
+  const router = express.Router();
 
-router.get('/', listTemplates);
-router.put('/', updateTemplates);
-router.post('/', updateTemplates);
+  router.get('/', (req, res) => {
+    res.json(templateStore.all());
+  });
 
-export default router;
+  return router;
+}
