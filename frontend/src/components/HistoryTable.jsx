@@ -34,7 +34,7 @@ function HistoryTable({ items, onDelete }) {
                     {item.status.toUpperCase()}
                   </td>
                   <td>
-                    <div className="status-actions" style={{ justifyContent: 'flex-end' }}>
+                    <div className="status-actions status-actions--end">
                       <RouterLink to={`/item/${item.id}`} className="btn btn-secondary btn-sm">
                         Consulter
                       </RouterLink>
