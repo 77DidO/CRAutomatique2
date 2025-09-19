@@ -26,12 +26,19 @@ export async function ensureDataEnvironment() {
   await ensureFile(CONFIG_FILE, {
     llmProvider: 'mock',
     llmApiToken: '',
-    openaiApiKey: '',
-    whisper: {
-      model: 'whisper-1',
+    openai: {
+      apiKey: '',
+      chatModel: 'gpt-4o-mini',
+      temperature: 0.7
+    },
+    transcription: {
+      engine: 'local-whisper',
+      binaryPath: 'whisper',
+      model: 'base',
       language: 'auto',
       translate: false,
-      temperature: 0.2
+      temperature: 0,
+      extraArgs: []
     },
     diarization: {
       enabled: true,
@@ -39,7 +46,7 @@ export async function ensureDataEnvironment() {
     },
     pipeline: {
       transcription: true,
-      summary: true,
+      summary: false,
       subtitles: true
     }
   });

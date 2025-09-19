@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { rename, unlink } from 'fs/promises';
 import { v4 as uuid } from 'uuid';
-import { createInitialSteps, runPipeline } from '../services/pipeline.js';
+import { createInitialSteps, runPipeline } from '../workflow/index.js';
 import { parseParticipants } from '../utils/participants.js';
 import { jobAssetPath, UPLOADS_DIR } from '../config/paths.js';
 
