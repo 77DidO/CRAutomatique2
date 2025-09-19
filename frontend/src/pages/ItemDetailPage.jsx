@@ -53,42 +53,44 @@ function ItemDetailPage() {
       case 'overview':
         return (
           <Card className="shadow-sm border-0">
-            <Card.Body className="d-flex flex-column gap-3">
-              <div>
-                <h4 className="mb-1">{item.title}</h4>
-                <div className="text-muted small">Créé le {new Date(item.createdAt).toLocaleString()}</div>
-                <div className="text-muted small">Gabarit : {item.template || '—'}</div>
-              </div>
-              {summaryHtml ? (
-                <div
-                  className="border rounded-4 p-3"
-                  dangerouslySetInnerHTML={{ __html: summaryHtml }}
-                />
-              ) : item.summary ? (
-                <p className="mb-0">{item.summary}</p>
-              ) : (
-                <p className="mb-0 text-muted">Résumé non disponible.</p>
-              )}
-              {item.resources?.length > 0 && (
+            <Card.Body>
+              <Stack gap={3}>
                 <div>
-                  <h6>Téléchargements</h6>
-                  <Stack direction="horizontal" gap={2} className="flex-wrap">
-                    {item.resources.map((resource) => (
-                      <Button
-                        key={resource.url}
-                        as="a"
-                        href={resource.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        variant="outline-primary"
-                      >
-                        {resource.type}
-                      </Button>
-                    ))}
-                  </Stack>
+                  <h4 className="mb-1">{item.title}</h4>
+                  <div className="text-muted small">Créé le {new Date(item.createdAt).toLocaleString()}</div>
+                  <div className="text-muted small">Gabarit : {item.template || '—'}</div>
                 </div>
-              )}
-            </Stack>
+                {summaryHtml ? (
+                  <div
+                    className="border rounded-4 p-3"
+                    dangerouslySetInnerHTML={{ __html: summaryHtml }}
+                  />
+                ) : item.summary ? (
+                  <p className="mb-0">{item.summary}</p>
+                ) : (
+                  <p className="mb-0 text-muted">Résumé non disponible.</p>
+                )}
+                {item.resources?.length > 0 && (
+                  <div>
+                    <h6>Téléchargements</h6>
+                    <Stack direction="horizontal" gap={2} className="flex-wrap">
+                      {item.resources.map((resource) => (
+                        <Button
+                          key={resource.url}
+                          as="a"
+                          href={resource.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          variant="outline-primary"
+                        >
+                          {resource.type}
+                        </Button>
+                      ))}
+                    </Stack>
+                  </div>
+                )}
+              </Stack>
+            </Card.Body>
           </Card>
         );
       case 'audio': {
