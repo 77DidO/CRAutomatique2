@@ -12,6 +12,75 @@ async function ensureFileExists(filePath) {
   }
 }
 
+export class WhisperBinaryNotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'WhisperBinaryNotFoundError';
+  }
+}
+
+const WHISPER_BINARY_GUIDANCE = 'Le binaire Whisper est introuvable. Installez la CLI `whisper` (https://github.com/openai/whisper#setup) '
+  + 'ou configurez `transcription.binaryPath` avec le chemin complet vers l’exécutable.';
+
+async function isExecutable(filePath) {
+  const accessMode = process.platform === 'win32' ? fsConstants.F_OK : fsConstants.X_OK;
+  try {
+    await access(filePath, accessMode);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function expandWindowsExtensions(command) {
+  if (process.platform !== 'win32') {
+    return [command];
+  }
+
+  if (path.extname(command)) {
+    return [command];
+  }
+
+  const pathext = (process.env.PATHEXT || '.COM;.EXE;.BAT;.CMD')
+    .split(';')
+    .filter((value) => value.trim().length > 0);
+
+  if (pathext.length === 0) {
+    return [command];
+  }
+
+  return pathext.map((extension) => `${command}${extension}`);
+}
+
+async function resolveWhisperBinary(binaryPath) {
+  const trimmedPath = binaryPath.trim();
+  const candidates = [];
+
+  if (path.isAbsolute(trimmedPath)) {
+    candidates.push(...expandWindowsExtensions(trimmedPath));
+  } else {
+    const pathEntries = (process.env.PATH || '')
+      .split(path.delimiter)
+      .filter((value) => value.trim().length > 0);
+
+    const possiblePaths = expandWindowsExtensions(trimmedPath);
+    candidates.push(...possiblePaths);
+    for (const entry of pathEntries) {
+      for (const possiblePath of possiblePaths) {
+        candidates.push(path.join(entry, possiblePath));
+      }
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (await isExecutable(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${trimmedPath}".`);
+}
+
 // Execute a local Whisper-compatible CLI and collect the resulting transcription.
 export async function transcribeWithLocalWhisper({
   jobId,
@@ -68,10 +137,20 @@ export async function transcribeWithLocalWhisper({
     args.push(...options.extraArgs.map((value) => String(value)));
   }
 
-  activeLogger.info('Exécution du moteur Whisper local.', { binaryPath, args, outputDir, jobId });
+  let resolvedBinaryPath;
+  try {
+    resolvedBinaryPath = await resolveWhisperBinary(binaryPath);
+  } catch (error) {
+    if (error instanceof WhisperBinaryNotFoundError) {
+      throw error;
+    }
+    throw new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${binaryPath}".`);
+  }
+
+  activeLogger.info('Exécution du moteur Whisper local.', { binaryPath: resolvedBinaryPath, args, outputDir, jobId });
 
   await new Promise((resolve, reject) => {
-    const child = spawn(binaryPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(resolvedBinaryPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
 
@@ -83,6 +162,10 @@ export async function transcribeWithLocalWhisper({
     });
 
     child.on('error', (error) => {
+      if (error?.code === 'ENOENT') {
+        reject(new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${resolvedBinaryPath}".`));
+        return;
+      }
       reject(error);
     });
 

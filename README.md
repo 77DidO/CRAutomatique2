@@ -31,6 +31,8 @@ pwsh -File ./start.ps1
 - Node.js 18+ (le backend utilise l'option `--watch`).
 - npm 9+.
 - (Optionnel) PowerShell 7 pour exécuter `install.ps1` sous Linux/macOS.
+- Un exécutable `whisper` accessible (par exemple via `pip install git+https://github.com/openai/whisper.git`) ou un chemin
+  configuré vers une alternative compatible.
 
 1. **Backend**
    ```bash
@@ -43,6 +45,14 @@ pwsh -File ./start.ps1
    - `OLLAMA_COMMAND` : chemin vers l'exécutable Ollama (défaut `ollama`).
    - `FFMPEG_PATH` : chemin absolu vers un binaire `ffmpeg` déjà installé. Si vous installez la dépendance optionnelle
      `@ffmpeg-installer/ffmpeg`, ce paramètre est configuré automatiquement.
+   - `WHISPER_BINARY_PATH` : force le chemin vers la CLI Whisper locale si elle n'est pas exposée via le `PATH` système.
+
+### Transcription locale (Whisper)
+
+L'étape de transcription utilise une CLI compatible Whisper côté serveur. Installez l'outil officiel avec `pip install git+https://github.com/openai/whisper.git`
+ou fournissez votre propre binaire compatible. Assurez-vous que la commande est disponible via la variable d'environnement `PATH` ou
+indiquez le chemin complet dans la configuration (`transcription.binaryPath` côté backend, ou `WHISPER_BINARY_PATH` dans les variables d'environnement).
+En cas d'absence, l'étape ajoute un log de job contenant les instructions d'installation afin de faciliter le diagnostic dans l'interface.
 
 2. **Frontend**
    ```bash
