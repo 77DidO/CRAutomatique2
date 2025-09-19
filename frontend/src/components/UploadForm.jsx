@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { createItem, fetchTemplates } from '../services/api.js';
+import DEFAULT_TEMPLATES from '../constants/templates.js';
 
 function UploadForm({ onCreated, defaultTemplate, defaultParticipants }) {
   const [file, setFile] = useState(null);
-  const [templates, setTemplates] = useState([]);
+  const [templates, setTemplates] = useState(() => createTemplateList([], defaultTemplate));
   const [template, setTemplate] = useState(defaultTemplate);
   const [participants, setParticipants] = useState(defaultParticipants.join(', '));
   const [title, setTitle] = useState('');
@@ -12,8 +13,28 @@ function UploadForm({ onCreated, defaultTemplate, defaultParticipants }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchTemplates().then(setTemplates);
-  }, []);
+    let ignore = false;
+
+    const loadTemplates = async () => {
+      try {
+        const data = await fetchTemplates();
+        if (!ignore) {
+          setTemplates(createTemplateList(data, defaultTemplate));
+        }
+      } catch (err) {
+        console.error('Impossible de récupérer les gabarits depuis le serveur.', err);
+        if (!ignore) {
+          setTemplates(createTemplateList([], defaultTemplate));
+        }
+      }
+    };
+
+    loadTemplates();
+
+    return () => {
+      ignore = true;
+    };
+  }, [defaultTemplate]);
 
   useEffect(() => {
     setTemplate(defaultTemplate);
@@ -165,3 +186,24 @@ UploadForm.defaultProps = {
 };
 
 export default UploadForm;
+
+function createTemplateList(list, selectedTemplate) {
+  const parsedList = Array.isArray(list) ? list.filter(isValidTemplate) : [];
+  const baseList = parsedList.length > 0 ? parsedList : DEFAULT_TEMPLATES;
+
+  if (selectedTemplate && !baseList.some((item) => item.id === selectedTemplate)) {
+    return [
+      ...baseList,
+      {
+        id: selectedTemplate,
+        label: selectedTemplate
+      }
+    ];
+  }
+
+  return baseList;
+}
+
+function isValidTemplate(template) {
+  return template && typeof template.id === 'string' && typeof template.label === 'string';
+}
