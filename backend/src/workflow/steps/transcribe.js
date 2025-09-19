@@ -1,5 +1,5 @@
 import { jobAssetPath } from '../../config/paths.js';
-import { transcribeWithLocalWhisper } from '../../services/transcription/localWhisper.js';
+import { transcribeWithLocalWhisper, WhisperBinaryNotFoundError } from '../../services/transcription/localWhisper.js';
 
 export const transcribeStep = {
   async execute({ jobId, jobStore, config, context, logger }) {
@@ -21,12 +21,20 @@ export const transcribeStep = {
     // Run Whisper CLI (or compatible engine) locally.
     logger.info('Transcription locale en cours.', { audioPath });
 
-    const result = await transcribeWithLocalWhisper({
-      jobId,
-      audioPath,
-      options: transcriptionConfig,
-      logger
-    });
+    let result;
+    try {
+      result = await transcribeWithLocalWhisper({
+        jobId,
+        audioPath,
+        options: transcriptionConfig,
+        logger
+      });
+    } catch (error) {
+      if (error instanceof WhisperBinaryNotFoundError) {
+        await jobStore.appendLog(jobId, error.message);
+      }
+      throw error;
+    }
 
     context.transcription = {
       text: result.text,
