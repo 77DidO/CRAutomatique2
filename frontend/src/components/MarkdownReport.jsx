@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 
 const contentCache = new Map();
 
-function MarkdownReport({ resourceUrl, preview }) {
+function MarkdownReport({ resourceUrl = null, preview = false }) {
   const [status, setStatus] = useState(resourceUrl ? 'idle' : 'missing');
   const [content, setContent] = useState('');
   const [expanded, setExpanded] = useState(false);
@@ -113,11 +113,6 @@ function MarkdownReport({ resourceUrl, preview }) {
 MarkdownReport.propTypes = {
   resourceUrl: PropTypes.string,
   preview: PropTypes.bool
-};
-
-MarkdownReport.defaultProps = {
-  resourceUrl: null,
-  preview: false
 };
 
 export default MarkdownReport;
