@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import ConfigPanel from './components/ConfigPanel.jsx';
 import JobDetail from './components/JobDetail.jsx';
 import JobList from './components/JobList.jsx';
+import TemplateManager from './components/TemplateManager.jsx';
 import UploadForm from './components/UploadForm.jsx';
 import {
   createJob,
@@ -11,7 +12,10 @@ import {
   fetchJob,
   fetchJobs,
   fetchTemplates,
-  updateConfig
+  updateConfig,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate as apiDeleteTemplate
 } from './services/api.js';
 
 const REFRESH_INTERVAL = 4000;
@@ -154,6 +158,44 @@ export default function App() {
     }
   }, []);
 
+  const handleTemplateCreate = useCallback(async (payload) => {
+    try {
+      setErrorMessage(null);
+      const created = await createTemplate(payload);
+      setTemplates((current) => [...current, created]);
+      setStatusMessage(`Gabarit « ${created.name} » ajouté.`);
+      return created;
+    } catch (error) {
+      setErrorMessage(error.message);
+      throw error;
+    }
+  }, []);
+
+  const handleTemplateUpdate = useCallback(async (templateId, payload) => {
+    try {
+      setErrorMessage(null);
+      const updated = await updateTemplate(templateId, payload);
+      setTemplates((current) => current.map((tpl) => (tpl.id === updated.id ? updated : tpl)));
+      setStatusMessage(`Gabarit « ${updated.name} » mis à jour.`);
+      return updated;
+    } catch (error) {
+      setErrorMessage(error.message);
+      throw error;
+    }
+  }, []);
+
+  const handleTemplateDelete = useCallback(async (templateId) => {
+    try {
+      setErrorMessage(null);
+      await apiDeleteTemplate(templateId);
+      setTemplates((current) => current.filter((tpl) => tpl.id !== templateId));
+      setStatusMessage('Gabarit supprimé.');
+    } catch (error) {
+      setErrorMessage(error.message);
+      throw error;
+    }
+  }, []);
+
   const healthLabel = useMemo(() => {
     if (!health) {
       return '—';
@@ -258,14 +300,25 @@ export default function App() {
         )}
 
         {activeTab === 'config' && (
-          <section className="card">
-            <h2>Configuration du pipeline</h2>
-            <ConfigPanel
-              config={config}
-              onSave={handleConfigSave}
-              loading={savingConfig}
-            />
-          </section>
+          <div className="config-grid">
+            <section className="card">
+              <h2>Configuration du pipeline</h2>
+              <ConfigPanel
+                config={config}
+                onSave={handleConfigSave}
+                loading={savingConfig}
+              />
+            </section>
+            <section className="card">
+              <h2>Gabarits &amp; prompts</h2>
+              <TemplateManager
+                templates={templates}
+                onCreate={handleTemplateCreate}
+                onUpdate={handleTemplateUpdate}
+                onDelete={handleTemplateDelete}
+              />
+            </section>
+          </div>
         )}
       </main>
     </div>

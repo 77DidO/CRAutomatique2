@@ -2,10 +2,17 @@ import { useEffect, useState } from 'react';
 
 const DEFAULT_CONFIG = {
   llmProvider: 'mock',
+  llmApiToken: '',
   openaiApiKey: '',
   diarization: {
     enabled: true,
     speakerCount: 'auto'
+  },
+  whisper: {
+    model: 'whisper-1',
+    language: 'auto',
+    translate: false,
+    temperature: 0.2
   },
   pipeline: {
     transcription: true,
@@ -23,6 +30,10 @@ function mergeConfig(config) {
     diarization: {
       ...DEFAULT_CONFIG.diarization,
       ...(safeConfig.diarization ?? {})
+    },
+    whisper: {
+      ...DEFAULT_CONFIG.whisper,
+      ...(safeConfig.whisper ?? {})
     },
     pipeline: {
       ...DEFAULT_CONFIG.pipeline,
@@ -113,6 +124,21 @@ export default function ConfigPanel({ config, onSave, loading }) {
         </div>
       )}
 
+      {localConfig.llmProvider !== 'mock' && (
+        <div className="field">
+          <label htmlFor="config-llm-token">Token du fournisseur IA</label>
+          <input
+            id="config-llm-token"
+            type="password"
+            value={localConfig.llmApiToken ?? ''}
+            onChange={(event) => updateField(['llmApiToken'], event.target.value)}
+            placeholder="Token ou clé spécifique au fournisseur"
+            autoComplete="off"
+          />
+          <p className="helper">Ce champ permet de stocker en toute sécurité le jeton requis par le fournisseur sélectionné.</p>
+        </div>
+      )}
+
       <fieldset>
         <legend>Étapes du pipeline</legend>
         <div className="field checkbox">
@@ -141,6 +167,54 @@ export default function ConfigPanel({ config, onSave, loading }) {
             onChange={(event) => updateField(['pipeline', 'subtitles'], event.target.checked)}
           />
           <label htmlFor="config-step-subtitles">Sous-titres VTT</label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Options Whisper</legend>
+        <div className="field">
+          <label htmlFor="config-whisper-model">Modèle</label>
+          <select
+            id="config-whisper-model"
+            value={localConfig.whisper.model}
+            onChange={(event) => updateField(['whisper', 'model'], event.target.value)}
+          >
+            <option value="whisper-1">whisper-1</option>
+            <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe</option>
+            <option value="whisper-large-v3">whisper-large-v3</option>
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="config-whisper-language">Langue forcée</label>
+          <input
+            id="config-whisper-language"
+            type="text"
+            value={localConfig.whisper.language}
+            onChange={(event) => updateField(['whisper', 'language'], event.target.value)}
+            placeholder="auto, fr, en..."
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="config-whisper-temperature">Température</label>
+          <input
+            id="config-whisper-temperature"
+            type="number"
+            step="0.1"
+            min="0"
+            max="1"
+            value={localConfig.whisper.temperature}
+            onChange={(event) => updateField(['whisper', 'temperature'], Number.parseFloat(event.target.value) || 0)}
+          />
+          <p className="helper">Ajustez la créativité du modèle : 0 pour des résultats déterministes, 1 pour plus de variété.</p>
+        </div>
+        <div className="field checkbox">
+          <input
+            id="config-whisper-translate"
+            type="checkbox"
+            checked={localConfig.whisper.translate}
+            onChange={(event) => updateField(['whisper', 'translate'], event.target.checked)}
+          />
+          <label htmlFor="config-whisper-translate">Traduire automatiquement vers l'anglais</label>
         </div>
       </fieldset>
 
