@@ -111,12 +111,7 @@ async function transcribeWithOpenAI(
   debug('Envoi du fichier au service OpenAI Whisper', { model, language });
   const effectiveModel = model || 'gpt-4o-mini-transcribe';
   const preferredFormat = requestedFormat || 'verbose_json';
-  const diarizationOption =
-    diarization && typeof diarization === 'object'
-      ? { diarization }
-      : diarization
-        ? { diarization: { enable: true } }
-        : {};
+  const diarizationOption = buildDiarizationOption(diarization);
 
   const formatCandidates = [];
   const fallbackOrder = ['verbose_json', 'json', 'text', ''];
@@ -201,6 +196,72 @@ async function transcribeWithOpenAI(
     responseFormat: responseFormatUsed
   });
   return { text, segments, vtt, raw: response };
+}
+
+function buildDiarizationOption(diarization) {
+  if (!diarization) {
+    return {};
+  }
+
+  if (typeof diarization !== 'object') {
+    return diarization ? { diarization: { enable: true } } : {};
+  }
+
+  const normalizeBoolean = (value) => {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'true') {
+        return true;
+      }
+      if (normalized === 'false') {
+        return false;
+      }
+    }
+    return undefined;
+  };
+
+  const normalizeNumber = (value) => {
+    if (value === null || value === undefined || value === '') {
+      return undefined;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
+  const normalized = {};
+
+  const enable = normalizeBoolean(diarization.enable ?? diarization);
+  if (enable !== undefined) {
+    normalized.enable = enable;
+  }
+
+  const speakerCount = normalizeNumber(diarization.speaker_count);
+  if (speakerCount !== undefined) {
+    normalized.speaker_count = speakerCount;
+  }
+
+  const minSpeakers = normalizeNumber(diarization.min_speakers);
+  if (minSpeakers !== undefined) {
+    normalized.min_speakers = minSpeakers;
+  }
+
+  const maxSpeakers = normalizeNumber(diarization.max_speakers);
+  if (maxSpeakers !== undefined) {
+    normalized.max_speakers = maxSpeakers;
+  }
+
+  if (!Object.keys(normalized).length) {
+    return {};
+  }
+
+  if (!('enable' in normalized) && Object.keys(normalized).length > 0) {
+    normalized.enable = true;
+  }
+
+  return { diarization: normalized };
 }
 
 async function readWhisperVerboseJson(directory) {

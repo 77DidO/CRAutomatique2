@@ -148,12 +148,26 @@ function ConfigPage() {
       )
     };
 
-    payload.diarization = {
-      enable: Boolean(draft.diarization?.enable),
-      speaker_count: toNullableNumber(draft.diarization?.speaker_count),
-      min_speakers: toNullableNumber(draft.diarization?.min_speakers),
-      max_speakers: toNullableNumber(draft.diarization?.max_speakers)
+    const diarizationPayload = {
+      enable: Boolean(draft.diarization?.enable)
     };
+
+    const speakerCount = toNullableNumber(draft.diarization?.speaker_count);
+    if (speakerCount !== null) {
+      diarizationPayload.speaker_count = speakerCount;
+    }
+
+    const minSpeakers = toNullableNumber(draft.diarization?.min_speakers);
+    if (minSpeakers !== null) {
+      diarizationPayload.min_speakers = minSpeakers;
+    }
+
+    const maxSpeakers = toNullableNumber(draft.diarization?.max_speakers);
+    if (maxSpeakers !== null) {
+      diarizationPayload.max_speakers = maxSpeakers;
+    }
+
+    payload.diarization = diarizationPayload;
 
     const sanitizeNumber = (input, predicate) => {
       if (input === '' || input === null || input === undefined) {
