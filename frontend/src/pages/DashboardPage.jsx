@@ -6,13 +6,15 @@ import ResourceList from '../components/ResourceList.jsx';
 import LogsPanel from '../components/LogsPanel.jsx';
 import DashboardHero from '../components/DashboardHero.jsx';
 import usePolling from '../hooks/usePolling.js';
-import { fetchItem, fetchItems } from '../services/api.js';
+import { fetchConfig, fetchItem, fetchItems } from '../services/api.js';
+import { DEFAULT_DASHBOARD_HERO_SUBTITLE } from '../constants/uiMessages.js';
 
 const LOCAL_STORAGE_KEY = 'crautomatique:last-job-id';
 
 function DashboardPage() {
   const [currentJob, setCurrentJob] = useState(null);
   const [jobId, setJobId] = useState(localStorage.getItem(LOCAL_STORAGE_KEY));
+  const [heroSubtitle, setHeroSubtitle] = useState(DEFAULT_DASHBOARD_HERO_SUBTITLE);
 
   const loadCurrentJob = async () => {
     if (jobId) {
@@ -46,13 +48,33 @@ function DashboardPage() {
     }
   }, [jobId]);
 
+  useEffect(() => {
+    let ignore = false;
+
+    fetchConfig()
+      .then((config) => {
+        const subtitle = config?.ui?.dashboardHeroSubtitle;
+        if (!ignore && typeof subtitle === 'string') {
+          const trimmed = subtitle.trim();
+          if (trimmed) {
+            setHeroSubtitle(trimmed);
+          }
+        }
+      })
+      .catch((error) => {
+        console.error("Impossible de récupérer la configuration de l'interface.", error);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const handleCreated = (job) => {
     setJobId(job.id);
     localStorage.setItem(LOCAL_STORAGE_KEY, job.id);
     setCurrentJob(job);
   };
-
-  const heroSubtitle = "Cette bannière d'accueil présente le service, rassure sur la démarche et indique immédiatement comment démarrer un nouveau traitement.";
 
   const heroActions = (
     <div className="dashboard-hero__cta">
