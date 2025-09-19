@@ -53,7 +53,12 @@ function expandWindowsExtensions(command) {
 }
 
 async function resolveWhisperBinary(binaryPath) {
-  const trimmedPath = binaryPath.trim();
+  const trimmedPath = typeof binaryPath === 'string' ? binaryPath.trim() : '';
+
+  if (!trimmedPath) {
+    const displayedValue = typeof binaryPath === 'string' ? binaryPath : String(binaryPath);
+    throw new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${displayedValue}".`);
+  }
   const candidates = [];
 
   if (path.isAbsolute(trimmedPath)) {
@@ -99,8 +104,13 @@ export async function transcribeWithLocalWhisper({
     throw new Error('Aucun fichier audio fourni pour la transcription.');
   }
 
-  const binaryPath = options.binaryPath?.trim()
-    || process.env.WHISPER_BINARY_PATH?.trim()
+  const normalizedOptionBinaryPath = typeof options.binaryPath === 'string' ? options.binaryPath.trim() : '';
+  const normalizedEnvBinaryPath = typeof process.env.WHISPER_BINARY_PATH === 'string'
+    ? process.env.WHISPER_BINARY_PATH.trim()
+    : '';
+
+  const binaryPath = normalizedOptionBinaryPath
+    || normalizedEnvBinaryPath
     || 'whisper';
 
   const outputDir = options.outputDir
@@ -230,3 +240,5 @@ export async function transcribeWithLocalWhisper({
     raw: rawPayload
   };
 }
+
+export { resolveWhisperBinary };
