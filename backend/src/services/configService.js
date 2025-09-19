@@ -8,9 +8,12 @@ const __dirname = path.dirname(__filename);
 const CONFIG_PATH = path.join(__dirname, '../../data/config.json');
 
 const DEFAULT_CONFIG = {
-  defaultTemplate: 'meeting-notes',
-  participants: [],
-  diarization: true,
+  diarization: {
+    enable: true,
+    speaker_count: null,
+    min_speakers: null,
+    max_speakers: null
+  },
   enableSummary: true,
   llmProvider: 'chatgpt',
   transcription: {
@@ -107,10 +110,55 @@ function mergeProviders(rawProviders = {}, legacyConfig = {}) {
   return providers;
 }
 
+function normalizeDiarization(rawValue) {
+  if (typeof rawValue === 'boolean') {
+    return {
+      ...DEFAULT_CONFIG.diarization,
+      enable: rawValue
+    };
+  }
+
+  if (!rawValue || typeof rawValue !== 'object') {
+    return { ...DEFAULT_CONFIG.diarization };
+  }
+
+  const parseNumber = (value) => {
+    if (value === '' || value === null || value === undefined) {
+      return null;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const parseBoolean = (value) => {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'true') {
+        return true;
+      }
+      if (normalized === 'false') {
+        return false;
+      }
+    }
+    return Boolean(value);
+  };
+
+  return {
+    enable: parseBoolean(rawValue.enable ?? rawValue),
+    speaker_count: parseNumber(rawValue.speaker_count),
+    min_speakers: parseNumber(rawValue.min_speakers),
+    max_speakers: parseNumber(rawValue.max_speakers)
+  };
+}
+
 function normalizeConfig(config = {}) {
   const {
     providers: rawProviders,
     transcription: rawTranscription,
+    diarization: rawDiarization,
     openaiModel,
     openaiApiKey,
     openaiBaseUrl,
@@ -118,6 +166,8 @@ function normalizeConfig(config = {}) {
     ollamaCommand,
     chunkSize,
     chunkOverlap,
+    defaultTemplate,
+    participants,
     ...rest
   } = config;
 
@@ -133,6 +183,7 @@ function normalizeConfig(config = {}) {
     ...(Number.isFinite(parsedChunkOverlap) && parsedChunkOverlap >= 0
       ? { chunkOverlap: parsedChunkOverlap }
       : {}),
+    diarization: normalizeDiarization(rawDiarization),
     providers: mergeProviders(rawProviders, {
       openaiModel,
       openaiApiKey,
