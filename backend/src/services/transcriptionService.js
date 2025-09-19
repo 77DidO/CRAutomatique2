@@ -46,21 +46,6 @@ function buildVtt(segments = []) {
   return `${lines.join('\n')}\n`;
 }
 
-function resolveResponseFormat(model = '', requestedFormat) {
-  if (!requestedFormat) {
-    return undefined;
-  }
-  const normalizedModel = String(model || '').toLowerCase();
-  if (normalizedModel.includes('gpt-4o-mini-transcribe') && requestedFormat === 'verbose_json') {
-    warn(
-      "Le format de réponse 'verbose_json' n'est pas pris en charge par ce modèle. Utilisation du format 'json'.",
-      { model }
-    );
-    return 'json';
-  }
-  return requestedFormat;
-}
-
 function ensureSegments(rawSegments = [], fallbackText = '') {
   const segments = normalizeSegments(rawSegments);
   if (segments.length > 0) {
@@ -80,7 +65,41 @@ function ensureSegments(rawSegments = [], fallbackText = '') {
   ];
 }
 
-async function transcribeWithOpenAI(filePath, { model, language, baseUrl, response_format: requestedFormat } = {}) {
+function buildSegmentsFromWords(words = []) {
+  if (!Array.isArray(words) || words.length === 0) {
+    return [];
+  }
+
+  const text = words
+    .map((word) => word?.word || word?.text || '')
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!text) {
+    return [];
+  }
+
+  const firstWithStart = words.find((word) => Number.isFinite(Number(word?.start)));
+  const lastWithEnd = [...words].reverse().find((word) => Number.isFinite(Number(word?.end)));
+
+  const safeStart = Number.isFinite(Number(firstWithStart?.start)) ? Number(firstWithStart.start) : 0;
+  const safeEnd = Number.isFinite(Number(lastWithEnd?.end)) ? Number(lastWithEnd.end) : safeStart;
+
+  return [
+    {
+      speaker: 'SPEAKER_00',
+      start: safeStart,
+      end: safeEnd,
+      text
+    }
+  ];
+}
+
+async function transcribeWithOpenAI(
+  filePath,
+  { model, language, baseUrl, response_format: requestedFormat, diarization } = {}
+) {
   const apiKey = getOpenAIApiKey();
   if (!apiKey) {
     throw new Error('Clé API OpenAI manquante pour la transcription.');
@@ -91,20 +110,65 @@ async function transcribeWithOpenAI(filePath, { model, language, baseUrl, respon
   const client = new OpenAI({ apiKey, ...(resolvedBaseUrl ? { baseURL: resolvedBaseUrl } : {}) });
   debug('Envoi du fichier au service OpenAI Whisper', { model, language });
   const effectiveModel = model || 'gpt-4o-mini-transcribe';
-  const responseFormat = resolveResponseFormat(effectiveModel, requestedFormat || 'verbose_json');
-  const response = await client.audio.transcriptions.create({
+  const preferredFormat = requestedFormat || 'verbose_json';
+  const diarizationOption =
+    diarization && typeof diarization === 'object'
+      ? { diarization }
+      : diarization
+        ? { diarization: { enable: true } }
+        : {};
+
+  const basePayload = {
     file: fs.createReadStream(filePath),
     model: effectiveModel,
-    ...(responseFormat ? { response_format: responseFormat } : {}),
-    ...(language ? { language } : {})
-  });
+    ...(language ? { language } : {}),
+    ...diarizationOption
+  };
 
-  const segments = ensureSegments(response.segments || [], response.text);
+  let response;
+  let responseFormatUsed = preferredFormat;
+
+  try {
+    response = await client.audio.transcriptions.create({
+      ...basePayload,
+      ...(preferredFormat ? { response_format: preferredFormat } : {})
+    });
+  } catch (error) {
+    const errorMessage = error?.error?.message || error?.message || '';
+    const normalizedMessage = errorMessage.toLowerCase();
+    const shouldRetryWithJson =
+      preferredFormat === 'verbose_json'
+      && (
+        /verbose_json/.test(normalizedMessage)
+        || /response[_\s-]*format/.test(normalizedMessage)
+        || /format/.test(normalizedMessage)
+        || error?.status === 400
+      );
+
+    if (shouldRetryWithJson) {
+      warn(
+        "Le format de réponse 'verbose_json' n'est pas disponible, tentative avec le format 'json'.",
+        { model: effectiveModel, message: errorMessage }
+      );
+      response = await client.audio.transcriptions.create({
+        ...basePayload,
+        response_format: 'json'
+      });
+      responseFormatUsed = 'json';
+    } else {
+      throw error;
+    }
+  }
+
+  let segments = ensureSegments(response.segments || [], response.text);
+  if (segments.length === 0 && Array.isArray(response.words) && response.words.length > 0) {
+    segments = ensureSegments(buildSegmentsFromWords(response.words), response.text);
+  }
   const text = (response.text || '').trim();
   const vtt = buildVtt(segments);
   info('Transcription récupérée via OpenAI', {
     model: effectiveModel,
-    responseFormat
+    responseFormat: responseFormatUsed
   });
   return { text, segments, vtt, raw: response };
 }
@@ -186,10 +250,16 @@ export async function transcribeAudio(processedPath) {
       return await transcribeWithWhisperBinary(processedPath, transcriptionConfig.whisper);
     }
     if (provider === 'openai') {
-      return await transcribeWithOpenAI(processedPath, transcriptionConfig.openai);
+      return await transcribeWithOpenAI(processedPath, {
+        ...transcriptionConfig.openai,
+        diarization: config?.diarization
+      });
     }
     warn('Fournisseur de transcription inconnu, utilisation d\'OpenAI par défaut.', { provider });
-    return await transcribeWithOpenAI(processedPath, transcriptionConfig.openai);
+    return await transcribeWithOpenAI(processedPath, {
+      ...transcriptionConfig.openai,
+      diarization: config?.diarization
+    });
   } catch (error) {
     logError('Erreur lors de la transcription audio', { provider, message: error.message });
     throw error;
