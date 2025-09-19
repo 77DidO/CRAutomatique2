@@ -1,7 +1,5 @@
 import PropTypes from 'prop-types';
 import { NavLink, useParams } from 'react-router-dom';
-import { Nav } from 'react-bootstrap';
-
 const TABS = [
   { id: 'overview', label: 'Aperçu' },
   { id: 'audio', label: 'Audio' },
@@ -13,21 +11,18 @@ const TABS = [
 function ItemTabs({ basePath }) {
   const { id, tab = 'overview' } = useParams();
   return (
-    <div className="bg-white shadow-sm border-0 rounded-4 p-2 overflow-auto">
-      <Nav variant="pills" activeKey={tab} className="flex-nowrap">
+    <div className="surface-card">
+      <nav className="flex flex-wrap gap-3">
         {TABS.map((entry) => (
-          <Nav.Item key={entry.id}>
-            <Nav.Link
-              as={NavLink}
-              to={`${basePath}/${id}/${entry.id}`}
-              eventKey={entry.id}
-              className="rounded-pill px-3"
-            >
-              {entry.label}
-            </Nav.Link>
-          </Nav.Item>
+          <NavLink
+            key={entry.id}
+            to={`${basePath}/${id}/${entry.id}`}
+            className={({ isActive }) => `btn btn-sm ${isActive || tab === entry.id ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            {entry.label}
+          </NavLink>
         ))}
-      </Nav>
+      </nav>
     </div>
   );
 }

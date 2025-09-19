@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import { Accordion } from 'react-bootstrap';
 import { fetchLogs } from '../services/api.js';
 
 function LogsPanel({ jobId, polling }) {
@@ -35,25 +34,45 @@ function LogsPanel({ jobId, polling }) {
     };
   }, [jobId, polling]);
 
+  useEffect(() => {
+    if (!jobId) {
+      setLogs([]);
+      setExpanded(false);
+    }
+  }, [jobId]);
+
+  useEffect(() => {
+    if (logs.length && !expanded) {
+      setExpanded(true);
+    }
+  }, [logs, expanded]);
+
   if (!jobId) {
     return null;
   }
 
+  const hasLogs = logs.length > 0;
+
   return (
-    <Accordion
-      activeKey={expanded ? '0' : null}
-      onSelect={(eventKey) => setExpanded(eventKey === '0')}
-      className="shadow-sm border-0"
-    >
-      <Accordion.Item eventKey="0">
-        <Accordion.Header>Logs</Accordion.Header>
-        <Accordion.Body>
-          <pre className="mb-0 bg-light rounded p-3" style={{ maxHeight: 260, overflow: 'auto' }}>
-            {logs.join('\n')}
-          </pre>
-        </Accordion.Body>
-      </Accordion.Item>
-    </Accordion>
+    <div className="logs-panel">
+      <div className="logs-header">
+        <h3 className="section-title m-0">Journal d&apos;exécution</h3>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? 'Masquer' : 'Afficher'}
+        </button>
+      </div>
+      <div className={`logs-content ${expanded ? '' : 'logs-content--hidden'}`}>
+        {hasLogs ? (
+          <pre className="logs-text">{logs.join('\n')}</pre>
+        ) : (
+          <p className="logs-placeholder">En attente de logs…</p>
+        )}
+      </div>
+    </div>
   );
 }
 

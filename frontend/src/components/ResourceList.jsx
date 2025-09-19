@@ -1,30 +1,28 @@
 import PropTypes from 'prop-types';
-import { Button, Card, Stack } from 'react-bootstrap';
-
 function ResourceList({ resources }) {
   if (!resources?.length) {
     return null;
   }
   return (
-    <Card className="shadow-sm border-0">
-      <Card.Body>
-        <h6 className="mb-3">Ressources générées</h6>
-        <Stack direction="horizontal" gap={2} className="flex-wrap">
-          {resources.map((resource) => (
-            <Button
-              key={resource.url}
-              as="a"
-              href={resource.url}
-              target="_blank"
-              rel="noreferrer"
-              variant="outline-primary"
-            >
-              {resource.type}
-            </Button>
-          ))}
-        </Stack>
-      </Card.Body>
-    </Card>
+    <section className="surface-card">
+      <h3 className="section-title">Ressources générées</h3>
+      <div className="resource-list">
+        {resources.map((resource) => (
+          <a
+            key={resource.url}
+            href={resource.url}
+            target="_blank"
+            rel="noreferrer"
+            className="resource-link"
+          >
+            <span>{resource.type}</span>
+            <span className="resource-link__suffix" aria-hidden>
+              ↗
+            </span>
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }
 
