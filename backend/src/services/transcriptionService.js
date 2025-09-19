@@ -134,7 +134,6 @@ async function transcribeWithOpenAI(
   let response;
   let responseFormatUsed = preferredFormat;
   let lastError;
-
   for (const format of formatCandidates) {
     const payload = {
       file: fs.createReadStream(filePath),
@@ -157,8 +156,14 @@ async function transcribeWithOpenAI(
         payload.file.destroy();
       }
       const errorMessage = error?.error?.message || error?.message || '';
-      const formatUnsupported =
-        /format/i.test(errorMessage || '') && /support/i.test(errorMessage || '');
+      const lowerMessage = (errorMessage || '').toLowerCase();
+      const formatUnsupported = Boolean(
+        error?.error?.param === 'response_format' ||
+          (lowerMessage &&
+            (/response_format/.test(lowerMessage) ||
+              (/format/.test(lowerMessage) &&
+                (/support/.test(lowerMessage) || /compatible/.test(lowerMessage) || /available/.test(lowerMessage)))))
+      );
 
       if (!formatUnsupported) {
         throw error;
