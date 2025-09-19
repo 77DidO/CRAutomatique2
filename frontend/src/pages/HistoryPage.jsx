@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Stack, Typography } from '@mui/material';
+import { Button, Stack } from 'react-bootstrap';
 import HistoryTable from '../components/HistoryTable.jsx';
 import { deleteItem, fetchItems } from '../services/api.js';
 
@@ -32,12 +32,12 @@ function HistoryPage() {
   };
 
   return (
-    <Stack spacing={3}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Typography variant="h5">Historique des traitements</Typography>
+    <Stack gap={3}>
+      <Stack direction="horizontal" className="justify-content-between flex-wrap gap-2">
+        <h4 className="mb-0">Historique des traitements</h4>
         <Button onClick={load}>Actualiser</Button>
       </Stack>
-      {loading ? <Typography>Chargement...</Typography> : <HistoryTable items={items} onDelete={handleDelete} />}
+      {loading ? <p>Chargement...</p> : <HistoryTable items={items} onDelete={handleDelete} />}
     </Stack>
   );
 }

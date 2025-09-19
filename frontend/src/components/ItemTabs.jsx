@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { NavLink, useParams } from 'react-router-dom';
-import { Paper, Tab, Tabs } from '@mui/material';
+import { Nav } from 'react-bootstrap';
 
 const TABS = [
   { id: 'overview', label: 'Aperçu' },
@@ -13,32 +13,22 @@ const TABS = [
 function ItemTabs({ basePath }) {
   const { id, tab = 'overview' } = useParams();
   return (
-    <Paper elevation={0} sx={{ p: 1.5 }}>
-      <Tabs
-        value={tab}
-        variant="scrollable"
-        scrollButtons="auto"
-        textColor="primary"
-        indicatorColor="primary"
-        onChange={() => {}}
-      >
+    <div className="bg-white shadow-sm border-0 rounded-4 p-2 overflow-auto">
+      <Nav variant="pills" activeKey={tab} className="flex-nowrap">
         {TABS.map((entry) => (
-          <Tab
-            key={entry.id}
-            label={entry.label}
-            value={entry.id}
-            component={NavLink}
-            to={`${basePath}/${id}/${entry.id}`}
-            sx={{
-              borderRadius: 999,
-              minHeight: 'auto',
-              py: 1,
-              px: 2
-            }}
-          />
+          <Nav.Item key={entry.id}>
+            <Nav.Link
+              as={NavLink}
+              to={`${basePath}/${id}/${entry.id}`}
+              eventKey={entry.id}
+              className="rounded-pill px-3"
+            >
+              {entry.label}
+            </Nav.Link>
+          </Nav.Item>
         ))}
-      </Tabs>
-    </Paper>
+      </Nav>
+    </div>
   );
 }
 
