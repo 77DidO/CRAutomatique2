@@ -1,13 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  Box,
-  Button,
-  Grid,
-  Paper,
-  Stack,
-  Typography
-} from '@mui/material';
+import { Button, Card, Col, Row, Stack } from 'react-bootstrap';
 import ItemTabs from '../components/ItemTabs.jsx';
 import { fetchItem } from '../services/api.js';
 
@@ -59,179 +52,149 @@ function ItemDetailPage() {
     switch (tab) {
       case 'overview':
         return (
-          <Paper elevation={0} sx={{ p: 3 }}>
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="h5">{item.title}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Créé le {new Date(item.createdAt).toLocaleString()}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Gabarit : {item.template || '—'}
-                </Typography>
-              </Box>
-              {summaryHtml ? (
-                <Box
-                  sx={{ typography: 'body1' }}
-                  dangerouslySetInnerHTML={{ __html: summaryHtml }}
-                />
-              ) : item.summary ? (
-                <Typography>{item.summary}</Typography>
-              ) : (
-                <Typography color="text.secondary">Résumé non disponible.</Typography>
-              )}
-              {item.resources?.length > 0 && (
-                <Stack spacing={1.5}>
-                  <Typography variant="subtitle1">Téléchargements</Typography>
-                  <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {item.resources.map((resource) => (
-                      <Button
-                        key={resource.url}
-                        component="a"
-                        href={resource.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        variant="outlined"
-                      >
-                        {resource.type}
-                      </Button>
-                    ))}
-                  </Stack>
-                </Stack>
-              )}
-            </Stack>
-          </Paper>
+          <Card className="shadow-sm border-0">
+            <Card.Body>
+              <Stack gap={3}>
+                <div>
+                  <h4 className="mb-1">{item.title}</h4>
+                  <div className="text-muted small">Créé le {new Date(item.createdAt).toLocaleString()}</div>
+                  <div className="text-muted small">Gabarit : {item.template || '—'}</div>
+                </div>
+                {summaryHtml ? (
+                  <div
+                    className="border rounded-4 p-3"
+                    dangerouslySetInnerHTML={{ __html: summaryHtml }}
+                  />
+                ) : item.summary ? (
+                  <p className="mb-0">{item.summary}</p>
+                ) : (
+                  <p className="mb-0 text-muted">Résumé non disponible.</p>
+                )}
+                {item.resources?.length > 0 && (
+                  <div>
+                    <h6>Téléchargements</h6>
+                    <Stack direction="horizontal" gap={2} className="flex-wrap">
+                      {item.resources.map((resource) => (
+                        <Button
+                          key={resource.url}
+                          as="a"
+                          href={resource.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          variant="outline-primary"
+                        >
+                          {resource.type}
+                        </Button>
+                      ))}
+                    </Stack>
+                  </div>
+                )}
+              </Stack>
+            </Card.Body>
+          </Card>
         );
       case 'audio': {
         const audioResource = item.resources?.find((resource) => resource.type === item.originalFilename);
         return (
-          <Paper elevation={0} sx={{ p: 3 }}>
-            <Stack spacing={2}>
-              <Typography variant="h5">Source audio</Typography>
+          <Card className="shadow-sm border-0">
+            <Card.Body className="d-flex flex-column gap-3">
+              <h4 className="mb-0">Source audio</h4>
               {audioResource ? (
-                <Box component="audio" controls src={audioResource.url} sx={{ width: '100%' }} />
+                <audio controls src={audioResource.url} className="w-100" />
               ) : (
-                <Typography color="text.secondary">Audio non disponible.</Typography>
+                <p className="mb-0 text-muted">Audio non disponible.</p>
               )}
-            </Stack>
-          </Paper>
+            </Card.Body>
+          </Card>
         );
       }
       case 'texts':
         return (
-          <Paper elevation={0} sx={{ p: 3 }}>
-            <Stack spacing={2}>
-              <Typography variant="h5">Transcriptions</Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Stack spacing={1.5}>
-                    <Typography variant="subtitle1">Brut</Typography>
-                    <Box
-                      component="iframe"
+          <Card className="shadow-sm border-0">
+            <Card.Body className="d-flex flex-column gap-3">
+              <h4 className="mb-0">Transcriptions</h4>
+              <Row className="g-3">
+                <Col xs={12} md={6}>
+                  <Stack gap={2}>
+                    <h6 className="mb-0">Brut</h6>
+                    <iframe
                       title="transcription-brute"
                       src={`/api/assets/${item.id}/transcription_raw.txt`}
-                      sx={{
-                        width: '100%',
-                        minHeight: 260,
-                        borderRadius: 2,
-                        border: (theme) => `1px solid ${theme.palette.divider}`
-                      }}
+                      className="w-100 rounded-4 border"
+                      style={{ minHeight: 260 }}
                     />
                   </Stack>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Stack spacing={1.5}>
-                    <Typography variant="subtitle1">Nettoyé</Typography>
-                    <Box
-                      component="iframe"
+                </Col>
+                <Col xs={12} md={6}>
+                  <Stack gap={2}>
+                    <h6 className="mb-0">Nettoyé</h6>
+                    <iframe
                       title="transcription-nettoyee"
                       src={`/api/assets/${item.id}/transcription_clean.txt`}
-                      sx={{
-                        width: '100%',
-                        minHeight: 260,
-                        borderRadius: 2,
-                        border: (theme) => `1px solid ${theme.palette.divider}`
-                      }}
+                      className="w-100 rounded-4 border"
+                      style={{ minHeight: 260 }}
                     />
                   </Stack>
-                </Grid>
-              </Grid>
-            </Stack>
-          </Paper>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
         );
       case 'markdown':
         return (
-          <Paper elevation={0} sx={{ p: 3 }}>
-            <Stack spacing={2}>
-              <Typography variant="h5">Compte rendu Markdown</Typography>
-              <Box
-                component="iframe"
+          <Card className="shadow-sm border-0">
+            <Card.Body className="d-flex flex-column gap-3">
+              <h4 className="mb-0">Compte rendu Markdown</h4>
+              <iframe
                 title="markdown"
                 src={`/api/assets/${item.id}/summary.md`}
-                sx={{
-                  width: '100%',
-                  minHeight: 260,
-                  borderRadius: 2,
-                  border: (theme) => `1px solid ${theme.palette.divider}`
-                }}
+                className="w-100 rounded-4 border"
+                style={{ minHeight: 260 }}
               />
-            </Stack>
-          </Paper>
+            </Card.Body>
+          </Card>
         );
       case 'vtt':
         return (
-          <Paper elevation={0} sx={{ p: 3 }}>
-            <Stack spacing={2}>
-              <Typography variant="h5">Sous-titres WebVTT</Typography>
-              <Box
-                component="iframe"
+          <Card className="shadow-sm border-0">
+            <Card.Body className="d-flex flex-column gap-3">
+              <h4 className="mb-0">Sous-titres WebVTT</h4>
+              <iframe
                 title="vtt"
                 src={`/api/assets/${item.id}/subtitles.vtt`}
-                sx={{
-                  width: '100%',
-                  minHeight: 260,
-                  borderRadius: 2,
-                  border: (theme) => `1px solid ${theme.palette.divider}`
-                }}
+                className="w-100 rounded-4 border"
+                style={{ minHeight: 260 }}
               />
-            </Stack>
-          </Paper>
+            </Card.Body>
+          </Card>
         );
       default:
-        return <Typography>Onglet inconnu</Typography>;
+        return <p>Onglet inconnu</p>;
     }
   };
 
   return (
-    <Stack spacing={3}>
+    <Stack gap={3}>
       <ItemTabs />
       {diarization.length > 0 ? (
-        <Paper elevation={0} sx={{ p: 3 }}>
-          <Stack spacing={1.5}>
-            <Typography variant="h6">Diarisation</Typography>
-            <Stack spacing={1}>
+        <Card className="shadow-sm border-0">
+          <Card.Body className="d-flex flex-column gap-3">
+            <h5 className="mb-0">Diarisation</h5>
+            <Stack gap={2}>
               {diarization.map((entry) => (
-                <Stack
+                <div
                   key={entry.speaker}
-                  direction="row"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  sx={{
-                    border: (theme) => `1px solid ${theme.palette.divider}`,
-                    borderRadius: 2,
-                    px: 2,
-                    py: 1.5
-                  }}
+                  className="d-flex justify-content-between align-items-center border rounded-4 px-3 py-2"
                 >
-                  <Typography fontWeight={600}>{entry.speaker}</Typography>
-                  <Typography color="text.secondary">{entry.duration.toFixed(1)}s</Typography>
-                </Stack>
+                  <span className="fw-semibold">{entry.speaker}</span>
+                  <span className="text-muted">{entry.duration.toFixed(1)}s</span>
+                </div>
               ))}
             </Stack>
-          </Stack>
-        </Paper>
+          </Card.Body>
+        </Card>
       ) : (
-        <Typography color="text.secondary">Aucune information de diarisation.</Typography>
+        <p className="text-muted">Aucune information de diarisation.</p>
       )}
       {renderContent()}
     </Stack>
