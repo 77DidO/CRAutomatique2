@@ -1,77 +1,96 @@
 import PropTypes from 'prop-types';
-import { Alert, Badge, Card, ProgressBar, Stack } from 'react-bootstrap';
-
 const STEP_ORDER = ['queued', 'preconvert', 'transcribe', 'clean', 'summarize', 'done'];
 
 function StatusCard({ job }) {
   if (!job) {
     return (
-      <Card className="shadow-sm border-0">
-        <Card.Body className="text-muted">Aucun traitement en cours.</Card.Body>
-      </Card>
+      <section className="surface-card">
+        <p className="text-base-content/70 m-0">Aucun traitement en cours.</p>
+      </section>
     );
   }
   const currentIndex = STEP_ORDER.indexOf(job.status);
-  return (
-    <Card className="shadow-sm border-0">
-      <Card.Body className="d-flex flex-column gap-3">
-        <Stack direction="horizontal" className="flex-wrap gap-3 justify-content-between">
-          <div>
-            <h5 className="mb-1">{job.title}</h5>
-            <div className="text-muted small">
-              Gabarit : <span className="fw-semibold text-dark">{job.template || '—'}</span>
-            </div>
-            {job.participants?.length > 0 && (
-              <Stack direction="horizontal" gap={2} className="flex-wrap mt-2">
-                {job.participants.map((participant) => (
-                  <Badge key={participant} bg="secondary" text="light" pill>
-                    {participant}
-                  </Badge>
-                ))}
-              </Stack>
-            )}
-          </div>
-          <Badge
-            bg={job.status === 'error' ? 'danger' : job.status === 'done' ? 'success' : 'primary'}
-            className="align-self-start text-uppercase"
-          >
-            {job.status}
-          </Badge>
-        </Stack>
+  const progressValue =
+    typeof job.progress === 'number' && Number.isFinite(job.progress)
+      ? Math.min(Math.max(job.progress, 0), 100)
+      : null;
 
+  const statusStyle = (() => {
+    if (job.status === 'error') {
+      return { background: 'rgba(220, 38, 38, 0.12)', color: 'var(--color-error)' };
+    }
+    if (job.status === 'done') {
+      return { background: 'rgba(21, 128, 61, 0.12)', color: 'var(--color-success)' };
+    }
+    return {};
+  })();
+
+  return (
+    <section className="surface-card status-summary">
+      <div className="status-line">
         <div>
-          <ProgressBar
-            now={typeof job.progress === 'number' ? job.progress : 100}
-            animated={typeof job.progress !== 'number'}
-            className="rounded-pill"
+          <p className="status-label">Traitement en cours</p>
+          <p className="status-value">{job.title || 'Sans titre'}</p>
+          <p className="status-message">Gabarit utilisé : {job.template || '—'}</p>
+        </div>
+        <div className="status-actions">
+          <span className="chip" style={statusStyle}>
+            {job.status.toUpperCase()}
+          </span>
+        </div>
+      </div>
+
+      <div className="status-progress">
+        <span className="status-progress-value">
+          {progressValue !== null ? `${Math.round(progressValue)}%` : 'En cours'}
+        </span>
+        <div className="progress-bar" aria-hidden={progressValue === null}>
+          <div
+            className="progress-bar__value"
+            style={{ width: `${progressValue !== null ? progressValue : 100}%` }}
           />
         </div>
+      </div>
 
-        <Stack direction="horizontal" gap={2} className="flex-wrap">
+      <div>
+        <p className="text-sm text-base-content/70 m-0">Étapes</p>
+        <ul className="inline-list mt-4">
           {STEP_ORDER.map((step, index) => (
-            <Badge
-              key={step}
-              bg={index <= currentIndex ? 'primary' : 'light'}
-              text={index <= currentIndex ? undefined : 'dark'}
-              className={`text-uppercase ${index > currentIndex ? 'border border-primary-subtle' : ''}`}
-            >
+            <li key={step} className={index <= currentIndex ? undefined : 'opacity-70'}>
               {step}
-            </Badge>
+            </li>
           ))}
-        </Stack>
+        </ul>
+      </div>
 
-        {job.error && <Alert variant="danger">{job.error}</Alert>}
+      {job.participants?.length > 0 && (
+        <div>
+          <p className="text-sm text-base-content/70 m-0">Participants</p>
+          <ul className="chip-list mt-4">
+            {job.participants.map((participant) => (
+              <li key={participant} className="chip">
+                {participant}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-        {job.summary && job.status === 'done' && (
-          <div className="border rounded-4 p-3 bg-white">
-            <h6 className="mb-2">Résumé</h6>
-            <p className="mb-0 text-muted">{job.summary.slice(0, 280)}...</p>
-          </div>
-        )}
+      {job.error && (
+        <div className="p-4 bg-base-200/60 rounded-xl border border-base-300">
+          <p className="error-text m-0">{job.error}</p>
+        </div>
+      )}
 
-        <div className="border-top pt-2 text-muted small">Identifiant : {job.id}</div>
-      </Card.Body>
-    </Card>
+      {job.summary && job.status === 'done' && (
+        <div className="prose">
+          <h3>Résumé</h3>
+          <p>{job.summary.slice(0, 280)}…</p>
+        </div>
+      )}
+
+      <p className="text-xs text-base-content/70 m-0">Identifiant : {job.id}</p>
+    </section>
   );
 }
 
