@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import HistoryTable from '../components/HistoryTable.jsx';
 import { deleteItem, fetchItems } from '../services/api.js';
 
@@ -7,12 +7,13 @@ function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await fetchItems();
-      setItems(data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+      const sorted = [...data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setItems(sorted);
     } catch (error) {
       console.error('Impossible de charger l\'historique.', error);
       setItems([]);
@@ -20,19 +21,24 @@ function HistoryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
-  const handleDelete = async (id) => {
+  const handleDelete = useCallback(async (id) => {
     if (!window.confirm('Supprimer ce traitement et tous ses fichiers ?')) {
       return;
     }
-    await deleteItem(id);
-    load();
-  };
+    try {
+      await deleteItem(id);
+      await load();
+    } catch (deleteError) {
+      console.error('Impossible de supprimer le traitement.', deleteError);
+      setError("La suppression a échoué. Réessayez dans quelques instants.");
+    }
+  }, [load]);
 
   return (
     <div className="space-y-6">

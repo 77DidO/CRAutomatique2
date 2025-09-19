@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { Link as RouterLink } from 'react-router-dom';
-function HistoryTable({ items, onDelete }) {
+function HistoryTable({ items = [], onDelete = () => {} }) {
   if (!items.length) {
     return <div className="surface-card history-empty">Aucun traitement terminé pour le moment.</div>;
   }
@@ -68,11 +68,6 @@ HistoryTable.propTypes = {
     })
   ),
   onDelete: PropTypes.func
-};
-
-HistoryTable.defaultProps = {
-  items: [],
-  onDelete: () => {}
 };
 
 export default HistoryTable;
