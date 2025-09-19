@@ -50,6 +50,10 @@ pwsh -File ./start.ps1
    ```
    L'interface est disponible sur http://localhost:5173 avec proxy vers l'API backend (http://localhost:4000).
 
+   Pour personnaliser l'URL ciblée par le proxy (par exemple si votre backend écoute sur un autre port ou une autre machine),
+   définissez la variable d'environnement `VITE_BACKEND_URL` avant de lancer Vite. À défaut, `BACKEND_URL` ou `BACKEND_PORT`
+   sont également pris en compte.
+
 ### Scripts utiles
 
 - `npm run lint` (backend) : vérifie le style de code.
