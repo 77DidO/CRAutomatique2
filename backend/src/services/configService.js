@@ -73,12 +73,23 @@ function normalizeConfig(config = {}) {
     openaiBaseUrl,
     ollamaModel,
     ollamaCommand,
+    chunkSize,
+    chunkOverlap,
     ...rest
   } = config;
+
+  const parsedChunkSize = Number(chunkSize);
+  const parsedChunkOverlap = Number(chunkOverlap);
 
   const merged = {
     ...DEFAULT_CONFIG,
     ...rest,
+    ...(Number.isFinite(parsedChunkSize) && parsedChunkSize > 0
+      ? { chunkSize: parsedChunkSize }
+      : {}),
+    ...(Number.isFinite(parsedChunkOverlap) && parsedChunkOverlap >= 0
+      ? { chunkOverlap: parsedChunkOverlap }
+      : {}),
     providers: mergeProviders(rawProviders, {
       openaiModel,
       openaiApiKey,
