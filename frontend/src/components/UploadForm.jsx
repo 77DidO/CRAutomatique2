@@ -61,12 +61,15 @@ export default function UploadForm({ templates, onSubmit }) {
   };
 
   return (
-    <form className="upload-form" onSubmit={handleSubmit}>
-      <div className="field">
-        <label htmlFor="upload-file">Fichier à traiter</label>
+    <form className="upload-form space-y-6" onSubmit={handleSubmit}>
+      <div className="form-field">
+        <label className="form-label" htmlFor="upload-file">
+          Fichier à traiter
+        </label>
         <input
           id="upload-file"
           name="file"
+          className="file-input file-input-bordered"
           type="file"
           accept={ACCEPTED_TYPES}
           onChange={(event) => {
@@ -74,14 +77,17 @@ export default function UploadForm({ templates, onSubmit }) {
           }}
           required
         />
-        <p className="helper">Formats audio/vidéo courants acceptés (MP3, WAV, MP4, MOV...).</p>
+        <p className="form-helper">Formats audio/vidéo courants acceptés (MP3, WAV, MP4, MOV...).</p>
       </div>
 
-      <div className="field">
-        <label htmlFor="upload-title">Titre</label>
+      <div className="form-field">
+        <label className="form-label" htmlFor="upload-title">
+          Titre
+        </label>
         <input
           id="upload-title"
           name="title"
+          className="input input-bordered"
           type="text"
           placeholder="Réunion hebdo, entretien, webinar..."
           value={title}
@@ -89,11 +95,14 @@ export default function UploadForm({ templates, onSubmit }) {
         />
       </div>
 
-      <div className="field">
-        <label htmlFor="upload-template">Gabarit</label>
+      <div className="form-field">
+        <label className="form-label" htmlFor="upload-template">
+          Gabarit
+        </label>
         <select
           id="upload-template"
           name="template"
+          className="select select-bordered"
           value={defaultTemplate}
           onChange={(event) => setTemplateId(event.target.value)}
         >
@@ -105,28 +114,31 @@ export default function UploadForm({ templates, onSubmit }) {
           {!templates?.length && <option value="default">Gabarit par défaut</option>}
         </select>
         {templateId && (
-          <p className="helper">
+          <p className="form-helper">
             {(templates ?? []).find((tpl) => tpl.id === templateId)?.description ?? 'Aucun descriptif disponible.'}
           </p>
         )}
       </div>
 
-      <div className="field">
-        <label htmlFor="upload-participants">Participants</label>
+      <div className="form-field">
+        <label className="form-label" htmlFor="upload-participants">
+          Participants
+        </label>
         <textarea
           id="upload-participants"
           name="participants"
+          className="textarea"
           placeholder="Alice, Bob, Charlie"
           value={participants}
           onChange={(event) => setParticipants(event.target.value)}
           rows={3}
         />
-        <p className="helper">Séparez les noms par des virgules ou collez un tableau JSON.</p>
+        <p className="form-helper">Séparez les noms par des virgules ou collez un tableau JSON.</p>
       </div>
 
-      {error && <p className="form-error">{error}</p>}
+      {error && <p className="error-text text-sm m-0">{error}</p>}
 
-      <button type="submit" disabled={submitting}>
+      <button type="submit" className="btn btn-primary btn-md" disabled={submitting}>
         {submitting ? 'Envoi en cours...' : 'Lancer le traitement'}
       </button>
     </form>

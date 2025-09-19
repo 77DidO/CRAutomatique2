@@ -22,76 +22,78 @@ function formatDate(value) {
 
 function StepList({ steps }) {
   if (!steps?.length) {
-    return <p className="empty-state">Aucune étape enregistrée.</p>;
+    return <p className="text-base-content/70 text-sm m-0">Aucune étape enregistrée.</p>;
   }
 
   return (
-    <ol className="step-list">
+    <div className="diarization-segment-list">
       {steps.map((step) => (
-        <li key={step.id} className={`step-item status-${step.status}`}>
-          <div>
-            <strong>{step.label}</strong>
-            <p className="meta">
-              {step.startedAt && `Début : ${formatDate(step.startedAt)}`}
-              {step.finishedAt && ` · Fin : ${formatDate(step.finishedAt)}`}
-            </p>
+        <div key={step.id} className="diarization-segment">
+          <div className="diarization-segment__header">
+            <span className="diarization-segment__speaker">{step.label}</span>
+            <span className="diarization-segment__time">
+              {STATUS_LABELS[step.status] ?? step.status}
+            </span>
           </div>
-          <span className="status-badge status-pill">{STATUS_LABELS[step.status] ?? step.status}</span>
-        </li>
+          <p className="diarization-segment__text">
+            {step.startedAt && `Début : ${formatDate(step.startedAt)}`}
+            {step.finishedAt && ` · Fin : ${formatDate(step.finishedAt)}`}
+          </p>
+        </div>
       ))}
-    </ol>
+    </div>
   );
 }
 
 function LogList({ logs, compact }) {
   if (!logs?.length) {
-    return <p className="empty-state">Aucun log disponible.</p>;
+    return <p className="text-base-content/70 text-sm m-0">Aucun log disponible.</p>;
   }
 
   const entries = compact ? logs.slice(-4) : logs;
 
   return (
-    <ul className="log-list">
+    <div className="logs-text whitespace-pre-wrap">
       {entries.map((entry, index) => (
-        <li key={`${entry.timestamp ?? index}-${entry.message}`}> 
-          <span className="meta">{formatDate(entry.timestamp)}</span>
-          <span>{entry.message}</span>
-        </li>
+        <p key={`${entry.timestamp ?? index}-${entry.message}`} className="m-0">
+          <span className="text-xs text-base-content/70">{formatDate(entry.timestamp)} — </span>
+          {entry.message}
+        </p>
       ))}
-    </ul>
+    </div>
   );
 }
 
 export default function JobDetail({ job, loading, compact = false }) {
   if (loading && !job) {
-    return <p>Chargement du traitement…</p>;
+    return <p className="text-base-content/70">Chargement du traitement…</p>;
   }
 
   if (!job) {
-    return <p className="empty-state">Sélectionnez un traitement pour afficher ses détails.</p>;
+    return <p className="text-base-content/70 text-sm">Sélectionnez un traitement pour afficher ses détails.</p>;
   }
 
   const progressPercent = Math.round((job.progress ?? 0) * 100);
   const participants = job.participants?.length ? job.participants.join(', ') : '—';
 
   return (
-    <div className={`job-detail ${compact ? 'job-detail-compact' : ''}`}>
-      <div className="detail-grid">
+    <div className={`result-card ${compact ? 'space-y-6' : 'space-y-8'}`}>
+      <div className="status-line">
         <div>
-          <h3>{job.title}</h3>
-          <p className="meta">Créé le {formatDate(job.createdAt)}</p>
-          <p className="meta">Mise à jour : {formatDate(job.updatedAt)}</p>
+          <p className="status-label">Traitement sélectionné</p>
+          <h3 className="section-title m-0">{job.title}</h3>
+          <p className="text-xs text-base-content/70 m-0">Créé le {formatDate(job.createdAt)}</p>
+          <p className="text-xs text-base-content/70 m-0">Dernière mise à jour : {formatDate(job.updatedAt)}</p>
         </div>
-        <div className="detail-status">
-          <span className={`status-badge status-${job.status}`}>{STATUS_LABELS[job.status] ?? job.status}</span>
+        <div className="status-progress">
           <div className="progress-bar" role="progressbar" aria-valuenow={progressPercent}>
-            <div className="progress-inner" style={{ width: `${progressPercent}%` }} />
+            <div className="progress-bar__value" style={{ width: `${progressPercent}%` }} />
           </div>
-          <span className="meta">{progressPercent}%</span>
+          <span className="status-progress-value">{progressPercent}%</span>
         </div>
       </div>
 
-      <dl className="detail-overview">
+      <div className="status-meta">
         <div>
           <dt>Gabarit</dt>
           <dd>{job.template ?? '—'}</dd>
@@ -101,44 +103,54 @@ export default function JobDetail({ job, loading, compact = false }) {
           <dd>{participants}</dd>
         </div>
         <div>
+          <dt>Statut</dt>
+          <dd>{STATUS_LABELS[job.status] ?? job.status}</dd>
+        </div>
+        <div>
           <dt>Fichier source</dt>
           <dd>
             {job.source ? (
-              <a href={job.source.url} target="_blank" rel="noreferrer">{job.source.originalName}</a>
+              <a href={job.source.url} target="_blank" rel="noreferrer" className="link">
+                {job.source.originalName}
+              </a>
             ) : (
               '—'
             )}
           </dd>
         </div>
-      </dl>
+      </div>
 
       {!compact && (
-        <section>
-          <h4>Étapes du pipeline</h4>
+        <section className="space-y-6">
+          <h4 className="section-title">Étapes du pipeline</h4>
           <StepList steps={job.steps} />
         </section>
       )}
 
-      <section>
-        <h4>Exports disponibles</h4>
+      <section className="space-y-6">
+        <h4 className="section-title">Exports disponibles</h4>
         {job.outputs?.length ? (
-          <ul className="asset-list">
+          <div className="resource-list">
             {job.outputs.map((output) => (
-              <li key={output.filename}>
-                <a href={output.url} target="_blank" rel="noreferrer">
-                  {output.label ?? output.filename}
-                </a>
-                <span className="meta">{output.mimeType}</span>
-              </li>
+              <a
+                key={output.filename}
+                className="resource-link"
+                href={output.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span>{output.label ?? output.filename}</span>
+                <span className="text-xs text-base-content/70">{output.mimeType}</span>
+              </a>
             ))}
-          </ul>
+          </div>
         ) : (
-          <p className="empty-state">Aucun export généré pour l'instant.</p>
+          <p className="text-base-content/70 text-sm m-0">Aucun export généré pour l'instant.</p>
         )}
       </section>
 
-      <section>
-        <h4>Journal</h4>
+      <section className="space-y-6">
+        <h4 className="section-title">Journal</h4>
         <LogList logs={job.logs} compact={compact} />
       </section>
     </div>

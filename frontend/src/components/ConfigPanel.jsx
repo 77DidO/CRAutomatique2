@@ -51,9 +51,10 @@ export default function ConfigPanel({ config, onSave, loading }) {
 
   const updateField = (path, value) => {
     setLocalConfig((current) => {
-      const clone = typeof structuredClone === 'function'
-        ? structuredClone
-        : (input) => JSON.parse(JSON.stringify(input));
+      const clone =
+        typeof structuredClone === 'function'
+          ? structuredClone
+          : (input) => JSON.parse(JSON.stringify(input));
       const next = clone(current);
       let target = next;
       for (let i = 0; i < path.length - 1; i += 1) {
@@ -70,11 +71,14 @@ export default function ConfigPanel({ config, onSave, loading }) {
   };
 
   return (
-    <form className="config-form" onSubmit={handleSubmit}>
-      <div className="field">
-        <label htmlFor="config-llm">Fournisseur LLM</label>
+    <form className="space-y-6" onSubmit={handleSubmit}>
+      <div className="form-field">
+        <label className="form-label" htmlFor="config-llm">
+          Fournisseur LLM
+        </label>
         <select
           id="config-llm"
+          className="select select-bordered"
           value={localConfig.llmProvider}
           onChange={(event) => updateField(['llmProvider'], event.target.value)}
         >
@@ -84,98 +88,116 @@ export default function ConfigPanel({ config, onSave, loading }) {
         </select>
       </div>
 
-      <fieldset>
-        <legend>Diarisation</legend>
-        <div className="field checkbox">
+      <section className="bg-base-200/60 rounded-xl p-4 space-y-6">
+        <h3 className="section-title m-0">Diarisation</h3>
+        <label className="flex items-center gap-3">
           <input
             id="config-diarization"
             type="checkbox"
+            className="toggle toggle-primary"
             checked={localConfig.diarization.enabled}
             onChange={(event) => updateField(['diarization', 'enabled'], event.target.checked)}
           />
-          <label htmlFor="config-diarization">Activer la séparation des locuteurs</label>
-        </div>
-        <div className="field">
-          <label htmlFor="config-speakers">Nombre de locuteurs</label>
+          <span className="font-medium text-base-content">Activer la séparation des locuteurs</span>
+        </label>
+        <div className="form-field">
+          <label className="form-label" htmlFor="config-speakers">
+            Nombre de locuteurs
+          </label>
           <input
             id="config-speakers"
+            className="input input-bordered"
             type="text"
             value={localConfig.diarization.speakerCount}
             onChange={(event) => updateField(['diarization', 'speakerCount'], event.target.value)}
             placeholder="auto, 2, 3-5..."
           />
         </div>
-      </fieldset>
+      </section>
 
       {localConfig.llmProvider === 'openai' && (
-        <div className="field">
-          <label htmlFor="config-openai-key">Clé API OpenAI</label>
+        <div className="form-field">
+          <label className="form-label" htmlFor="config-openai-key">
+            Clé API OpenAI
+          </label>
           <input
             id="config-openai-key"
+            className="input input-bordered"
             type="password"
             value={localConfig.openaiApiKey ?? ''}
             onChange={(event) => updateField(['openaiApiKey'], event.target.value)}
             placeholder="sk-..."
             autoComplete="off"
           />
-          <p className="helper">
+          <p className="form-helper">
             La clé est stockée côté serveur et sera utilisée lorsque le fournisseur OpenAI est sélectionné.
           </p>
         </div>
       )}
 
       {localConfig.llmProvider !== 'mock' && (
-        <div className="field">
-          <label htmlFor="config-llm-token">Token du fournisseur IA</label>
+        <div className="form-field">
+          <label className="form-label" htmlFor="config-llm-token">
+            Token du fournisseur IA
+          </label>
           <input
             id="config-llm-token"
+            className="input input-bordered"
             type="password"
             value={localConfig.llmApiToken ?? ''}
             onChange={(event) => updateField(['llmApiToken'], event.target.value)}
             placeholder="Token ou clé spécifique au fournisseur"
             autoComplete="off"
           />
-          <p className="helper">Ce champ permet de stocker en toute sécurité le jeton requis par le fournisseur sélectionné.</p>
+          <p className="form-helper">
+            Ce champ permet de stocker en toute sécurité le jeton requis par le fournisseur sélectionné.
+          </p>
         </div>
       )}
 
-      <fieldset>
-        <legend>Étapes du pipeline</legend>
-        <div className="field checkbox">
+      <section className="bg-base-200/60 rounded-xl p-4 space-y-6">
+        <h3 className="section-title m-0">Étapes du pipeline</h3>
+        <label className="flex items-center gap-3">
           <input
             id="config-step-transcription"
             type="checkbox"
+            className="toggle toggle-primary"
             checked={localConfig.pipeline.transcription}
             onChange={(event) => updateField(['pipeline', 'transcription'], event.target.checked)}
           />
-          <label htmlFor="config-step-transcription">Transcription</label>
-        </div>
-        <div className="field checkbox">
+          <span className="font-medium text-base-content">Transcription</span>
+        </label>
+        <label className="flex items-center gap-3">
           <input
             id="config-step-summary"
             type="checkbox"
+            className="toggle toggle-primary"
             checked={localConfig.pipeline.summary}
             onChange={(event) => updateField(['pipeline', 'summary'], event.target.checked)}
           />
-          <label htmlFor="config-step-summary">Synthèse Markdown</label>
-        </div>
-        <div className="field checkbox">
+          <span className="font-medium text-base-content">Synthèse Markdown</span>
+        </label>
+        <label className="flex items-center gap-3">
           <input
             id="config-step-subtitles"
             type="checkbox"
+            className="toggle toggle-primary"
             checked={localConfig.pipeline.subtitles}
             onChange={(event) => updateField(['pipeline', 'subtitles'], event.target.checked)}
           />
-          <label htmlFor="config-step-subtitles">Sous-titres VTT</label>
-        </div>
-      </fieldset>
+          <span className="font-medium text-base-content">Sous-titres VTT</span>
+        </label>
+      </section>
 
-      <fieldset>
-        <legend>Options Whisper</legend>
-        <div className="field">
-          <label htmlFor="config-whisper-model">Modèle</label>
+      <section className="bg-base-200/60 rounded-xl p-4 space-y-6">
+        <h3 className="section-title m-0">Options Whisper</h3>
+        <div className="form-field">
+          <label className="form-label" htmlFor="config-whisper-model">
+            Modèle
+          </label>
           <select
             id="config-whisper-model"
+            className="select select-bordered"
             value={localConfig.whisper.model}
             onChange={(event) => updateField(['whisper', 'model'], event.target.value)}
           >
@@ -184,47 +206,61 @@ export default function ConfigPanel({ config, onSave, loading }) {
             <option value="whisper-large-v3">whisper-large-v3</option>
           </select>
         </div>
-        <div className="field">
-          <label htmlFor="config-whisper-language">Langue forcée</label>
+        <div className="form-field">
+          <label className="form-label" htmlFor="config-whisper-language">
+            Langue forcée
+          </label>
           <input
             id="config-whisper-language"
+            className="input input-bordered"
             type="text"
             value={localConfig.whisper.language}
             onChange={(event) => updateField(['whisper', 'language'], event.target.value)}
             placeholder="auto, fr, en..."
           />
         </div>
-        <div className="field">
-          <label htmlFor="config-whisper-temperature">Température</label>
+        <div className="form-field">
+          <label className="form-label" htmlFor="config-whisper-temperature">
+            Température
+          </label>
           <input
             id="config-whisper-temperature"
+            className="input input-bordered"
             type="number"
             step="0.1"
             min="0"
             max="1"
             value={localConfig.whisper.temperature}
-            onChange={(event) => updateField(['whisper', 'temperature'], Number.parseFloat(event.target.value) || 0)}
+            onChange={(event) =>
+              updateField(
+                ['whisper', 'temperature'],
+                Number.parseFloat(event.target.value) || 0
+              )
+            }
           />
-          <p className="helper">Ajustez la créativité du modèle : 0 pour des résultats déterministes, 1 pour plus de variété.</p>
+          <p className="form-helper">
+            Ajustez la créativité du modèle : 0 pour des résultats déterministes, 1 pour plus de variété.
+          </p>
         </div>
-        <div className="field checkbox">
+        <label className="flex items-center gap-3">
           <input
             id="config-whisper-translate"
             type="checkbox"
+            className="toggle toggle-primary"
             checked={localConfig.whisper.translate}
             onChange={(event) => updateField(['whisper', 'translate'], event.target.checked)}
           />
-          <label htmlFor="config-whisper-translate">Traduire automatiquement vers l'anglais</label>
-        </div>
-      </fieldset>
+          <span className="font-medium text-base-content">Traduire automatiquement vers l'anglais</span>
+        </label>
+      </section>
 
       <div className="form-actions">
-        <button type="submit" disabled={loading}>
+        <button type="submit" className="btn btn-primary btn-md" disabled={loading}>
           {loading ? 'Enregistrement…' : 'Enregistrer les modifications'}
         </button>
         <button
           type="button"
-          className="link"
+          className="btn btn-ghost btn-md"
           onClick={() => setLocalConfig(mergeConfig(config))}
           disabled={loading}
         >
