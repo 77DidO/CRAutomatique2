@@ -12,6 +12,73 @@ async function ensureFileExists(filePath) {
   }
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const OUTPUT_DISCOVERY_TIMEOUT_MS = 10_000;
+const OUTPUT_DISCOVERY_POLL_INTERVAL_MS = 200;
+
+async function findTranscriptionOutput({
+  outputDir,
+  candidateBaseNames,
+  logger,
+  timeoutMs = OUTPUT_DISCOVERY_TIMEOUT_MS,
+  pollIntervalMs = OUTPUT_DISCOVERY_POLL_INTERVAL_MS
+}) {
+  const normalizedTimeout = Math.max(0, Number(timeoutMs) || 0);
+  const normalizedPollInterval = Math.max(25, Number(pollIntervalMs) || 0);
+  const deadline = Date.now() + normalizedTimeout;
+
+  let matchedCandidate = null;
+  let attempt = 0;
+
+  do {
+    attempt += 1;
+
+    for (const baseName of candidateBaseNames) {
+      const candidate = {
+        baseName,
+        jsonPath: path.join(outputDir, `${baseName}.json`),
+        textPath: path.join(outputDir, `${baseName}.txt`)
+      };
+
+      const [jsonExists, textExists] = await Promise.all([
+        ensureFileExists(candidate.jsonPath),
+        ensureFileExists(candidate.textPath)
+      ]);
+
+      if (jsonExists || textExists) {
+        matchedCandidate = {
+          ...candidate,
+          jsonExists,
+          textExists
+        };
+        break;
+      }
+    }
+
+    if (matchedCandidate) {
+      break;
+    }
+
+    if (Date.now() >= deadline) {
+      break;
+    }
+
+    if (attempt === 1) {
+      logger?.debug?.('En attente des fichiers de transcription générés par Whisper...', {
+        pollIntervalMs: normalizedPollInterval,
+        timeoutMs: normalizedTimeout
+      });
+    }
+
+    await delay(normalizedPollInterval);
+  } while (!matchedCandidate);
+
+  return matchedCandidate;
+}
+
 export class WhisperBinaryNotFoundError extends Error {
   constructor(message) {
     super(message);
@@ -341,29 +408,11 @@ export async function transcribeWithLocalWhisper({
     candidateBaseNames.push(parsedAudioPath.base);
   }
 
-  let matchedCandidate = null;
-
-  for (const baseName of candidateBaseNames) {
-    const candidate = {
-      baseName,
-      jsonPath: path.join(outputDir, `${baseName}.json`),
-      textPath: path.join(outputDir, `${baseName}.txt`)
-    };
-
-    const [jsonExists, textExists] = await Promise.all([
-      ensureFileExists(candidate.jsonPath),
-      ensureFileExists(candidate.textPath)
-    ]);
-
-    if (jsonExists || textExists) {
-      matchedCandidate = {
-        ...candidate,
-        jsonExists,
-        textExists
-      };
-      break;
-    }
-  }
+  const matchedCandidate = await findTranscriptionOutput({
+    outputDir,
+    candidateBaseNames,
+    logger: activeLogger
+  });
 
   if (!matchedCandidate) {
     throw new Error('Aucune donnée de transcription générée par Whisper.');
