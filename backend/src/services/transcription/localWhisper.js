@@ -86,6 +86,58 @@ async function resolveWhisperBinary(binaryPath) {
   throw new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${trimmedPath}".`);
 }
 
+function createWhisperProcessError({ code, command, stdout, stderr }) {
+  if (code === 9009 || code === 127) {
+    const notFoundError = new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${command}".`);
+    notFoundError.stdout = stdout;
+    notFoundError.stderr = stderr;
+    return notFoundError;
+  }
+
+  const error = new Error(`Le processus Whisper s'est terminé avec le code ${code}.`);
+  error.stdout = stdout;
+  error.stderr = stderr;
+  return error;
+}
+
+async function resolveWhisperCommand(preferredBinaryPath, {
+  pythonCandidates: providedPythonCandidates,
+  resolver = resolveWhisperBinary
+} = {}) {
+  let resolvedBinaryPath;
+  try {
+    resolvedBinaryPath = await resolver(preferredBinaryPath);
+    return {
+      command: resolvedBinaryPath,
+      prefixArgs: [],
+      resolvedWithFallback: false
+    };
+  } catch (error) {
+    if (!(error instanceof WhisperBinaryNotFoundError)) {
+      throw new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${preferredBinaryPath}".`);
+    }
+
+    const pythonCandidates = providedPythonCandidates
+      ?? (process.platform === 'win32'
+        ? ['python3', 'python', 'py']
+        : ['python3', 'python']);
+    for (const candidate of pythonCandidates) {
+      try {
+        const resolvedPython = await resolver(candidate);
+        return {
+          command: resolvedPython,
+          prefixArgs: ['-m', 'whisper'],
+          resolvedWithFallback: true
+        };
+      } catch {
+        // Try next candidate.
+      }
+    }
+
+    throw error;
+  }
+}
+
 // Execute a local Whisper-compatible CLI and collect the resulting transcription.
 export async function transcribeWithLocalWhisper({
   jobId,
@@ -148,8 +200,16 @@ export async function transcribeWithLocalWhisper({
   }
 
   let resolvedBinaryPath;
+  let prefixArgs = [];
   try {
-    resolvedBinaryPath = await resolveWhisperBinary(binaryPath);
+    const resolution = await resolveWhisperCommand(binaryPath);
+    resolvedBinaryPath = resolution.command;
+    prefixArgs = resolution.prefixArgs;
+    if (resolution.resolvedWithFallback) {
+      activeLogger.info('Binaire Whisper introuvable, utilisation de python -m whisper.', {
+        resolvedBinaryPath
+      });
+    }
   } catch (error) {
     if (error instanceof WhisperBinaryNotFoundError) {
       throw error;
@@ -157,10 +217,17 @@ export async function transcribeWithLocalWhisper({
     throw new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${binaryPath}".`);
   }
 
-  activeLogger.info('Exécution du moteur Whisper local.', { binaryPath: resolvedBinaryPath, args, outputDir, jobId });
+  const finalArgs = [...prefixArgs, ...args];
+
+  activeLogger.info('Exécution du moteur Whisper local.', {
+    binaryPath: resolvedBinaryPath,
+    args: finalArgs,
+    outputDir,
+    jobId
+  });
 
   await new Promise((resolve, reject) => {
-    const child = spawn(resolvedBinaryPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(resolvedBinaryPath, finalArgs, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
 
@@ -189,9 +256,12 @@ export async function transcribeWithLocalWhisper({
         }
         resolve();
       } else {
-        const error = new Error(`Le processus Whisper s'est terminé avec le code ${code}.`);
-        error.stdout = stdout;
-        error.stderr = stderr;
+        const error = createWhisperProcessError({
+          code,
+          command: resolvedBinaryPath,
+          stdout,
+          stderr
+        });
         reject(error);
       }
     });
@@ -242,3 +312,5 @@ export async function transcribeWithLocalWhisper({
 }
 
 export { resolveWhisperBinary };
+export { resolveWhisperCommand };
+export { createWhisperProcessError };

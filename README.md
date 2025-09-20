@@ -32,7 +32,8 @@ pwsh -File ./start.ps1
 - npm 9+.
 - (Optionnel) PowerShell 7 pour exécuter `install.ps1` sous Linux/macOS.
 - Un exécutable `whisper` accessible (par exemple via `pip install git+https://github.com/openai/whisper.git`) ou un chemin
-  configuré vers une alternative compatible.
+  configuré vers une alternative compatible. À défaut, le backend essaie automatiquement `python3 -m whisper`, `python -m
+  whisper` puis `py -m whisper` (sur Windows) si le binaire direct est introuvable.
 
 1. **Backend**
    ```bash
