@@ -1,5 +1,6 @@
 import { jobAssetPath } from '../../config/paths.js';
 import { transcribeWithLocalWhisper, WhisperBinaryNotFoundError } from '../../services/transcription/localWhisper.js';
+import { sanitizeTranscriptionConfig } from '../../storage/configStore.js';
 
 export const transcribeStep = {
   async execute({ jobId, jobStore, config, context, logger }) {
@@ -14,7 +15,9 @@ export const transcribeStep = {
       throw new Error('Source introuvable pour la transcription.');
     }
 
-    const transcriptionConfig = config?.transcription ?? config?.whisper ?? {};
+    const transcriptionConfig = sanitizeTranscriptionConfig(
+      config?.transcription ?? config?.whisper ?? {}
+    );
     const audioPath = context.preparedSourcePath
       || jobAssetPath(jobId, job.source.storedName);
 
