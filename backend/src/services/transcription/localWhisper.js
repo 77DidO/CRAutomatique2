@@ -332,16 +332,55 @@ export async function transcribeWithLocalWhisper({
     });
   });
 
-  const audioBaseName = path.parse(audioPath).name;
-  const jsonPath = path.join(outputDir, `${audioBaseName}.json`);
-  const textPath = path.join(outputDir, `${audioBaseName}.txt`);
+  const parsedAudioPath = path.parse(audioPath);
+  const candidateBaseNames = [];
+  if (parsedAudioPath.name) {
+    candidateBaseNames.push(parsedAudioPath.name);
+  }
+  if (parsedAudioPath.base && !candidateBaseNames.includes(parsedAudioPath.base)) {
+    candidateBaseNames.push(parsedAudioPath.base);
+  }
+
+  let matchedCandidate = null;
+
+  for (const baseName of candidateBaseNames) {
+    const candidate = {
+      baseName,
+      jsonPath: path.join(outputDir, `${baseName}.json`),
+      textPath: path.join(outputDir, `${baseName}.txt`)
+    };
+
+    const [jsonExists, textExists] = await Promise.all([
+      ensureFileExists(candidate.jsonPath),
+      ensureFileExists(candidate.textPath)
+    ]);
+
+    if (jsonExists || textExists) {
+      matchedCandidate = {
+        ...candidate,
+        jsonExists,
+        textExists
+      };
+      break;
+    }
+  }
+
+  if (!matchedCandidate) {
+    throw new Error('Aucune donnée de transcription générée par Whisper.');
+  }
+
+  activeLogger.debug('Fichiers de transcription détectés.', {
+    baseName: matchedCandidate.baseName,
+    jsonExists: matchedCandidate.jsonExists,
+    textExists: matchedCandidate.textExists
+  });
 
   let transcriptionText = '';
   let transcriptionSegments = [];
   let rawPayload = null;
 
-  if (await ensureFileExists(jsonPath)) {
-    const jsonContent = await readFile(jsonPath, 'utf8');
+  if (matchedCandidate?.jsonExists) {
+    const jsonContent = await readFile(matchedCandidate.jsonPath, 'utf8');
     try {
       rawPayload = JSON.parse(jsonContent);
       if (Array.isArray(rawPayload?.segments)) {
@@ -360,8 +399,8 @@ export async function transcribeWithLocalWhisper({
     }
   }
 
-  if (!transcriptionText && await ensureFileExists(textPath)) {
-    transcriptionText = (await readFile(textPath, 'utf8')).trim();
+  if (!transcriptionText && matchedCandidate?.textExists) {
+    transcriptionText = (await readFile(matchedCandidate.textPath, 'utf8')).trim();
   }
 
   if (!transcriptionText && transcriptionSegments.length > 0) {

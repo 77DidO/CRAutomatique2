@@ -1,59 +1,64 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import {
-  resolveWhisperBinary,
-  resolveWhisperCommand,
-  WhisperBinaryNotFoundError,
-  isWindowsCommandNotFoundExitCode,
-  isWindowsStorePythonPath,
-  buildPythonModuleArgs
-} from './localWhisper.js';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import * as localWhisper from './localWhisper.js';
 
-describe('resolveWhisperBinary', () => {
-  it('throws a friendly error when the binary path is not a string', async () => {
-    await assert.rejects(
-      resolveWhisperBinary(123),
-      (error) => {
-        assert(error instanceof WhisperBinaryNotFoundError);
-        assert.match(error.message, /Valeur actuelle : "123"\./);
-        return true;
-      }
+describe('transcribeWithLocalWhisper output discovery', () => {
+  it('prefers legacy stemmed output files when available', async () => {
+    const tempRoot = await mkdtemp(path.join(tmpdir(), 'local-whisper-'));
+    const outputDir = path.join(tempRoot, 'out');
+    await mkdir(outputDir, { recursive: true });
+    const audioPath = path.join(tempRoot, 'sample.mjs');
+    await writeFile(audioPath, 'process.exit(0);', 'utf8');
+    await writeFile(path.join(outputDir, 'sample.txt'), 'Transcription legacy', 'utf8');
+
+    try {
+      const result = await localWhisper.transcribeWithLocalWhisper({
+        jobId: 'job-123',
+        audioPath,
+        options: { outputDir, binaryPath: process.execPath }
+      });
+
+      assert.equal(result.text, 'Transcription legacy');
+      assert.equal(result.segments.length, 0);
+      assert.equal(result.raw, null);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('uses basename with extension outputs and reconstructs text from segments', async () => {
+    const tempRoot = await mkdtemp(path.join(tmpdir(), 'local-whisper-'));
+    const outputDir = path.join(tempRoot, 'out');
+    await mkdir(outputDir, { recursive: true });
+    const audioPath = path.join(tempRoot, 'sample.mjs');
+    await writeFile(audioPath, 'process.exit(0);', 'utf8');
+    const jsonPayload = {
+      segments: [
+        { id: 0, start: 0, end: 1.2, text: 'Bonjour' },
+        { id: 1, start: 1.2, end: 2.4, text: 'tout le monde' }
+      ]
+    };
+    await writeFile(
+      path.join(outputDir, 'sample.mjs.json'),
+      JSON.stringify(jsonPayload),
+      'utf8'
     );
-  });
-});
 
-describe('resolveWhisperCommand', () => {
-  it('falls back to python -m whisper when the preferred binary is missing', async () => {
-    const result = await resolveWhisperCommand('nonexistent-whisper-binary');
-    assert.equal(Array.isArray(result.prefixArgs), true);
-    assert.deepEqual(result.prefixArgs, ['-m', 'whisper']);
-    assert.equal(typeof result.command, 'string');
-    assert.ok(result.command.toLowerCase().includes('python'));
-    assert.equal(result.resolvedWithFallback, true);
-  });
+    try {
+      const result = await localWhisper.transcribeWithLocalWhisper({
+        jobId: 'job-456',
+        audioPath,
+        options: { outputDir, binaryPath: process.execPath }
+      });
 
-  it('adds -3 when falling back to the Windows py launcher', async () => {
-    const args = buildPythonModuleArgs('py.exe');
-    assert.deepEqual(args, ['-3', '-m', 'whisper']);
-  });
-});
-
-describe('isWindowsCommandNotFoundExitCode', () => {
-  it('returns true only for the Windows command-not-found exit code', () => {
-    assert.equal(isWindowsCommandNotFoundExitCode(9009, 'win32'), true);
-    assert.equal(isWindowsCommandNotFoundExitCode(9009, 'linux'), false);
-    assert.equal(isWindowsCommandNotFoundExitCode(undefined, 'win32'), false);
-  });
-});
-
-describe('isWindowsStorePythonPath', () => {
-  it('detects Microsoft Store python launchers on Windows', () => {
-    const result = isWindowsStorePythonPath('C:/Users/test/AppData/Local/Microsoft/WindowsApps/python3.exe', 'win32');
-    assert.equal(result, true);
-  });
-
-  it('ignores regular paths or non-Windows platforms', () => {
-    assert.equal(isWindowsStorePythonPath('/usr/bin/python3', 'linux'), false);
-    assert.equal(isWindowsStorePythonPath('C:/Python311/python.exe', 'win32'), false);
+      assert.equal(result.text, 'Bonjour tout le monde');
+      assert.equal(result.segments.length, 2);
+      assert.deepEqual(result.raw, jsonPayload);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
   });
 });
