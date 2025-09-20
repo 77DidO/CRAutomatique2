@@ -52,6 +52,18 @@ function expandWindowsExtensions(command) {
   return pathext.map((extension) => `${command}${extension}`);
 }
 
+function isWindowsCommandNotFoundExitCode(code, platform = process.platform) {
+  if (code === null || code === undefined) {
+    return false;
+  }
+
+  if (platform !== 'win32') {
+    return false;
+  }
+
+  return Number(code) === 9009;
+}
+
 async function resolveWhisperBinary(binaryPath) {
   const trimmedPath = typeof binaryPath === 'string' ? binaryPath.trim() : '';
 
@@ -236,6 +248,11 @@ export async function transcribeWithLocalWhisper({
         }
         resolve();
       } else {
+        if (isWindowsCommandNotFoundExitCode(code)) {
+          reject(new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${resolvedBinaryPath}".`));
+          return;
+        }
+
         const error = new Error(`Le processus Whisper s'est terminé avec le code ${code}.`);
         error.stdout = stdout;
         error.stderr = stderr;
@@ -290,3 +307,4 @@ export async function transcribeWithLocalWhisper({
 
 export { resolveWhisperBinary };
 export { resolveWhisperCommand };
+export { isWindowsCommandNotFoundExitCode };

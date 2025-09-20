@@ -3,7 +3,8 @@ import { describe, it } from 'node:test';
 import {
   resolveWhisperBinary,
   resolveWhisperCommand,
-  WhisperBinaryNotFoundError
+  WhisperBinaryNotFoundError,
+  isWindowsCommandNotFoundExitCode
 } from './localWhisper.js';
 
 describe('resolveWhisperBinary', () => {
@@ -27,5 +28,13 @@ describe('resolveWhisperCommand', () => {
     assert.equal(typeof result.command, 'string');
     assert.ok(result.command.toLowerCase().includes('python'));
     assert.equal(result.resolvedWithFallback, true);
+  });
+});
+
+describe('isWindowsCommandNotFoundExitCode', () => {
+  it('returns true only for the Windows command-not-found exit code', () => {
+    assert.equal(isWindowsCommandNotFoundExitCode(9009, 'win32'), true);
+    assert.equal(isWindowsCommandNotFoundExitCode(9009, 'linux'), false);
+    assert.equal(isWindowsCommandNotFoundExitCode(undefined, 'win32'), false);
   });
 });
