@@ -64,6 +64,25 @@ function isWindowsCommandNotFoundExitCode(code, platform = process.platform) {
   return Number(code) === 9009;
 }
 
+function isWindowsStorePythonPath(candidate, platform = process.platform) {
+  if (platform !== 'win32') {
+    return false;
+  }
+
+  if (typeof candidate !== 'string' || candidate.trim().length === 0) {
+    return false;
+  }
+
+  const normalized = candidate.replace(/\\/g, '/').toLowerCase();
+  if (!normalized.includes('/microsoft/windowsapps/')) {
+    return false;
+  }
+
+  const executableName = path.basename(normalized);
+  return /^py(\.exe)?$/.test(executableName)
+    || /^python(\d+(\.\d+)*)?(\.exe)?$/.test(executableName);
+}
+
 function isPythonExecutable(candidate) {
   if (typeof candidate !== 'string' || candidate.trim().length === 0) {
     return false;
@@ -72,10 +91,16 @@ function isPythonExecutable(candidate) {
   const normalizedCandidate = candidate.trim().toLowerCase();
   const executableName = path.basename(normalizedCandidate);
 
-  return executableName === 'python'
-    || executableName === 'python3'
-    || executableName === 'python.exe'
-    || executableName === 'python3.exe';
+  return /^python(\d+(\.\d+)*)?(\.exe)?$/.test(executableName)
+    || /^py(\.exe)?$/.test(executableName);
+}
+
+function buildPythonModuleArgs(command) {
+  const executableName = path.basename(String(command ?? '')).toLowerCase();
+  if (executableName === 'py' || executableName === 'py.exe') {
+    return ['-3', '-m', 'whisper'];
+  }
+  return ['-m', 'whisper'];
 }
 
 async function resolveWhisperBinary(binaryPath) {
@@ -105,6 +130,9 @@ async function resolveWhisperBinary(binaryPath) {
 
   for (const candidate of candidates) {
     if (await isExecutable(candidate)) {
+      if (isWindowsStorePythonPath(candidate)) {
+        continue;
+      }
       return candidate;
     }
   }
@@ -120,7 +148,7 @@ async function resolveWhisperCommand(preferredBinaryPath) {
       const resolvedPython = await resolveWhisperBinary(preferredBinaryPath);
       return {
         command: resolvedPython,
-        prefixArgs: ['-m', 'whisper'],
+        prefixArgs: buildPythonModuleArgs(resolvedPython),
         resolvedWithFallback: true
       };
     } catch (error) {
@@ -148,7 +176,7 @@ async function resolveWhisperCommand(preferredBinaryPath) {
     if (!treatPreferredAsPython && typeof preferredBinaryPath === 'string' && preferredBinaryPath.trim().length > 0) {
       pythonCandidates.push(preferredBinaryPath.trim());
     }
-    pythonCandidates.push('python3', 'python');
+    pythonCandidates.push('python3', 'python', 'py');
 
     for (const candidate of pythonCandidates) {
       if (!isPythonExecutable(candidate)) {
@@ -159,7 +187,7 @@ async function resolveWhisperCommand(preferredBinaryPath) {
         const resolvedPython = await resolveWhisperBinary(candidate);
         return {
           command: resolvedPython,
-          prefixArgs: ['-m', 'whisper'],
+          prefixArgs: buildPythonModuleArgs(resolvedPython),
           resolvedWithFallback: true
         };
       } catch (innerError) {
@@ -351,3 +379,5 @@ export async function transcribeWithLocalWhisper({
 export { resolveWhisperBinary };
 export { resolveWhisperCommand };
 export { isWindowsCommandNotFoundExitCode };
+export { isWindowsStorePythonPath };
+export { buildPythonModuleArgs };
