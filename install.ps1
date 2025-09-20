@@ -56,6 +56,69 @@ function Ensure-NodeEnvironment {
     Write-Host "npm détecté    : $npmVersion"
 }
 
+function Ensure-PythonEnvironment {
+    Write-Section 'Vérification de Python et pip'
+
+    $candidates = @('python', 'python3')
+    foreach ($candidate in $candidates) {
+        $commandInfo = Get-Command $candidate -ErrorAction SilentlyContinue
+        if (-not $commandInfo) {
+            continue
+        }
+
+        $commandPath = if ($commandInfo.Path) { $commandInfo.Path } else { $commandInfo.Source }
+        if ($commandPath -and $commandPath -like '*WindowsApps*') {
+            Write-Host "Commande $candidate ignorée car elle pointe vers le lanceur Windows Store ($commandPath)."
+            continue
+        }
+
+        $script:PythonCommand = $candidate
+        break
+    }
+
+    if (-not $script:PythonCommand) {
+        Write-Error 'Python 3 est requis mais introuvable. Installez-le depuis https://www.python.org/downloads/ puis relancez ce script.'
+    }
+
+    $pythonVersion = (& $script:PythonCommand --version 2>&1).Trim()
+    Write-Host "Python détecté : $pythonVersion"
+
+    $pipVersionOutput = & $script:PythonCommand -m pip --version 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error 'pip est requis mais introuvable. Vérifiez votre installation Python et activez l''option "Add python.exe to PATH".'
+    }
+
+    Write-Host "pip détecté    : $($pipVersionOutput.Trim())"
+}
+
+function Install-WhisperCLI {
+    Write-Section 'Installation de la CLI Whisper'
+
+    if (-not $script:PythonCommand) {
+        Write-Error 'Python doit être détecté avant d''installer Whisper.'
+    }
+
+    & $script:PythonCommand -m pip show openai-whisper *> $null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host '✅ Whisper est déjà installé via pip.'
+        return
+    }
+
+    Write-Host 'Mise à niveau de pip...'
+    & $script:PythonCommand -m pip install --upgrade pip
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error 'Échec de la mise à niveau de pip. Consultez les messages ci-dessus.'
+    }
+
+    Write-Host 'Installation de openai/whisper...'
+    & $script:PythonCommand -m pip install --upgrade git+https://github.com/openai/whisper.git
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error 'Échec de l''installation de Whisper. Consultez les messages ci-dessus.'
+    }
+
+    Write-Host '✅ Whisper a été installé avec succès.'
+}
+
 function Install-Dependencies {
     param(
         [Parameter(Mandatory = $true)]
@@ -88,8 +151,12 @@ function Install-Dependencies {
 try {
     Ensure-NodeEnvironment
 
+    Ensure-PythonEnvironment
+
     Install-Dependencies -Directory 'backend'
     Install-Dependencies -Directory 'frontend'
+
+    Install-WhisperCLI
 
     Write-Section 'Installation terminée'
     Write-Host '✅ Toutes les dépendances ont été installées avec succès.' -ForegroundColor Green
