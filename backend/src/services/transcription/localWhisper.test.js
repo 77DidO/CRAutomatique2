@@ -4,7 +4,9 @@ import {
   resolveWhisperBinary,
   resolveWhisperCommand,
   WhisperBinaryNotFoundError,
-  isWindowsCommandNotFoundExitCode
+  isWindowsCommandNotFoundExitCode,
+  isWindowsStorePythonPath,
+  buildPythonModuleArgs
 } from './localWhisper.js';
 
 describe('resolveWhisperBinary', () => {
@@ -29,6 +31,11 @@ describe('resolveWhisperCommand', () => {
     assert.ok(result.command.toLowerCase().includes('python'));
     assert.equal(result.resolvedWithFallback, true);
   });
+
+  it('adds -3 when falling back to the Windows py launcher', async () => {
+    const args = buildPythonModuleArgs('py.exe');
+    assert.deepEqual(args, ['-3', '-m', 'whisper']);
+  });
 });
 
 describe('isWindowsCommandNotFoundExitCode', () => {
@@ -36,5 +43,17 @@ describe('isWindowsCommandNotFoundExitCode', () => {
     assert.equal(isWindowsCommandNotFoundExitCode(9009, 'win32'), true);
     assert.equal(isWindowsCommandNotFoundExitCode(9009, 'linux'), false);
     assert.equal(isWindowsCommandNotFoundExitCode(undefined, 'win32'), false);
+  });
+});
+
+describe('isWindowsStorePythonPath', () => {
+  it('detects Microsoft Store python launchers on Windows', () => {
+    const result = isWindowsStorePythonPath('C:/Users/test/AppData/Local/Microsoft/WindowsApps/python3.exe', 'win32');
+    assert.equal(result, true);
+  });
+
+  it('ignores regular paths or non-Windows platforms', () => {
+    assert.equal(isWindowsStorePythonPath('/usr/bin/python3', 'linux'), false);
+    assert.equal(isWindowsStorePythonPath('C:/Python311/python.exe', 'win32'), false);
   });
 });
