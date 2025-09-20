@@ -61,4 +61,55 @@ describe('transcribeWithLocalWhisper output discovery', () => {
       await rm(tempRoot, { recursive: true, force: true });
     }
   });
+
+  it('attends l’arrivée différée des fichiers de sortie Whisper', async () => {
+    const tempRoot = await mkdtemp(path.join(tmpdir(), 'local-whisper-'));
+    const outputDir = path.join(tempRoot, 'out');
+    await mkdir(outputDir, { recursive: true });
+    const audioPath = path.join(tempRoot, 'delayed.mjs');
+
+    const script = `import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
+const args = process.argv.slice(2);
+const audioFile = process.argv[1];
+const outputDirFlagIndex = args.indexOf('--output_dir');
+const outputDir = outputDirFlagIndex >= 0 ? args[outputDirFlagIndex + 1] : null;
+
+if (!outputDir) {
+  console.error('Missing output dir');
+  process.exit(1);
+}
+
+const baseName = path.parse(audioFile).name;
+
+setTimeout(() => {
+  const payload = { text: 'Bonjour différé', segments: [{ id: 0, start: 0, end: 0.5, text: 'Bonjour différé' }] };
+  const targetPath = path.join(outputDir, baseName + '.json');
+
+  writeFile(targetPath, JSON.stringify(payload), 'utf8')
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    });
+}, 150);
+`;
+
+    await writeFile(audioPath, script, 'utf8');
+
+    try {
+      const result = await localWhisper.transcribeWithLocalWhisper({
+        jobId: 'job-delayed',
+        audioPath,
+        options: { outputDir, binaryPath: process.execPath }
+      });
+
+      assert.equal(result.text, 'Bonjour différé');
+      assert.equal(result.segments.length, 1);
+      assert.equal(result.segments[0].text, 'Bonjour différé');
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
 });
