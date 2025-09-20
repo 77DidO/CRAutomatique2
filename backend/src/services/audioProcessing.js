@@ -43,6 +43,16 @@ async function ensureFfmpegPath({ logger }) {
 
   if (configuredPath) {
     ffmpeg.setFfmpegPath(configuredPath);
+    const ffmpegDir = path.dirname(configuredPath);
+    const pathEntries = typeof process.env.PATH === 'string'
+      ? process.env.PATH.split(path.delimiter)
+      : [];
+    if (!pathEntries.includes(ffmpegDir)) {
+      process.env.PATH = `${ffmpegDir}${path.delimiter}${process.env.PATH || ''}`;
+    }
+    if (!process.env.FFMPEG_PATH) {
+      process.env.FFMPEG_PATH = configuredPath;
+    }
   } else {
     try {
       const { path: bundledFfmpegPath } = await import('@ffmpeg-installer/ffmpeg');
