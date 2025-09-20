@@ -86,6 +86,38 @@ async function resolveWhisperBinary(binaryPath) {
   throw new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${trimmedPath}".`);
 }
 
+async function resolveWhisperCommand(preferredBinaryPath) {
+  let resolvedBinaryPath;
+  try {
+    resolvedBinaryPath = await resolveWhisperBinary(preferredBinaryPath);
+    return {
+      command: resolvedBinaryPath,
+      prefixArgs: [],
+      resolvedWithFallback: false
+    };
+  } catch (error) {
+    if (!(error instanceof WhisperBinaryNotFoundError)) {
+      throw new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${preferredBinaryPath}".`);
+    }
+
+    const pythonCandidates = ['python3', 'python'];
+    for (const candidate of pythonCandidates) {
+      try {
+        const resolvedPython = await resolveWhisperBinary(candidate);
+        return {
+          command: resolvedPython,
+          prefixArgs: ['-m', 'whisper'],
+          resolvedWithFallback: true
+        };
+      } catch {
+        // Try next candidate.
+      }
+    }
+
+    throw error;
+  }
+}
+
 // Execute a local Whisper-compatible CLI and collect the resulting transcription.
 export async function transcribeWithLocalWhisper({
   jobId,
@@ -148,8 +180,16 @@ export async function transcribeWithLocalWhisper({
   }
 
   let resolvedBinaryPath;
+  let prefixArgs = [];
   try {
-    resolvedBinaryPath = await resolveWhisperBinary(binaryPath);
+    const resolution = await resolveWhisperCommand(binaryPath);
+    resolvedBinaryPath = resolution.command;
+    prefixArgs = resolution.prefixArgs;
+    if (resolution.resolvedWithFallback) {
+      activeLogger.info('Binaire Whisper introuvable, utilisation de python -m whisper.', {
+        resolvedBinaryPath
+      });
+    }
   } catch (error) {
     if (error instanceof WhisperBinaryNotFoundError) {
       throw error;
@@ -157,10 +197,17 @@ export async function transcribeWithLocalWhisper({
     throw new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${binaryPath}".`);
   }
 
-  activeLogger.info('Exécution du moteur Whisper local.', { binaryPath: resolvedBinaryPath, args, outputDir, jobId });
+  const finalArgs = [...prefixArgs, ...args];
+
+  activeLogger.info('Exécution du moteur Whisper local.', {
+    binaryPath: resolvedBinaryPath,
+    args: finalArgs,
+    outputDir,
+    jobId
+  });
 
   await new Promise((resolve, reject) => {
-    const child = spawn(resolvedBinaryPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(resolvedBinaryPath, finalArgs, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
 
@@ -242,3 +289,4 @@ export async function transcribeWithLocalWhisper({
 }
 
 export { resolveWhisperBinary };
+export { resolveWhisperCommand };
