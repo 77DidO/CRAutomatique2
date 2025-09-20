@@ -1,5 +1,5 @@
 import { spawn } from 'child_process';
-import { access, mkdir, readFile } from 'fs/promises';
+import { access, mkdir, readFile, readdir, stat } from 'fs/promises';
 import { constants as fsConstants } from 'fs';
 import path from 'path';
 
@@ -18,6 +18,70 @@ function delay(ms) {
 
 const OUTPUT_DISCOVERY_TIMEOUT_MS = 10_000;
 const OUTPUT_DISCOVERY_POLL_INTERVAL_MS = 200;
+
+async function collectExistingTranscriptionOutputs(outputDir) {
+  let entries;
+  try {
+    entries = await readdir(outputDir, { withFileTypes: true });
+  } catch (error) {
+    if (error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) {
+      return new Map();
+    }
+    throw error;
+  }
+
+  const candidates = new Map();
+
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      continue;
+    }
+
+    const extension = path.extname(entry.name).toLowerCase();
+    if (extension !== '.json' && extension !== '.txt') {
+      continue;
+    }
+
+    const baseName = entry.name.slice(0, -extension.length);
+    const fullPath = path.join(outputDir, entry.name);
+
+    let fileStats;
+    try {
+      fileStats = await stat(fullPath);
+    } catch (error) {
+      if (error && error.code === 'ENOENT') {
+        continue;
+      }
+      throw error;
+    }
+
+    const candidate = candidates.get(baseName) ?? {
+      baseName,
+      jsonPath: path.join(outputDir, `${baseName}.json`),
+      textPath: path.join(outputDir, `${baseName}.txt`),
+      jsonExists: false,
+      textExists: false,
+      mtimeMs: 0
+    };
+
+    if (extension === '.json') {
+      candidate.jsonExists = true;
+    } else if (extension === '.txt') {
+      candidate.textExists = true;
+    }
+
+    const candidateMtime = Number.isFinite(fileStats?.mtimeMs)
+      ? fileStats.mtimeMs
+      : fileStats?.mtime instanceof Date
+        ? fileStats.mtime.getTime()
+        : 0;
+    candidate.mtimeMs = Math.max(candidate.mtimeMs ?? 0, candidateMtime ?? 0);
+
+    candidates.set(baseName, candidate);
+  }
+
+  return candidates;
+}
 
 async function findTranscriptionOutput({
   outputDir,
@@ -77,6 +141,45 @@ async function findTranscriptionOutput({
   } while (!matchedCandidate);
 
   return matchedCandidate;
+}
+
+async function findRecentTranscriptionOutput({
+  outputDir,
+  knownOutputs,
+  startedAtMs,
+  logger
+}) {
+  const outputs = await collectExistingTranscriptionOutputs(outputDir);
+
+  let mostRecent = null;
+
+  for (const [baseName, candidate] of outputs.entries()) {
+    const previous = knownOutputs.get(baseName);
+    const previousTimestamp = previous?.mtimeMs ?? 0;
+    const candidateTimestamp = candidate?.mtimeMs ?? 0;
+    const isNewFile = !previous;
+    const isUpdatedFile = candidateTimestamp > previousTimestamp;
+    const isRecentFile = typeof startedAtMs === 'number' && startedAtMs > 0
+      ? candidateTimestamp >= startedAtMs
+      : false;
+
+    if (!isNewFile && !isUpdatedFile && !isRecentFile) {
+      continue;
+    }
+
+    if (!mostRecent || (candidateTimestamp > (mostRecent.mtimeMs ?? 0))) {
+      mostRecent = candidate;
+    }
+  }
+
+  if (mostRecent) {
+    logger?.warn?.('Fichier de transcription détecté via la découverte heuristique.', {
+      baseName: mostRecent.baseName,
+      mtimeMs: mostRecent.mtimeMs
+    });
+  }
+
+  return mostRecent;
 }
 
 export class WhisperBinaryNotFoundError extends Error {
@@ -348,6 +451,8 @@ export async function transcribeWithLocalWhisper({
   }
 
   const finalArgs = [...prefixArgs, ...args];
+  const discoveryStartTimestamp = Date.now();
+  const knownOutputs = await collectExistingTranscriptionOutputs(outputDir);
 
   activeLogger.info('Exécution du moteur Whisper local.', {
     binaryPath: resolvedBinaryPath,
@@ -408,11 +513,20 @@ export async function transcribeWithLocalWhisper({
     candidateBaseNames.push(parsedAudioPath.base);
   }
 
-  const matchedCandidate = await findTranscriptionOutput({
+  let matchedCandidate = await findTranscriptionOutput({
     outputDir,
     candidateBaseNames,
     logger: activeLogger
   });
+
+  if (!matchedCandidate) {
+    matchedCandidate = await findRecentTranscriptionOutput({
+      outputDir,
+      knownOutputs,
+      startedAtMs: discoveryStartTimestamp,
+      logger: activeLogger
+    });
+  }
 
   if (!matchedCandidate) {
     throw new Error('Aucune donnée de transcription générée par Whisper.');
