@@ -364,6 +364,14 @@ export async function transcribeWithLocalWhisper({
     transcriptionText = (await readFile(textPath, 'utf8')).trim();
   }
 
+  if (!transcriptionText && transcriptionSegments.length > 0) {
+    transcriptionText = transcriptionSegments
+      .map((segment) => segment.text)
+      .filter((value) => typeof value === 'string' && value.trim().length > 0)
+      .join(' ')
+      .trim();
+  }
+
   if (!transcriptionText) {
     throw new Error('Aucune donnée de transcription générée par Whisper.');
   }
