@@ -8,6 +8,23 @@ function toStructuredClone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function normalizeModelName(value) {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+
+  // Accept common aliases such as "whisper-large-v3" by stripping the prefix
+  // added by some configuration UIs. Whisper's CLI expects names like
+  // "large-v3", so we normalise here to avoid runtime errors.
+  const withoutPrefix = trimmed.replace(/^whisper[-_]/i, '');
+  return withoutPrefix.length > 0 ? withoutPrefix : undefined;
+}
+
 function sanitizeTranscriptionConfig(config) {
   if (!config || typeof config !== 'object') {
     return {};
@@ -21,6 +38,13 @@ function sanitizeTranscriptionConfig(config) {
       sanitized[field] = sanitized[field].trim();
       if (sanitized[field].length === 0) {
         delete sanitized[field];
+      } else if (field === 'model') {
+        const normalizedModel = normalizeModelName(sanitized[field]);
+        if (normalizedModel) {
+          sanitized[field] = normalizedModel;
+        } else {
+          delete sanitized[field];
+        }
       }
     }
   });
