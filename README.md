@@ -30,10 +30,11 @@ pwsh -File ./start.ps1
 
 - Node.js 18+ (le backend utilise l'option `--watch`).
 - npm 9+.
+- Python 3.9+ avec `pip` afin d'installer automatiquement la CLI Whisper via les scripts `install.ps1`/`install.sh`.
 - (Optionnel) PowerShell 7 pour exécuter `install.ps1` sous Linux/macOS.
-- Un exécutable `whisper` accessible (par exemple via `pip install git+https://github.com/openai/whisper.git`) ou un chemin
-  configuré vers une alternative compatible. À défaut, le backend essaie automatiquement `python3 -m whisper` puis `python -m
-  whisper` si le binaire direct est introuvable.
+- Un exécutable `whisper` accessible (installé automatiquement par les scripts ci-dessus ou configuré manuellement vers une
+  alternative compatible). À défaut, le backend essaie automatiquement `python3 -m whisper` puis `python -m whisper` si le
+  binaire direct est introuvable.
 
 1. **Backend**
    ```bash
