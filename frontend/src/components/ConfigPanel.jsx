@@ -1,5 +1,23 @@
 import { useEffect, useState } from 'react';
 
+const DEFAULT_TRANSCRIPTION = {
+  engine: 'local-whisper',
+  binaryPath: 'whisper',
+  model: 'base',
+  modelPath: '',
+  language: 'auto',
+  translate: false,
+  temperature: 0,
+  extraArgs: []
+};
+
+const DEFAULT_REMOTE_WHISPER = {
+  model: 'whisper-1',
+  language: 'auto',
+  translate: false,
+  temperature: 0.2
+};
+
 const DEFAULT_CONFIG = {
   llmProvider: 'mock',
   llmApiToken: '',
@@ -8,12 +26,8 @@ const DEFAULT_CONFIG = {
     enabled: true,
     speakerCount: 'auto'
   },
-  whisper: {
-    model: 'whisper-1',
-    language: 'auto',
-    translate: false,
-    temperature: 0.2
-  },
+  transcription: DEFAULT_TRANSCRIPTION,
+  whisper: DEFAULT_REMOTE_WHISPER,
   pipeline: {
     transcription: true,
     summary: true,
@@ -23,6 +37,7 @@ const DEFAULT_CONFIG = {
 
 function mergeConfig(config) {
   const safeConfig = config && typeof config === 'object' ? config : {};
+  const sourceTranscription = safeConfig.transcription ?? safeConfig.whisper ?? {};
 
   return {
     ...DEFAULT_CONFIG,
@@ -31,8 +46,12 @@ function mergeConfig(config) {
       ...DEFAULT_CONFIG.diarization,
       ...(safeConfig.diarization ?? {})
     },
+    transcription: {
+      ...DEFAULT_TRANSCRIPTION,
+      ...sourceTranscription
+    },
     whisper: {
-      ...DEFAULT_CONFIG.whisper,
+      ...DEFAULT_REMOTE_WHISPER,
       ...(safeConfig.whisper ?? {})
     },
     pipeline: {
@@ -49,18 +68,23 @@ export default function ConfigPanel({ config, onSave, loading }) {
     setLocalConfig(mergeConfig(config));
   }, [config]);
 
-  const updateField = (path, value) => {
+  const updateField = (path, value, mirrorPaths = []) => {
     setLocalConfig((current) => {
-      const clone =
-        typeof structuredClone === 'function'
-          ? structuredClone
-          : (input) => JSON.parse(JSON.stringify(input));
-      const next = clone(current);
-      let target = next;
-      for (let i = 0; i < path.length - 1; i += 1) {
-        target = target[path[i]];
-      }
-      target[path[path.length - 1]] = value;
+      const cloneFn = typeof structuredClone === 'function'
+        ? structuredClone
+        : (input) => JSON.parse(JSON.stringify(input));
+      const next = cloneFn(current);
+
+      const assignPath = (target, segments, val) => {
+        let cursor = target;
+        for (let i = 0; i < segments.length - 1; i += 1) {
+          cursor = cursor[segments[i]];
+        }
+        cursor[segments[segments.length - 1]] = val;
+      };
+
+      assignPath(next, path, value);
+      mirrorPaths.forEach((mirrorPath) => assignPath(next, mirrorPath, value));
       return next;
     });
   };
@@ -190,7 +214,27 @@ export default function ConfigPanel({ config, onSave, loading }) {
       </section>
 
       <section className="bg-base-200/60 rounded-xl p-4 space-y-6">
-        <h3 className="section-title m-0">Options Whisper</h3>
+        <h3 className="section-title m-0">Whisper local (CLI)</h3>
+        <div className="form-field">
+          <label className="form-label" htmlFor="config-whisper-binary">
+            Commande ou chemin vers Whisper
+          </label>
+          <input
+            id="config-whisper-binary"
+            className="input input-bordered"
+            type="text"
+            value={localConfig.transcription.binaryPath}
+            onChange={(event) =>
+              updateField(['transcription', 'binaryPath'], event.target.value.trim())
+            }
+            placeholder="whisper, C:\\Python311\\Scripts\\whisper.exe, ..."
+          />
+          <p className="form-helper">
+            Laissez <code>whisper</code> si la CLI est dans le PATH. Sur Windows, vous pouvez
+            renseigner un chemin complet ou laisser vide pour laisser le backend gérer les
+            fallbacks (<code>python -m whisper</code>, <code>py -3 -m whisper</code>...).
+          </p>
+        </div>
         <div className="form-field">
           <label className="form-label" htmlFor="config-whisper-model">
             Modèle
@@ -198,13 +242,41 @@ export default function ConfigPanel({ config, onSave, loading }) {
           <select
             id="config-whisper-model"
             className="select select-bordered"
-            value={localConfig.whisper.model}
-            onChange={(event) => updateField(['whisper', 'model'], event.target.value)}
+            value={localConfig.transcription.model}
+            onChange={(event) =>
+              updateField(
+                ['transcription', 'model'],
+                event.target.value,
+                [['whisper', 'model']]
+              )
+            }
           >
-            <option value="whisper-1">whisper-1</option>
-            <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe</option>
-            <option value="whisper-large-v3">whisper-large-v3</option>
+            <option value="tiny">tiny</option>
+            <option value="base">base</option>
+            <option value="small">small</option>
+            <option value="medium">medium</option>
+            <option value="large">large</option>
+            <option value="large-v2">large-v2</option>
+            <option value="large-v3">large-v3</option>
           </select>
+        </div>
+        <div className="form-field">
+          <label className="form-label" htmlFor="config-whisper-model-path">
+            Dossier des modèles (optionnel)
+          </label>
+          <input
+            id="config-whisper-model-path"
+            className="input input-bordered"
+            type="text"
+            value={localConfig.transcription.modelPath ?? ''}
+            onChange={(event) =>
+              updateField(['transcription', 'modelPath'], event.target.value)
+            }
+            placeholder="Ex. C:\\models\\whisper"
+          />
+          <p className="form-helper">
+            Renseignez ce champ si vos modèles sont stockés en local pour éviter de les retélécharger.
+          </p>
         </div>
         <div className="form-field">
           <label className="form-label" htmlFor="config-whisper-language">
@@ -214,8 +286,14 @@ export default function ConfigPanel({ config, onSave, loading }) {
             id="config-whisper-language"
             className="input input-bordered"
             type="text"
-            value={localConfig.whisper.language}
-            onChange={(event) => updateField(['whisper', 'language'], event.target.value)}
+            value={localConfig.transcription.language}
+            onChange={(event) =>
+              updateField(
+                ['transcription', 'language'],
+                event.target.value,
+                [['whisper', 'language']]
+              )
+            }
             placeholder="auto, fr, en..."
           />
         </div>
@@ -230,11 +308,12 @@ export default function ConfigPanel({ config, onSave, loading }) {
             step="0.1"
             min="0"
             max="1"
-            value={localConfig.whisper.temperature}
+            value={localConfig.transcription.temperature}
             onChange={(event) =>
               updateField(
-                ['whisper', 'temperature'],
-                Number.parseFloat(event.target.value) || 0
+                ['transcription', 'temperature'],
+                Number.parseFloat(event.target.value) || 0,
+                [['whisper', 'temperature']]
               )
             }
           />
@@ -247,11 +326,41 @@ export default function ConfigPanel({ config, onSave, loading }) {
             id="config-whisper-translate"
             type="checkbox"
             className="toggle toggle-primary"
-            checked={localConfig.whisper.translate}
-            onChange={(event) => updateField(['whisper', 'translate'], event.target.checked)}
+            checked={localConfig.transcription.translate}
+            onChange={(event) =>
+              updateField(
+                ['transcription', 'translate'],
+                event.target.checked,
+                [['whisper', 'translate']]
+              )
+            }
           />
           <span className="font-medium text-base-content">Traduire automatiquement vers l'anglais</span>
         </label>
+        <div className="form-field">
+          <label className="form-label" htmlFor="config-whisper-extra-args">
+            Arguments supplémentaires
+          </label>
+          <textarea
+            id="config-whisper-extra-args"
+            className="textarea textarea-bordered"
+            rows={3}
+            value={(localConfig.transcription.extraArgs ?? []).join('\n')}
+            onChange={(event) =>
+              updateField(
+                ['transcription', 'extraArgs'],
+                event.target.value
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter((line) => line.length > 0)
+              )
+            }
+            placeholder="--device cuda\n--temperature 0.2"
+          />
+          <p className="form-helper">
+            Un argument par ligne. Ils sont passés tels quels à la CLI Whisper locale.
+          </p>
+        </div>
       </section>
 
       <div className="form-actions">

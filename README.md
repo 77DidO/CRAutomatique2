@@ -54,6 +54,17 @@ pwsh -File ./start.ps1
 L'étape de transcription utilise une CLI compatible Whisper côté serveur. Installez l'outil officiel avec `pip install git+https://github.com/openai/whisper.git`
 ou fournissez votre propre binaire compatible. Assurez-vous que la commande est disponible via la variable d'environnement `PATH` ou
 indiquez le chemin complet dans la configuration (`transcription.binaryPath` côté backend, ou `WHISPER_BINARY_PATH` dans les variables d'environnement).
+
+Le backend tente automatiquement plusieurs commandes (`whisper`, `python -m whisper`, `py -3 -m whisper`, …) et ignore le lanceur Microsoft Store (`python3.exe`
+dans `WindowsApps`) afin d'éviter les erreurs courantes sous Windows. Si aucun exécutable valide n'est trouvé, un message détaillé est ajouté dans les logs du job
+et dans la console serveur.
+
+Dans le panneau *Configuration* de l'interface, la section « Whisper local (CLI) » permet de :
+
+- définir explicitement le chemin de la CLI ;
+- choisir le modèle (`tiny`, `base`, `small`, …) et un dossier local contenant les modèles ;
+- fixer la langue, la traduction automatique, la température et d'éventuels arguments supplémentaires (un par ligne) qui seront transmis à la CLI.
+
 En cas d'absence, l'étape ajoute un log de job contenant les instructions d'installation afin de faciliter le diagnostic dans l'interface.
 
 2. **Frontend**
