@@ -64,6 +64,20 @@ function isWindowsCommandNotFoundExitCode(code, platform = process.platform) {
   return Number(code) === 9009;
 }
 
+function isPythonExecutable(candidate) {
+  if (typeof candidate !== 'string' || candidate.trim().length === 0) {
+    return false;
+  }
+
+  const normalizedCandidate = candidate.trim().toLowerCase();
+  const executableName = path.basename(normalizedCandidate);
+
+  return executableName === 'python'
+    || executableName === 'python3'
+    || executableName === 'python.exe'
+    || executableName === 'python3.exe';
+}
+
 async function resolveWhisperBinary(binaryPath) {
   const trimmedPath = typeof binaryPath === 'string' ? binaryPath.trim() : '';
 
@@ -99,6 +113,24 @@ async function resolveWhisperBinary(binaryPath) {
 }
 
 async function resolveWhisperCommand(preferredBinaryPath) {
+  const treatPreferredAsPython = isPythonExecutable(preferredBinaryPath);
+
+  if (treatPreferredAsPython) {
+    try {
+      const resolvedPython = await resolveWhisperBinary(preferredBinaryPath);
+      return {
+        command: resolvedPython,
+        prefixArgs: ['-m', 'whisper'],
+        resolvedWithFallback: true
+      };
+    } catch (error) {
+      if (!(error instanceof WhisperBinaryNotFoundError)) {
+        throw new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${preferredBinaryPath}".`);
+      }
+      // Continue with fallback resolution below.
+    }
+  }
+
   let resolvedBinaryPath;
   try {
     resolvedBinaryPath = await resolveWhisperBinary(preferredBinaryPath);
@@ -112,8 +144,17 @@ async function resolveWhisperCommand(preferredBinaryPath) {
       throw new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${preferredBinaryPath}".`);
     }
 
-    const pythonCandidates = ['python3', 'python'];
+    const pythonCandidates = [];
+    if (!treatPreferredAsPython && typeof preferredBinaryPath === 'string' && preferredBinaryPath.trim().length > 0) {
+      pythonCandidates.push(preferredBinaryPath.trim());
+    }
+    pythonCandidates.push('python3', 'python');
+
     for (const candidate of pythonCandidates) {
+      if (!isPythonExecutable(candidate)) {
+        continue;
+      }
+
       try {
         const resolvedPython = await resolveWhisperBinary(candidate);
         return {
@@ -121,8 +162,10 @@ async function resolveWhisperCommand(preferredBinaryPath) {
           prefixArgs: ['-m', 'whisper'],
           resolvedWithFallback: true
         };
-      } catch {
-        // Try next candidate.
+      } catch (innerError) {
+        if (!(innerError instanceof WhisperBinaryNotFoundError)) {
+          throw new WhisperBinaryNotFoundError(`${WHISPER_BINARY_GUIDANCE} Valeur actuelle : "${candidate}".`);
+        }
       }
     }
 
