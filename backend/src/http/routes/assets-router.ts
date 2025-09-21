@@ -1,12 +1,18 @@
-import { Router } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
 import { createHttpError } from '../../utils/http-error.js';
+import type { Environment, JobStore } from '../../types/index.js';
 
-export function createAssetsRouter({ environment, jobStore }) {
+interface CreateAssetsRouterOptions {
+  environment: Environment;
+  jobStore: JobStore;
+}
+
+export function createAssetsRouter({ environment, jobStore }: CreateAssetsRouterOptions): Router {
   const router = Router();
 
-  router.get('/:jobId/:filename', async (req, res, next) => {
+  router.get('/:jobId/:filename', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const job = await jobStore.get(req.params.jobId);
       if (!job) {

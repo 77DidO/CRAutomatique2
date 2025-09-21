@@ -2,8 +2,19 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { ensureDirectory } from '../utils/fs.js';
+import type {
+  Environment,
+  Logger,
+  WhisperConfig,
+  WhisperService,
+  WhisperTranscriptionResult,
+} from '../types/index.js';
 
-export function createWhisperService(environment, { logger }) {
+interface CreateWhisperServiceOptions {
+  logger: Logger;
+}
+
+export function createWhisperService(environment: Environment, { logger }: CreateWhisperServiceOptions): WhisperService {
   return {
     async transcribe({ inputPath, outputDir, config }) {
       ensureDirectory(outputDir);
@@ -15,7 +26,8 @@ export function createWhisperService(environment, { logger }) {
         command: environment.whisperBinary,
       });
 
-      await runProcess(environment.whisperBinary, args, { cwd: outputDir, logger });
+      const command = environment.whisperBinary ?? 'python';
+      await runProcess(command, args, { cwd: outputDir, logger });
 
       const baseName = path.parse(inputPath).name;
       const resultFile = path.join(outputDir, `${baseName}.json`);
@@ -26,21 +38,28 @@ export function createWhisperService(environment, { logger }) {
       }
 
       const raw = await fs.promises.readFile(resultFile, 'utf8');
-      const data = JSON.parse(raw);
+      const data = JSON.parse(raw) as Partial<WhisperTranscriptionResult> & { segments?: unknown[] };
       const text = await fs.promises.readFile(textFile, 'utf8');
+
+      const segments = Array.isArray(data.segments) ? (data.segments as WhisperTranscriptionResult['segments']) : [];
 
       return {
         model: config.model,
         text,
-        segments: data.segments || [],
-        language: data.language || null,
-      };
+        segments,
+        language: data.language ?? null,
+      } satisfies WhisperTranscriptionResult;
     },
   };
 }
 
-function buildArgs({ inputPath, outputDir, config, command }) {
-  const args = [];
+function buildArgs({ inputPath, outputDir, config, command }: {
+  inputPath: string;
+  outputDir: string;
+  config: WhisperConfig;
+  command: string | null;
+}): string[] {
+  const args: string[] = [];
 
   if (shouldUsePythonModule(command)) {
     args.push('-m', 'whisper');
@@ -65,7 +84,7 @@ function buildArgs({ inputPath, outputDir, config, command }) {
   return args;
 }
 
-function shouldUsePythonModule(command) {
+function shouldUsePythonModule(command: string | null): boolean {
   if (!command) {
     return true;
   }
@@ -74,16 +93,17 @@ function shouldUsePythonModule(command) {
   return normalised === 'python' || normalised.startsWith('python');
 }
 
-async function runProcess(command, args, { cwd, logger }) {
-  return new Promise((resolve, reject) => {
+async function runProcess(command: string, args: string[], { cwd, logger }: { cwd: string; logger: Logger }): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, { cwd });
     let stderr = '';
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-      logger?.debug({ chunk: chunk.toString() }, 'whisper stderr');
+    child.stderr.on('data', (chunk: unknown) => {
+      const value = typeof chunk === 'string' ? chunk : String(chunk);
+      stderr += value;
+      logger.debug({ chunk: value }, 'whisper stderr');
     });
     child.on('error', reject);
-    child.on('close', (code) => {
+    child.on('close', (code: number | null) => {
       if (code !== 0) {
         reject(new Error(`Whisper exited with code ${code}: ${stderr}`));
         return;

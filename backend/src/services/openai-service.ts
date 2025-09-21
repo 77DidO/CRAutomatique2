@@ -1,13 +1,33 @@
-export function createOpenAiService({ configStore, logger }) {
+import type {
+  ConfigStore,
+  LlmConfig,
+  Logger,
+  OpenAiService,
+  SummaryResult,
+  Template,
+  WhisperTranscriptionResult,
+} from '../types/index.js';
+
+interface CreateOpenAiServiceOptions {
+  configStore: ConfigStore;
+  logger: Logger;
+}
+
+interface GenerateSummaryArgs {
+  transcription: WhisperTranscriptionResult;
+  template: Template;
+  participants: string[];
+  config: LlmConfig;
+}
+
+export function createOpenAiService({ configStore, logger }: CreateOpenAiServiceOptions): OpenAiService {
   return {
-    async generateSummary({ transcription, template, participants, config }) {
+    async generateSummary({ transcription, template, participants, config }: GenerateSummaryArgs): Promise<SummaryResult> {
       const rawApiKey = process.env.OPENAI_API_KEY || (await configStore.read()).llm?.apiKey;
       const apiKey = sanitiseApiKey(rawApiKey);
 
       if (!apiKey) {
-        if (logger && typeof logger.warn === 'function') {
-          logger.warn({ reason: 'missing_api_key' }, 'OpenAI API key missing, skipping summary generation');
-        }
+        logger.warn({ reason: 'missing_api_key' }, 'OpenAI API key missing, skipping summary generation');
         return { markdown: null, reason: 'missing_api_key' };
       }
 
@@ -36,20 +56,23 @@ export function createOpenAiService({ configStore, logger }) {
   };
 }
 
-function buildPrompt({ transcription, template, participants }) {
+function buildPrompt({ transcription, template, participants }: {
+  transcription: WhisperTranscriptionResult;
+  template: Template;
+  participants: string[];
+}): string {
   const participantBlock = participants.length
     ? `Participants impliqués : ${participants.join(', ')}.`
     : 'Participants non identifiés.';
   return `${template.prompt}\n\n${participantBlock}\n\nTranscription :\n${transcription.text}`;
 }
 
-function sanitiseApiKey(value) {
-  if (typeof value !== 'string') return value;
+function sanitiseApiKey(value: unknown): string {
+  if (typeof value !== 'string') return '';
   let trimmed = value.trim();
 
   if (!trimmed) return '';
 
-  // Strip surrounding quotes that may originate from shell exports or .env files.
   if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
     trimmed = trimmed.slice(1, -1).trim();
   }
@@ -65,11 +88,27 @@ function sanitiseApiKey(value) {
   return trimmed;
 }
 
-let openAiCtorPromise;
+let openAiCtorPromise: Promise<OpenAiConstructor> | undefined;
 
-async function loadOpenAi() {
+type OpenAiConstructor = new (args: { apiKey: string }) => {
+  chat: {
+    completions: {
+      create(input: {
+        model: string;
+        temperature?: number;
+        messages: { role: 'system' | 'user'; content: string }[];
+        max_tokens?: number;
+      }): Promise<{ choices?: { message?: { content?: string } }[] }>;
+    };
+  };
+};
+
+async function loadOpenAi(): Promise<OpenAiConstructor> {
   if (!openAiCtorPromise) {
-    openAiCtorPromise = import('openai').then((module) => module.default ?? module.OpenAI ?? module);
+    openAiCtorPromise = import('openai').then((module) => {
+      const mod = module as unknown as { default?: OpenAiConstructor; OpenAI?: OpenAiConstructor };
+      return mod.default ?? mod.OpenAI ?? (module as unknown as OpenAiConstructor);
+    });
   }
   return openAiCtorPromise;
 }

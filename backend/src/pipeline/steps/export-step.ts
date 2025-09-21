@@ -1,14 +1,15 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import type { JobOutput, PipelineContext, WhisperTranscriptionSegment } from '../../types/index.js';
 
-export async function exportStep(context) {
+export async function exportStep(context: PipelineContext): Promise<void> {
   const { job, environment, jobStore } = context;
   const jobDir = path.join(environment.jobsDir, job.id);
-  const outputs = [];
+  const outputs: JobOutput[] = [];
 
   await jobStore.appendLog(job.id, 'Export des livrables');
 
-  const transcription = context.data.transcription?.text || '';
+  const transcription = context.data.transcription?.text ?? '';
   if (!transcription) {
     throw new Error('Transcription introuvable, export impossible');
   }
@@ -20,13 +21,13 @@ export async function exportStep(context) {
     mimeType: 'text/plain',
   });
 
-  if (context.data.summary) {
+  if (context.data.summary?.markdown) {
     const summaryPath = path.join(jobDir, 'summary.md');
     await fs.promises.writeFile(summaryPath, context.data.summary.markdown, 'utf8');
     outputs.push({ label: 'Résumé', filename: 'summary.md', mimeType: 'text/markdown' });
   }
 
-  if (context.data.transcription?.segments) {
+  if (context.data.transcription?.segments?.length) {
     const vttPath = path.join(jobDir, 'subtitles.vtt');
     await fs.promises.writeFile(vttPath, buildVtt(context.data.transcription.segments), 'utf8');
     outputs.push({ label: 'Sous-titres', filename: 'subtitles.vtt', mimeType: 'text/vtt' });
@@ -41,20 +42,20 @@ export async function exportStep(context) {
   await jobStore.appendLog(job.id, 'Exports finalisés');
 }
 
-function buildVtt(segments) {
+function buildVtt(segments: WhisperTranscriptionSegment[]): string {
   const header = 'WEBVTT\n\n';
   const body = segments
     .map((segment, index) => {
-      const start = formatTimestamp(segment.start || 0);
-      const end = formatTimestamp(segment.end || 0);
-      const text = segment.text || '';
+      const start = formatTimestamp(segment.start ?? 0);
+      const end = formatTimestamp(segment.end ?? 0);
+      const text = segment.text ?? '';
       return `${index + 1}\n${start} --> ${end}\n${text.trim()}\n`;
     })
     .join('\n');
   return header + body;
 }
 
-function formatTimestamp(seconds) {
+function formatTimestamp(seconds: number): string {
   const date = new Date(seconds * 1000);
   const hh = String(date.getUTCHours()).padStart(2, '0');
   const mm = String(date.getUTCMinutes()).padStart(2, '0');

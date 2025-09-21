@@ -1,3 +1,4 @@
+import type { Server } from 'node:http';
 import { createHttpApp } from './http/app.js';
 import { createPipelineEngine } from './pipeline/engine.js';
 import { createJobRepository } from './persistence/job-store.js';
@@ -9,8 +10,13 @@ import { createWhisperService } from './services/whisper-service.js';
 import { createFfmpegService } from './services/ffmpeg-service.js';
 import { createOpenAiService } from './services/openai-service.js';
 import { validateEnvironment } from './utils/environment-validation.js';
+import type { Services } from './types/index.js';
 
-export async function createServer() {
+export interface ApplicationServer {
+  start(port: number): Promise<{ serverInstance: Server }>;
+}
+
+export async function createServer(): Promise<ApplicationServer> {
   const logger = createLogger();
   const environment = await ensureDataEnvironment({ logger });
 
@@ -20,16 +26,18 @@ export async function createServer() {
 
   await validateEnvironment({ logger, configStore });
 
-  const whisper = createWhisperService(environment, { logger });
-  const ffmpeg = createFfmpegService(environment, { logger });
-  const openai = createOpenAiService({ logger, configStore });
+  const services: Services = {
+    whisper: createWhisperService(environment, { logger }),
+    ffmpeg: createFfmpegService(environment),
+    openai: createOpenAiService({ logger, configStore }),
+  };
 
   const pipeline = createPipelineEngine({
     environment,
     jobStore,
     configStore,
     templateStore,
-    services: { whisper, ffmpeg, openai },
+    services,
     logger,
   });
 
@@ -39,18 +47,17 @@ export async function createServer() {
     templateStore,
     pipeline,
     environment,
-    services: { whisper, ffmpeg, openai },
     logger,
   });
 
   return {
-    start(port) {
-      return new Promise((resolve) => {
+    start(port: number) {
+      return new Promise<{ serverInstance: Server }>((resolve) => {
         const serverInstance = app.listen(port, () => {
           logger.info({ port }, 'HTTP server listening');
           resolve({ serverInstance });
-        });
-        pipeline.resume();
+        }) as Server;
+        void pipeline.resume();
       });
     },
   };
