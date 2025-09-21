@@ -8,6 +8,7 @@ import type {
   WhisperConfig,
   WhisperService,
   WhisperTranscriptionResult,
+  WhisperTranscriptionSegment,
 } from '../types/index.js';
 
 interface CreateWhisperServiceOptions {
@@ -36,9 +37,14 @@ export function createWhisperService(environment: Environment, { logger }: Creat
 
       if (!resultFile) {
         const textFile = findTextFile({ resultFile: null, outputDir, parsedPath });
-        let text = '';
+        let fallbackSourceType: 'txt' | 'tsv' | 'vtt' | null = null;
+        let fallbackSourcePath: string | null = null;
+        let text: string | null = null;
+        let segments: WhisperTranscriptionSegment[] = [];
 
         if (textFile) {
+          fallbackSourceType = 'txt';
+          fallbackSourcePath = textFile;
           try {
             text = await fs.promises.readFile(textFile, 'utf8');
           } catch (error) {
@@ -46,17 +52,61 @@ export function createWhisperService(environment: Environment, { logger }: Creat
               throw error;
             }
           }
+        } else {
+          const alternative = await findAlternativeTranscript({
+            outputDir,
+            parsedPath,
+          });
+
+          if (alternative) {
+            fallbackSourceType = alternative.type;
+            fallbackSourcePath = alternative.path;
+            const rawAlternative = await fs.promises.readFile(alternative.path, 'utf8');
+
+            if (alternative.type === 'tsv') {
+              segments = parseTsvSegments(rawAlternative);
+            } else {
+              segments = parseVttSegments(rawAlternative);
+            }
+          }
         }
 
-        logger.warn(
-          { inputPath, outputDir, textFile },
-          'Whisper JSON output missing; falling back to TXT output only',
-        );
+        if (text === null && segments.length > 0) {
+          text = buildTextFromSegments(segments);
+        }
+
+        const hasTextContent = typeof text === 'string' && text.trim().length > 0;
+        const hasSegmentsContent = segments.some((segment) => segment.text && segment.text.trim().length > 0);
+
+        if (!fallbackSourceType || (!hasTextContent && !hasSegmentsContent)) {
+          throw new Error('Whisper output missing textual data: no JSON, TXT, TSV, or VTT transcripts were produced.');
+        }
+
+        if (text === null) {
+          text = '';
+        }
+
+        const warnPayload: Record<string, unknown> = {
+          inputPath,
+          outputDir,
+          textFile,
+        };
+
+        if (fallbackSourcePath && fallbackSourcePath !== textFile) {
+          warnPayload.fallbackSource = fallbackSourcePath;
+        }
+
+        const warningMessage =
+          fallbackSourceType === 'txt'
+            ? 'Whisper JSON output missing; falling back to TXT output only'
+            : `Whisper JSON output missing; falling back to ${fallbackSourceType.toUpperCase()} output`;
+
+        logger.warn(warnPayload, warningMessage);
 
         return {
           model: config.model,
           text,
-          segments: [],
+          segments,
           language: null,
         } satisfies WhisperTranscriptionResult;
       }
@@ -247,6 +297,48 @@ function findTextFile({
   outputDir: string;
   parsedPath: ParsedPathInfo;
 }): string | null {
+  return findTranscriptFileWithExtensions({ resultFile, outputDir, parsedPath, extensions: ['.txt'] });
+}
+
+async function findAlternativeTranscript({
+  outputDir,
+  parsedPath,
+}: {
+  outputDir: string;
+  parsedPath: ParsedPathInfo;
+}): Promise<{ path: string; type: 'tsv' | 'vtt' } | null> {
+  const orderedExtensions: Array<{ extension: '.tsv' | '.vtt'; type: 'tsv' | 'vtt' }> = [
+    { extension: '.tsv', type: 'tsv' },
+    { extension: '.vtt', type: 'vtt' },
+  ];
+
+  for (const { extension, type } of orderedExtensions) {
+    const candidate = findTranscriptFileWithExtensions({
+      resultFile: null,
+      outputDir,
+      parsedPath,
+      extensions: [extension],
+    });
+
+    if (candidate) {
+      return { path: candidate, type };
+    }
+  }
+
+  return null;
+}
+
+function findTranscriptFileWithExtensions({
+  resultFile,
+  outputDir,
+  parsedPath,
+  extensions,
+}: {
+  resultFile: string | null;
+  outputDir: string;
+  parsedPath: ParsedPathInfo;
+  extensions: string[];
+}): string | null {
   const prefixes = new Set<string>(createPrefixes(parsedPath));
   const directories = new Set<string>();
 
@@ -277,11 +369,148 @@ function findTextFile({
     }
 
     for (const directory of directories) {
-      candidates.push(path.join(directory, `${prefix}.txt`));
+      for (const extension of extensions) {
+        candidates.push(path.join(directory, `${prefix}${extension}`));
+      }
     }
   }
 
   return findFirstExisting(candidates);
+}
+
+function parseTsvSegments(raw: string): WhisperTranscriptionSegment[] {
+  const lines = raw.split(/\r?\n/u).map((line) => line.trim());
+  const segments: WhisperTranscriptionSegment[] = [];
+
+  for (const line of lines) {
+    if (!line) {
+      continue;
+    }
+
+    const parts = line.split('\t');
+
+    if (parts.length < 3) {
+      continue;
+    }
+
+    if (parts[0]?.toLowerCase() === 'start' && parts[1]?.toLowerCase() === 'end') {
+      continue;
+    }
+
+    const [startValue, endValue, ...textParts] = parts;
+    const text = textParts.join('\t').trim();
+    const start = parseNumberTimestamp(startValue);
+    const end = parseNumberTimestamp(endValue);
+
+    segments.push({
+      start: start ?? undefined,
+      end: end ?? undefined,
+      text,
+    });
+  }
+
+  return segments;
+}
+
+function parseVttSegments(raw: string): WhisperTranscriptionSegment[] {
+  const lines = raw.split(/\r?\n/u);
+  const segments: WhisperTranscriptionSegment[] = [];
+
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index]!.trim();
+
+    if (!line || /^\d+$/u.test(line) || line.toUpperCase() === 'WEBVTT') {
+      index++;
+      continue;
+    }
+
+    if (!line.includes('-->')) {
+      index++;
+      continue;
+    }
+
+    const [rawStart, rawEndWithSettings] = line.split('-->');
+    const rawEnd = rawEndWithSettings?.split(/\s+/u)[0] ?? rawEndWithSettings ?? '';
+
+    const start = parseVttTimestamp(rawStart ?? '');
+    const end = parseVttTimestamp(rawEnd ?? '');
+
+    index++;
+    const textLines: string[] = [];
+    while (index < lines.length) {
+      const content = lines[index]!;
+      if (!content.trim()) {
+        break;
+      }
+      textLines.push(content.trim());
+      index++;
+    }
+
+    segments.push({
+      start: start ?? undefined,
+      end: end ?? undefined,
+      text: textLines.join(' ').trim(),
+    });
+
+    index++;
+  }
+
+  return segments;
+}
+
+function buildTextFromSegments(segments: WhisperTranscriptionSegment[]): string {
+  return segments
+    .map((segment) => segment.text?.trim())
+    .filter((value) => value && value.length > 0)
+    .join(' ')
+    .trim();
+}
+
+function parseNumberTimestamp(value: string | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number.parseFloat(value.replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseVttTimestamp(value: string | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const parts = trimmed.split(':');
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const secondsPart = parts.pop();
+  if (!secondsPart) {
+    return null;
+  }
+
+  const seconds = Number.parseFloat(secondsPart.replace(',', '.'));
+  if (!Number.isFinite(seconds)) {
+    return null;
+  }
+
+  const minutesPart = parts.pop();
+  const hoursPart = parts.pop();
+
+  const minutes = minutesPart ? Number.parseInt(minutesPart, 10) : 0;
+  const hours = hoursPart ? Number.parseInt(hoursPart, 10) : 0;
+
+  const safeMinutes = Number.isFinite(minutes) ? minutes : 0;
+  const safeHours = Number.isFinite(hours) ? hours : 0;
+
+  return safeHours * 3600 + safeMinutes * 60 + seconds;
 }
 
 function findFirstExisting(paths: string[]): string | null {

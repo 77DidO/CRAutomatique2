@@ -50,6 +50,8 @@ function createMockWhisperBinary(rootDir: string, options: {
   nestedSegments?: string[];
   jsonFileNameTemplate?: string;
   writeJsonFile?: boolean;
+  tsvContent?: string;
+  vttContent?: string;
 }): string {
   const scriptPath = path.join(rootDir, `mock-whisper-${crypto.randomUUID()}.mjs`);
   const nestedSegments = options.nestedSegments ?? [];
@@ -81,6 +83,8 @@ function createMockWhisperBinary(rootDir: string, options: {
     `    continue;\n` +
     `  }\n` +
     `}\n` +
+    `const shouldWriteTsv = ${options.tsvContent ? 'true' : 'false'};\n` +
+    `const shouldWriteVtt = ${options.vttContent ? 'true' : 'false'};\n` +
     `const parsed = path.parse(inputPath);\n` +
     `const baseName = ${options.useBaseName ? 'parsed.base' : 'parsed.name'};\n` +
     `const targetDir = ${targetDirExpression};\n` +
@@ -96,6 +100,14 @@ function createMockWhisperBinary(rootDir: string, options: {
     `    const textPath = path.join(targetDir, baseName + '.txt');\n` +
     `    fs.writeFileSync(textPath, ${JSON.stringify(options.textContent)});\n` +
     `  }\n` +
+    `}\n` +
+    `if (shouldWriteTsv && (outputFormat === 'all' || outputFormat === 'tsv')) {\n` +
+    `  const tsvPath = path.join(targetDir, baseName + '.tsv');\n` +
+    `  fs.writeFileSync(tsvPath, ${JSON.stringify(options.tsvContent ?? '')});\n` +
+    `}\n` +
+    `if (shouldWriteVtt && (outputFormat === 'all' || outputFormat === 'vtt')) {\n` +
+    `  const vttPath = path.join(targetDir, baseName + '.vtt');\n` +
+    `  fs.writeFileSync(vttPath, ${JSON.stringify(options.vttContent ?? '')});\n` +
     `}\n`;
 
   fs.writeFileSync(scriptPath, script, { mode: 0o755 });
@@ -314,4 +326,66 @@ test('whisper service détecte les json contenant espaces et tirets', async () =
 
   assert.equal(result.text, 'JSON avec espaces et tirets');
   assert.equal(result.language, 'fr');
+});
+
+test('whisper service falls back to TSV output when txt and json are missing', async () => {
+  const rootDir = createTempDir();
+  const warnings: Array<{ payload: unknown; message?: string }> = [];
+  const capturingLogger: Logger = {
+    info() {},
+    error() {},
+    debug() {},
+    warn(payload, message) {
+      warnings.push({ payload, message });
+    },
+  };
+
+  const binary = createMockWhisperBinary(rootDir, {
+    writeTextFile: false,
+    textContent: 'Ne sera pas écrit',
+    jsonText: 'Ne sera pas écrit',
+    writeJsonFile: false,
+    tsvContent: ['start\tend\ttext', '0\t1.5\tBonjour', '1.5\t3.2\tBonsoir'].join('\n'),
+  });
+
+  const environment = createEnvironment(rootDir, binary);
+  const service = createWhisperService(environment, { logger: capturingLogger });
+
+  const inputPath = path.join(rootDir, 'only-tsv.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const outputDir = path.join(rootDir, 'outputs');
+  const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
+
+  assert.equal(result.text, 'Bonjour Bonsoir');
+  assert.equal(result.language, null);
+  assert.deepEqual(result.segments, [
+    { start: 0, end: 1.5, text: 'Bonjour' },
+    { start: 1.5, end: 3.2, text: 'Bonsoir' },
+  ]);
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0]?.message, 'Whisper JSON output missing; falling back to TSV output');
+});
+
+test('whisper service throws when no textual output can be recovered', async () => {
+  const rootDir = createTempDir();
+  const binary = createMockWhisperBinary(rootDir, {
+    writeTextFile: false,
+    textContent: 'Ne sera pas écrit',
+    jsonText: 'Ne sera pas écrit',
+    writeJsonFile: false,
+  });
+
+  const environment = createEnvironment(rootDir, binary);
+  const service = createWhisperService(environment, { logger });
+
+  const inputPath = path.join(rootDir, 'no-output.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const outputDir = path.join(rootDir, 'outputs');
+
+  await assert.rejects(
+    () => service.transcribe({ inputPath, outputDir, config: baseConfig }),
+    /Whisper output missing textual data: no JSON, TXT, TSV, or VTT transcripts were produced\./u,
+  );
 });
