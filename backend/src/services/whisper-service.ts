@@ -107,13 +107,29 @@ function buildArgs({ inputPath, outputDir, config, command }: {
 
 async function findWhisperJsonFile(outputDir: string, parsedPath: ParsedPathInfo): Promise<string | null> {
   const prefixes = createPrefixes(parsedPath);
-  const maxDepth = 5;
-  const queue: Array<{ dir: string; depth: number }> = [{ dir: outputDir, depth: 0 }];
+  const queue: string[] = [outputDir];
+  const visited = new Set<string>();
 
   while (queue.length > 0) {
-    const { dir, depth } = queue.shift()!;
+    const dir = queue.shift()!;
+    const resolvedDir = await fs.promises
+      .realpath(dir)
+      .catch((error: unknown) => {
+        if (!isErrorWithCode(error) || error.code !== 'ENOENT') {
+          throw error;
+        }
+
+        return null;
+      });
+
+    if (!resolvedDir || visited.has(resolvedDir)) {
+      continue;
+    }
+
+    visited.add(resolvedDir);
+
     const entries = await fs.promises
-      .readdir(dir, { withFileTypes: true })
+      .readdir(resolvedDir, { withFileTypes: true })
       .catch((error: unknown) => {
         if (!isErrorWithCode(error) || error.code !== 'ENOENT') {
           throw error;
@@ -135,14 +151,9 @@ async function findWhisperJsonFile(outputDir: string, parsedPath: ParsedPathInfo
         return path.join(dir, entry.name);
       }
     }
-
-    if (depth >= maxDepth) {
-      continue;
-    }
-
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        queue.push({ dir: path.join(dir, entry.name), depth: depth + 1 });
+        queue.push(path.join(resolvedDir, entry.name));
       }
     }
   }
