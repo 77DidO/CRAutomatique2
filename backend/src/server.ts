@@ -104,13 +104,7 @@ export async function createServer(
   return {
     start(port: number) {
       return new Promise<{ serverInstance: Server }>((resolve, reject) => {
-        const serverInstance = app.listen(port, () => {
-          eventedServer.removeListener('error', onError);
-          logger.info({ port }, 'HTTP server listening');
-          resolve({ serverInstance });
-        }) as Server;
-
-        const eventedServer = serverInstance as unknown as {
+        let eventedServer: {
           addListener(event: 'error', listener: (error: ListenError) => void): void;
           removeListener(event: 'error', listener: (error: ListenError) => void): void;
         };
@@ -130,9 +124,19 @@ export async function createServer(
           reject(error);
         };
 
-        eventedServer.addListener('error', onError);
+        const serverInstance = app.listen(port, () => {
+          eventedServer.removeListener('error', onError);
+          void pipeline.resume();
+          logger.info({ port }, 'HTTP server listening');
+          resolve({ serverInstance });
+        }) as Server;
 
-        void pipeline.resume();
+        eventedServer = serverInstance as unknown as {
+          addListener(event: 'error', listener: (error: ListenError) => void): void;
+          removeListener(event: 'error', listener: (error: ListenError) => void): void;
+        };
+
+        eventedServer.addListener('error', onError);
       });
     },
   };
