@@ -1,133 +1,138 @@
-# CRAutomatique2
+# CR Automatique 2 — Rebuild 2025
 
-Application full-stack (React + Node.js) qui transforme un fichier audio ou vidéo en transcription, synthèse Markdown et exports associés. Le backend orchestre un pipeline simulé compatible avec l'API OpenAI et un service Ollama local, tandis que le frontend fournit un tableau de bord complet (dashboard, historique, configuration et fiches détaillées).
+Cette itération reconstruit l'application de compte-rendu automatique en respectant la parité d'écrans et de fonctionnalités tout en renforçant le pipeline local (FFmpeg + Whisper) et l'intégration OpenAI. Le dépôt expose :
 
-## Structure
+- un **backend Node.js/Express** orchestrant une file de jobs persistante, le prétraitement audio local, la transcription Whisper, la synthèse OpenAI et l'export des livrables (TXT/Markdown/VTT) ;
+- un **frontend React/Vite** reprenant la charte originale (dashboard, historique, configuration, gabarits) avec une architecture déclarative et un polling résilient ;
+- une **documentation complète** et des **tests automatisés** couvrant les workflows critiques.
 
-- `backend/` — API Express, gestion des uploads, pipeline, stockage des jobs et configuration.
-- `frontend/` — Application React (Vite) avec navigation par onglets et composants métiers.
+## Vue d'ensemble du pipeline
+
+1. **Upload** : l'utilisateur soumet un média (audio/vidéo) et choisit un gabarit de synthèse ;
+2. **Prétraitement** : le backend normalise le flux audio localement via FFmpeg (mono, 16 kHz) ;
+3. **Transcription** : la CLI Whisper locale génère texte et segments ;
+4. **Synthèse** : le texte obtenu est enrichi via l'API OpenAI (prompts basés sur les gabarits et participants) ;
+5. **Exports** : les artefacts sont écrits sur disque (`transcription_raw.txt`, `summary.md`, `subtitles.vtt`) et exposés via l'API ;
+6. **Restitution** : le frontend affiche progression, logs et permet le téléchargement des exports.
+
+Tous les traitements audio restent locaux. En cas d'absence de réseau, les jobs aboutissent jusqu'à la transcription et mettent en attente la synthèse OpenAI.
+
+## Arborescence
+
+```
+backend/                API Express + pipeline + tests
+frontend/               SPA React (Vite)
+docs/                   Guides architecture, opérations, sécurité, observabilité
+samples/                Génération d'exemples audio/exports
+install.sh / install.ps1 Installation automatisée dépendances + Whisper
+start.ps1               Ouverture de shells dev prêts à l'emploi
+```
+
+## Prérequis
+
+- Node.js 18+
+- npm 9+
+- Python 3.9+ avec `pip` (pour installer Whisper)
+- FFmpeg disponible sur la machine (sinon fournir `FFMPEG_PATH`)
+- Accès à l'API OpenAI (`OPENAI_API_KEY`) pour la synthèse
+
+## Installation rapide
+
+```bash
+# Depuis la racine du dépôt
+./install.sh
+```
+
+Le script :
+- vérifie Python/pip, installe/actualise Whisper localement ;
+- exécute `npm install` dans `backend/` et `frontend/` ;
+- laisse les dépendances prêtes pour le développement ou la production.
+
+> Sous Windows, utilisez `pwsh -File ./install.ps1`.
+
+## Configuration
+
+Un fichier `.env.example` est disponible dans `backend/` pour initialiser les variables clés :
+
+```
+PORT=4000
+DATA_ROOT=./data
+OPENAI_API_KEY=sk-replace-me
+FFMPEG_PATH=/usr/bin/ffmpeg
+WHISPER_PATH=python
+```
+
+Copiez ce fichier en `.env` (ou exportez les variables dans votre shell). Au démarrage, le backend vérifie la présence des clés critiques et journalise les avertissements correspondants.
 
 ## Démarrage
 
-Avant de lancer les serveurs, vous pouvez installer toutes les dépendances frontend et backend en une fois depuis la racine
-avec PowerShell :
+### Backend
 
-```powershell
-pwsh -File ./install.ps1
-
+```bash
+cd backend
+npm run dev
 ```
 
-### Démarrage automatique
+- API disponible sur `http://localhost:4000`
+- Dossiers de travail créés automatiquement dans `DATA_ROOT`
+- Les jobs en attente sont repris automatiquement après redémarrage
 
-Pour ouvrir automatiquement deux sessions PowerShell (backend et frontend) configurées en mode développement, utilisez :
+### Frontend
 
-```powershell
-pwsh -File ./start.ps1
-
+```bash
+cd frontend
+npm run dev
 ```
 
-### Prérequis
+- Interface sur `http://localhost:5173`
+- L'URL backend est déterminée via `VITE_BACKEND_URL` ; à défaut, le port 4000 est utilisé par défaut
 
-- Node.js 18+ (le backend utilise l'option `--watch`).
-- npm 9+.
-- Python 3.9+ avec `pip` afin d'installer automatiquement la CLI Whisper via les scripts `install.ps1`/`install.sh`.
-- (Optionnel) PowerShell 7 pour exécuter `install.ps1` sous Linux/macOS.
-- Un exécutable `whisper` accessible (installé automatiquement par les scripts ci-dessus ou configuré manuellement vers une
-  alternative compatible). À défaut, le backend essaie automatiquement `python3 -m whisper` puis `python -m whisper` si le
-  binaire direct est introuvable.
+## Scripts & packaging
 
-1. **Backend**
-   ```bash
-   cd backend
-   npm install
-   npm run dev
-   ```
-   Variables d'environnement utiles :
-   - `OPENAI_API_KEY` : clé OpenAI quand le fournisseur `openai` est actif.
-   - `OLLAMA_COMMAND` : chemin vers l'exécutable Ollama (défaut `ollama`).
-   - `FFMPEG_PATH` : chemin absolu vers un binaire `ffmpeg` déjà installé. Si vous installez la dépendance optionnelle
-     `@ffmpeg-installer/ffmpeg`, ce paramètre est configuré automatiquement.
-   - `WHISPER_BINARY_PATH` : force le chemin vers la CLI Whisper locale si elle n'est pas exposée via le `PATH` système.
-
-### Transcription locale (Whisper)
-
-L'étape de transcription utilise une CLI compatible Whisper côté serveur. Installez l'outil officiel avec `pip install git+https://github.com/openai/whisper.git`
-ou fournissez votre propre binaire compatible. Assurez-vous que la commande est disponible via la variable d'environnement `PATH` ou
-indiquez le chemin complet dans la configuration (`transcription.binaryPath` côté backend, ou `WHISPER_BINARY_PATH` dans les variables d'environnement).
-
-Le backend tente automatiquement plusieurs commandes (`whisper`, `python -m whisper`, `py -3 -m whisper`, …) et ignore le lanceur Microsoft Store (`python3.exe`
-dans `WindowsApps`) afin d'éviter les erreurs courantes sous Windows. Si aucun exécutable valide n'est trouvé, un message détaillé est ajouté dans les logs du job
-et dans la console serveur.
-
-Dans le panneau *Configuration* de l'interface, la section « Whisper local (CLI) » permet de :
-
-- définir explicitement le chemin de la CLI ;
-- choisir le modèle (`tiny`, `base`, `small`, …) et un dossier local contenant les modèles ;
-- fixer la langue, la traduction automatique, la température et d'éventuels arguments supplémentaires (un par ligne) qui seront transmis à la CLI.
-
-En cas d'absence, l'étape ajoute un log de job contenant les instructions d'installation afin de faciliter le diagnostic dans l'interface.
-
-2. **Frontend**
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-   L'interface est disponible sur http://localhost:5173 avec proxy vers l'API backend (http://localhost:4000).
-
-   Pour personnaliser l'URL ciblée par le proxy (par exemple si votre backend écoute sur un autre port ou une autre machine),
-   définissez la variable d'environnement `VITE_BACKEND_URL` avant de lancer Vite. À défaut, `BACKEND_URL` ou `BACKEND_PORT`
-   sont également pris en compte.
-
-### Scripts utiles
-
-- `npm run lint` (backend) : vérifie le style de code.
-- `npm run build` (frontend) : construit la version production.
-- `npm run preview` (frontend) : prévisualise le build.
-
-## Fonctionnalités principales
-
-- Téléversement audio/vidéo avec sélection de gabarit et participants.
-- Suivi en temps réel du pipeline (étapes, progression, logs, ressources générées).
-- Historique des traitements avec suppression et accès aux fiches détaillées.
-- Configuration des options pipeline/LLM persistée côté serveur (diarisation activable, nombre exact ou plage de locuteurs).
-- Fiche détaillée par traitement : aperçu, audio, textes, Markdown, VTT, synthèse de diarisation.
-
-## API Express
-
-Toutes les routes sont préfixées par `/api` :
-
-| Méthode | Route | Description |
-| --- | --- | --- |
-| `GET` | `/health` | Vérifie l'état du serveur (réponse `{ status: "ok" }`). |
-| `GET` | `/api/items` | Liste des jobs avec statut, progression et métadonnées. |
-| `POST` | `/api/items` | Téléverse un fichier (champ `file`) et crée un job. Champs `title`, `template`, `participants` acceptés dans le corps. |
-| `GET` | `/api/items/:id` | Détails d'un job, liens de téléchargement et derniers logs. |
-| `GET` | `/api/items/:id/logs` | Logs uniquement (tableau de chaînes). |
-| `DELETE` | `/api/items/:id` | Supprime le job, ses uploads et sorties générées. |
-| `GET` | `/api/templates` | Liste des gabarits disponibles côté serveur. |
-| `GET` | `/api/config` | Récupère la configuration courante (fournisseur LLM, options pipeline, etc.). |
-| `PUT` | `/api/config` | Met à jour la configuration (fusionne et persiste dans `data/config.json`). |
-| `GET` | `/api/assets/:jobId/<fichier>` | Sert les fichiers générés d'un job (transcriptions, résumés, sous-titres, etc.). |
-
-## Remarques
-
-Le pipeline intégré simule les étapes de conversion, transcription, nettoyage et synthèse. Pour une exécution réelle, remplacez les fonctions correspondantes dans `backend/src/services/pipeline.js` par des appels à FFmpeg, Faster-Whisper et vos modèles LLM.
-
-### Organisation des données
-
-- Les uploads temporaires sont stockés dans `backend/data/uploads`.
-- Chaque job possède un dossier `backend/data/jobs/<id>` contenant :
-  - le fichier source ;
-  - les exportations (`transcription_raw.txt`, `summary.md`, `subtitles.vtt`, ...);
-  - `logs.txt` et les métadonnées sérialisées.
-- Les jobs sont persistés dans `backend/data/jobs.json` afin d'être rechargés au démarrage.
-
-### Variables d'environnement utiles
-
-| Nom | Description |
+| Commande | Description |
 | --- | --- |
-| `PORT` | Port HTTP du backend (défaut : `4000`). |
-| `OPENAI_API_KEY` | Clé OpenAI utilisée lorsque le fournisseur `openai` est sélectionné. |
-| `OLLAMA_COMMAND` | Commande CLI Ollama à exécuter (`ollama` par défaut). |
-| `FFMPEG_PATH` | Force le chemin de l'exécutable `ffmpeg` utilisé pendant le prétraitement audio. |
+| `npm run dev` (backend) | API Express avec rechargement automatique |
+| `npm run start` (backend) | API Express en mode production |
+| `npm test` (backend) | Tests Node.js (`node --test`) sur pipeline + stores |
+| `npm run build` (frontend) | Build production Vite |
+| `npm run preview` (frontend) | Prévisualisation du bundle |
+
+## Tests automatisés
+
+Le backend inclut :
+- un test d'intégration du **pipeline complet** (avec services simulés) garantissant la génération des exports ;
+- un test de **fusion de configuration** pour éviter les régressions de persistance.
+
+Exécuter tous les tests :
+
+```bash
+cd backend
+npm test
+```
+
+Le frontend est validé via le build Vite (`npm run build`). Les suites couvrant l'E2E (jobs, erreurs réseau, etc.) sont documentées dans `docs/TEST_STRATEGY.md` avec les plans et jeux de données.
+
+## Jeux d'essai audio/exports
+
+Le dossier `samples/` contient un guide pour générer localement :
+- un audio d'exemple (`ffmpeg` avec onde sinusoïdale) ;
+- un export VTT/TXT de référence pour valider la parité des champs.
+
+## Documentation complémentaire
+
+- `docs/ARCHITECTURE.md` : diagrammes logiques/physiques, dépendances, stockage
+- `docs/WORKFLOWS.md` : matrice états → événements → sorties → erreurs
+- `docs/OPERATIONS.md` : procédures Dev/Ops, scripts, reprise après incident
+- `docs/SECURITY.md` : gestion des secrets, PII, principe de moindre privilège
+- `docs/OBSERVABILITY.md` : logs structurés, métriques, supervision
+- `docs/TEST_STRATEGY.md` : périmètre et jeux de tests (unitaires, intégration, E2E)
+- `CHANGELOG.md` : notes de version du lot livré
+
+## Support & contributions
+
+Chaque module est conçu pour être idempotent et testable. Les contributions doivent :
+1. s'appuyer sur les scripts existants (`setup`, `dev`, `test`, `build`, `package`, `run`) ;
+2. inclure des tests automatisés pertinents ;
+3. mettre à jour la documentation associée.
+
+Pour toute question technique, consultez les guides dans `docs/` ou contactez l'équipe principale via les canaux internes.
