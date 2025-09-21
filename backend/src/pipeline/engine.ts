@@ -67,14 +67,19 @@ export class PipelineEngine {
   }
 
   async enqueue(jobId: string): Promise<void> {
-    if (!this.queue.includes(jobId)) {
+    const wasQueued = this.queue.includes(jobId);
+    if (!wasQueued) {
       this.queue.push(jobId);
+      this.logger.info({ jobId, queueLength: this.queue.length }, 'Pipeline job enqueued');
+    } else {
+      this.logger.debug({ jobId, queueLength: this.queue.length }, 'Pipeline job already in queue');
     }
     void this.processNext();
   }
 
   async cancel(jobId: string): Promise<void> {
     this.cancellations.add(jobId);
+    this.logger.info({ jobId }, 'Pipeline job cancellation requested');
   }
 
   private async processNext(): Promise<void> {
@@ -86,6 +91,7 @@ export class PipelineEngine {
       return;
     }
     this.running.add(nextId);
+    this.logger.debug({ jobId: nextId }, 'Pipeline job dequeued for processing');
     try {
       await this.runJob(nextId);
     } catch (unknownError) {
@@ -112,6 +118,7 @@ export class PipelineEngine {
 
     await this.jobStore.update(jobId, { status: 'processing', progress: 0 });
     await this.jobStore.appendLog(jobId, 'Pipeline démarré');
+    this.logger.info({ jobId, filename: job.filename, templateId: job.templateId }, 'Pipeline job started');
 
     const config = await this.configStore.read();
     const templates = await this.templateStore.list();
@@ -124,21 +131,39 @@ export class PipelineEngine {
       environment: this.environment,
       services: this.services,
       jobStore: this.jobStore,
+      logger: this.logger,
       data: {},
     };
 
-    const steps: PipelineStep[] = [ingestStep, transcribeStep, summariseStep, exportStep];
+    const steps: Array<{ name: string; handler: PipelineStep }> = [
+      { name: 'ingest', handler: ingestStep },
+      { name: 'transcribe', handler: transcribeStep },
+      { name: 'summarise', handler: summariseStep },
+      { name: 'export', handler: exportStep },
+    ];
 
     for (const [index, step] of steps.entries()) {
       if (this.cancellations.has(jobId)) {
+        this.logger.info({ jobId, step: step.name, index, totalSteps: steps.length }, 'Pipeline job cancelled');
         throw createHttpError(499, 'Pipeline cancelled');
       }
-      await step(context);
-      await this.jobStore.update(jobId, { progress: Math.round(((index + 1) / steps.length) * 100) });
+      const progressBefore = Math.round((index / steps.length) * 100);
+      this.logger.debug(
+        { jobId, step: step.name, index, totalSteps: steps.length, progress: progressBefore },
+        'Pipeline step starting',
+      );
+      await step.handler(context);
+      const progress = Math.round(((index + 1) / steps.length) * 100);
+      await this.jobStore.update(jobId, { progress });
+      this.logger.info(
+        { jobId, step: step.name, index, totalSteps: steps.length, progress },
+        'Pipeline step completed',
+      );
     }
 
     await this.jobStore.update(jobId, { status: 'completed' });
     await this.jobStore.appendLog(jobId, 'Pipeline terminé avec succès');
+    this.logger.info({ jobId }, 'Pipeline job completed successfully');
   }
 }
 
