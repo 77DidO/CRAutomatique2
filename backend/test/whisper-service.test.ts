@@ -48,12 +48,19 @@ function createMockWhisperBinary(rootDir: string, options: {
   useBaseName?: boolean;
   nested?: boolean;
   nestedSegments?: string[];
+  jsonFileNameTemplate?: string;
 }): string {
   const scriptPath = path.join(rootDir, `mock-whisper-${crypto.randomUUID()}.mjs`);
   const nestedSegments = options.nestedSegments ?? [];
   const nestedSegmentsParam =
     nestedSegments.length > 0 ? `, ${nestedSegments.map((segment) => JSON.stringify(segment)).join(', ')}` : '';
   const targetDirExpression = options.nested ? `path.join(outputDir, baseName${nestedSegmentsParam})` : 'outputDir';
+  const jsonFileNameExpression = options.jsonFileNameTemplate
+    ? options.jsonFileNameTemplate
+        .split('%BASE%')
+        .map((part) => `'${part.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`)
+        .join(' + baseName + ')
+    : "baseName + '.json'";
   const script = `#!/usr/bin/env node\n` +
     `import fs from 'node:fs';\n` +
     `import path from 'node:path';\n` +
@@ -76,8 +83,9 @@ function createMockWhisperBinary(rootDir: string, options: {
     `const parsed = path.parse(inputPath);\n` +
     `const baseName = ${options.useBaseName ? 'parsed.base' : 'parsed.name'};\n` +
     `const targetDir = ${targetDirExpression};\n` +
+    `const jsonFileName = ${jsonFileNameExpression};\n` +
     `fs.mkdirSync(targetDir, { recursive: true });\n` +
-    `const jsonPath = path.join(targetDir, baseName + '.json');\n` +
+    `const jsonPath = path.join(targetDir, jsonFileName);\n` +
     `fs.writeFileSync(jsonPath, JSON.stringify({ text: ${JSON.stringify(options.jsonText)}, language: 'fr', segments: [{ start: 0, end: 1, text: 'Bonjour' }] }));\n` +
     `if (${options.writeTextFile ? 'true' : 'false'}) {\n` +
     `  if (outputFormats.includes('all') || outputFormats.includes('txt')) {\n` +
@@ -200,5 +208,27 @@ test('whisper service locates json files inside deeply nested directories', asyn
   const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
 
   assert.equal(result.text, 'Texte profondément imbriqué');
+  assert.equal(result.language, 'fr');
+});
+
+test('whisper service detects json files prefixed with absolute path markers', async () => {
+  const rootDir = createTempDir();
+  const binary = createMockWhisperBinary(rootDir, {
+    writeTextFile: false,
+    textContent: 'Ne sera pas écrit',
+    jsonText: 'JSON avec préfixe absolu',
+    jsonFileNameTemplate: 'C__Users__absolute__%BASE%.json',
+  });
+
+  const environment = createEnvironment(rootDir, binary);
+  const service = createWhisperService(environment, { logger });
+
+  const inputPath = path.join(rootDir, 'absolute-detected.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const outputDir = path.join(rootDir, 'outputs');
+  const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
+
+  assert.equal(result.text, 'JSON avec préfixe absolu');
   assert.equal(result.language, 'fr');
 });
