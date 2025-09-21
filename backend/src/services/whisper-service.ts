@@ -36,7 +36,7 @@ export function createWhisperService(environment: Environment, { logger }: Creat
       const resultFile = await findWhisperJsonFile(outputDir, parsedPath);
 
       if (!resultFile) {
-        const textFile = findTextFile({ resultFile: null, outputDir, parsedPath });
+        const textFile = await findTextFile({ resultFile: null, outputDir, parsedPath });
         let fallbackSourceType: 'txt' | 'tsv' | 'vtt' | null = null;
         let fallbackSourcePath: string | null = null;
         let text: string | null = null;
@@ -115,7 +115,7 @@ export function createWhisperService(environment: Environment, { logger }: Creat
       const data = JSON.parse(raw) as Partial<WhisperTranscriptionResult> & { segments?: unknown[] };
       let text: string;
 
-      const textFile = findTextFile({
+      const textFile = await findTextFile({
         resultFile,
         outputDir,
         parsedPath,
@@ -180,7 +180,23 @@ function buildArgs({ inputPath, outputDir, config, command }: {
 
 async function findWhisperJsonFile(outputDir: string, parsedPath: ParsedPathInfo): Promise<string | null> {
   const prefixes = createPrefixes(parsedPath);
-  const queue: string[] = [outputDir];
+  return findFileRecursively(outputDir, ({ entry, queueDir }) => {
+    if (isMatchingWhisperJson(entry.name, prefixes)) {
+      return path.join(queueDir, entry.name);
+    }
+
+    return null;
+  });
+}
+
+type DirectorySearchPredicate = (options: {
+  entry: { isFile(): boolean; isDirectory(): boolean; name: string };
+  queueDir: string;
+  resolvedDir: string;
+}) => string | null;
+
+async function findFileRecursively(startDir: string, predicate: DirectorySearchPredicate): Promise<string | null> {
+  const queue: string[] = [startDir];
   const visited = new Set<string>();
 
   while (queue.length > 0) {
@@ -220,10 +236,12 @@ async function findWhisperJsonFile(outputDir: string, parsedPath: ParsedPathInfo
         continue;
       }
 
-      if (isMatchingWhisperJson(entry.name, prefixes)) {
-        return path.join(dir, entry.name);
+      const match = predicate({ entry, queueDir: dir, resolvedDir });
+      if (match) {
+        return match;
       }
     }
+
     for (const entry of entries) {
       if (entry.isDirectory()) {
         queue.push(path.join(resolvedDir, entry.name));
@@ -288,7 +306,7 @@ function isMatchingWhisperJson(fileName: string, prefixes: string[]): boolean {
   return false;
 }
 
-function findTextFile({
+async function findTextFile({
   resultFile,
   outputDir,
   parsedPath,
@@ -296,7 +314,7 @@ function findTextFile({
   resultFile: string | null;
   outputDir: string;
   parsedPath: ParsedPathInfo;
-}): string | null {
+}): Promise<string | null> {
   return findTranscriptFileWithExtensions({ resultFile, outputDir, parsedPath, extensions: ['.txt'] });
 }
 
@@ -313,7 +331,7 @@ async function findAlternativeTranscript({
   ];
 
   for (const { extension, type } of orderedExtensions) {
-    const candidate = findTranscriptFileWithExtensions({
+    const candidate = await findTranscriptFileWithExtensions({
       resultFile: null,
       outputDir,
       parsedPath,
@@ -328,7 +346,7 @@ async function findAlternativeTranscript({
   return null;
 }
 
-function findTranscriptFileWithExtensions({
+async function findTranscriptFileWithExtensions({
   resultFile,
   outputDir,
   parsedPath,
@@ -338,7 +356,7 @@ function findTranscriptFileWithExtensions({
   outputDir: string;
   parsedPath: ParsedPathInfo;
   extensions: string[];
-}): string | null {
+}): Promise<string | null> {
   const prefixes = new Set<string>(createPrefixes(parsedPath));
   const directories = new Set<string>();
 
@@ -362,20 +380,46 @@ function findTranscriptFileWithExtensions({
 
   directories.add(outputDir);
 
-  const candidates: string[] = [];
-  for (const prefix of prefixes) {
-    if (!prefix) {
-      continue;
+  if (directories.size > 0) {
+    const candidates: string[] = [];
+    for (const prefix of prefixes) {
+      if (!prefix) {
+        continue;
+      }
+
+      for (const directory of directories) {
+        for (const extension of extensions) {
+          candidates.push(path.join(directory, `${prefix}${extension}`));
+        }
+      }
     }
 
-    for (const directory of directories) {
-      for (const extension of extensions) {
-        candidates.push(path.join(directory, `${prefix}${extension}`));
-      }
+    const existing = findFirstExisting(candidates);
+    if (existing) {
+      return existing;
+    }
+
+    if (resultFile) {
+      return null;
     }
   }
 
-  return findFirstExisting(candidates);
+  const prefixValues = Array.from(prefixes).filter((value) => value);
+  if (prefixValues.length === 0) {
+    return null;
+  }
+
+  return findFileRecursively(outputDir, ({ entry, queueDir }) => {
+    for (const prefix of prefixValues) {
+      for (const extension of extensions) {
+        if (entry.name === `${prefix}${extension}`) {
+          return path.join(queueDir, entry.name);
+        }
+      }
+    }
+
+    return null;
+  });
 }
 
 function parseTsvSegments(raw: string): WhisperTranscriptionSegment[] {

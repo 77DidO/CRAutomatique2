@@ -173,6 +173,45 @@ test('whisper service falls back to txt output when json is missing', async () =
   assert.equal(warnings[0]?.message, 'Whisper JSON output missing; falling back to TXT output only');
 });
 
+test('whisper service locates txt output inside prepared directory when json is missing', async () => {
+  const rootDir = createTempDir();
+  const warnings: Array<{ payload: unknown; message?: string }> = [];
+  const capturingLogger: Logger = {
+    info() {},
+    error() {},
+    debug() {},
+    warn(payload, message) {
+      warnings.push({ payload, message });
+    },
+  };
+
+  const binary = createMockWhisperBinary(rootDir, {
+    writeTextFile: true,
+    textContent: 'Transcription dans prepared',
+    jsonText: 'Ne sera pas écrit',
+    writeJsonFile: false,
+    nested: true,
+  });
+
+  const environment = createEnvironment(rootDir, binary);
+  const service = createWhisperService(environment, { logger: capturingLogger });
+
+  const inputPath = path.join(rootDir, 'prepared.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const outputDir = path.join(rootDir, 'outputs');
+  const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
+
+  assert.equal(result.text, 'Transcription dans prepared');
+  assert.equal(result.language, null);
+  assert.deepEqual(result.segments, []);
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0]?.message, 'Whisper JSON output missing; falling back to TXT output only');
+
+  const payload = warnings[0]?.payload as { textFile?: string } | undefined;
+  assert.equal(payload?.textFile, path.join(outputDir, 'prepared', 'prepared.txt'));
+});
+
 test('whisper service falls back to JSON text when txt file is missing', async () => {
   const rootDir = createTempDir();
   const binary = createMockWhisperBinary(rootDir, {
