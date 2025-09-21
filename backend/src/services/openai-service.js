@@ -5,7 +5,10 @@ export function createOpenAiService({ configStore, logger }) {
     async generateSummary({ transcription, template, participants, config }) {
       const apiKey = process.env.OPENAI_API_KEY || (await configStore.read()).llm?.apiKey;
       if (!apiKey) {
-        throw new Error('Clé API OpenAI manquante');
+        if (logger && typeof logger.warn === 'function') {
+          logger.warn({ reason: 'missing_api_key' }, 'OpenAI API key missing, skipping summary generation');
+        }
+        return { markdown: null, reason: 'missing_api_key' };
       }
 
       const client = new OpenAI({ apiKey });
