@@ -22,6 +22,10 @@ export async function exportStep(context: PipelineContext): Promise<void> {
     filename: 'transcription_raw.txt',
     mimeType: 'text/plain',
   });
+  logger.debug(
+    { jobId: job.id, transcriptPath, transcriptLength: transcription.length },
+    'Raw transcription exported',
+  );
 
   if (context.data.summary?.markdown) {
     const summaryPath = path.join(jobDir, 'summary.md');
