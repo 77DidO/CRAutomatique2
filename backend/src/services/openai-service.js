@@ -45,11 +45,20 @@ function buildPrompt({ transcription, template, participants }) {
 
 function sanitiseApiKey(value) {
   if (typeof value !== 'string') return value;
-  const trimmed = value.trim();
+  let trimmed = value.trim();
+
   if (!trimmed) return '';
 
+  // Strip surrounding quotes that may originate from shell exports or .env files.
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    trimmed = trimmed.slice(1, -1).trim();
+  }
+
+  if (!trimmed) return '';
+
+  const normalised = trimmed.toLowerCase();
   const placeholderKeys = new Set(['sk-replace-me']);
-  if (placeholderKeys.has(trimmed.toLowerCase())) {
+  if (placeholderKeys.has(normalised)) {
     return '';
   }
 
