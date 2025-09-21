@@ -100,6 +100,90 @@ test('pipeline completes job with stub services', async () => {
   assert.ok(fs.existsSync(subtitlesPath));
 });
 
+test('pipeline skips subtitle export when disabled in config', async () => {
+  const rootDir = createTempRoot();
+  process.env.DATA_ROOT = rootDir;
+  process.env.OPENAI_API_KEY = 'test-key';
+
+  const logger = createLogger();
+  const environment = await ensureDataEnvironment({ logger });
+
+  const jobStore = await createJobRepository(environment, { logger });
+  const configStore = await createConfigRepository(environment, { logger });
+  const templateStore = await createTemplateRepository(environment, { logger });
+
+  await configStore.write({ pipeline: { enableSubtitles: false } });
+
+  const services: Services = {
+    ffmpeg: {
+      async normalizeAudio({ input, output }) {
+        await fs.promises.copyFile(input, output);
+      },
+    },
+    whisper: {
+      async transcribe(): Promise<WhisperTranscriptionResult> {
+        return {
+          model: 'base',
+          text: 'Bonjour monde',
+          segments: [
+            { start: 0, end: 1.5, text: 'Bonjour' },
+            { start: 1.5, end: 2.5, text: 'monde' },
+          ],
+          language: 'fr',
+        };
+      },
+    },
+    openai: {
+      async generateSummary(): Promise<SummaryResult> {
+        return { markdown: '# Résumé\n- Point clé' };
+      },
+    },
+  };
+
+  const pipeline = createPipelineEngine({
+    environment,
+    jobStore,
+    configStore,
+    templateStore,
+    services,
+    logger,
+  });
+
+  const uploadPath = path.join(environment.tmpDir, 'sample.wav');
+  await fs.promises.writeFile(uploadPath, 'fake-audio');
+
+  const job = await jobStore.create({
+    filename: 'sample.wav',
+    tempPath: uploadPath,
+    templateId: 'default',
+    participants: ['Alice', 'Bob'],
+  });
+
+  await pipeline.enqueue(job.id);
+
+  const finalJob = await waitFor<Job>(async () => {
+    const value = await jobStore.get(job.id);
+    return value?.status === 'completed' ? value : null;
+  }, 10_000);
+
+  assert.equal(finalJob?.status, 'completed');
+  assert.equal(finalJob?.outputs.length, 2);
+  assert.deepEqual(
+    (finalJob?.outputs.map((output) => output.filename).sort() ?? []),
+    ['summary.md', 'transcription_raw.txt'],
+  );
+
+  const transcriptPath = path.join(environment.jobsDir, job.id, 'transcription_raw.txt');
+  const summaryPath = path.join(environment.jobsDir, job.id, 'summary.md');
+  const subtitlesPath = path.join(environment.jobsDir, job.id, 'subtitles.vtt');
+
+  assert.ok(fs.existsSync(transcriptPath));
+  assert.ok(fs.existsSync(summaryPath));
+  assert.ok(!fs.existsSync(subtitlesPath));
+
+  delete process.env.OPENAI_API_KEY;
+});
+
 test('pipeline completes job when summary generation is skipped', async () => {
   const rootDir = createTempRoot();
   process.env.DATA_ROOT = rootDir;

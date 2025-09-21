@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import type { JobOutput, PipelineContext, WhisperTranscriptionSegment } from '../../types/index.js';
 
 export async function exportStep(context: PipelineContext): Promise<void> {
-  const { job, environment, jobStore, logger } = context;
+  const { job, environment, jobStore, logger, config } = context;
   const jobDir = path.join(environment.jobsDir, job.id);
   const outputs: JobOutput[] = [];
 
@@ -37,7 +37,7 @@ export async function exportStep(context: PipelineContext): Promise<void> {
     );
   }
 
-  if (context.data.transcription?.segments?.length) {
+  if (config.pipeline.enableSubtitles && context.data.transcription?.segments?.length) {
     const vttPath = path.join(jobDir, 'subtitles.vtt');
     await fs.promises.writeFile(vttPath, buildVtt(context.data.transcription.segments), 'utf8');
     outputs.push({ label: 'Sous-titres', filename: 'subtitles.vtt', mimeType: 'text/vtt' });
@@ -45,6 +45,8 @@ export async function exportStep(context: PipelineContext): Promise<void> {
       { jobId: job.id, vttPath, segmentCount: context.data.transcription.segments.length },
       'Subtitles exported',
     );
+  } else if (!config.pipeline.enableSubtitles) {
+    logger.info({ jobId: job.id }, 'Subtitles export skipped because subtitles are disabled');
   }
 
   for (const output of outputs) {
