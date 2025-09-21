@@ -35,7 +35,30 @@ export function createWhisperService(environment: Environment, { logger }: Creat
       const resultFile = await findWhisperJsonFile(outputDir, parsedPath);
 
       if (!resultFile) {
-        throw new Error('Le fichier JSON Whisper est introuvable');
+        const textFile = findTextFile({ resultFile: null, outputDir, parsedPath });
+        let text = '';
+
+        if (textFile) {
+          try {
+            text = await fs.promises.readFile(textFile, 'utf8');
+          } catch (error) {
+            if (!isErrorWithCode(error) || error.code !== 'ENOENT') {
+              throw error;
+            }
+          }
+        }
+
+        logger.warn(
+          { inputPath, outputDir, textFile },
+          'Whisper JSON output missing; falling back to TXT output only',
+        );
+
+        return {
+          model: config.model,
+          text,
+          segments: [],
+          language: null,
+        } satisfies WhisperTranscriptionResult;
       }
 
       const raw = await fs.promises.readFile(resultFile, 'utf8');
@@ -86,7 +109,9 @@ function buildArgs({ inputPath, outputDir, config, command }: {
     args.push('-m', 'whisper');
   }
 
-  args.push(inputPath, '--output_dir', outputDir, '--output_format', 'all');
+  const outputFormats = ['json', 'txt'];
+
+  args.push(inputPath, '--output_dir', outputDir, '--output_format', outputFormats.join(','));
   if (config.model) {
     args.push('--model', config.model);
   }
@@ -215,21 +240,37 @@ function isMatchingWhisperJson(fileName: string, prefixes: string[]): boolean {
   return false;
 }
 
-function findTextFile({ resultFile, outputDir, parsedPath }: { resultFile: string; outputDir: string; parsedPath: ParsedPathInfo }): string | null {
-  const resultDir = path.dirname(resultFile);
-  const baseFileName = path.basename(resultFile);
+function findTextFile({
+  resultFile,
+  outputDir,
+  parsedPath,
+}: {
+  resultFile: string | null;
+  outputDir: string;
+  parsedPath: ParsedPathInfo;
+}): string | null {
   const prefixes = new Set<string>(createPrefixes(parsedPath));
-  const parsedResult = path.parse(baseFileName);
+  const directories = new Set<string>();
 
-  if (parsedResult.name) {
-    prefixes.add(parsedResult.name);
-  }
+  if (resultFile) {
+    const resultDir = path.dirname(resultFile);
+    const baseFileName = path.basename(resultFile);
+    const parsedResult = path.parse(baseFileName);
 
-  for (const suffix of ['.json', '.jsonl']) {
-    if (parsedResult.name.endsWith(suffix)) {
-      prefixes.add(parsedResult.name.slice(0, -suffix.length));
+    directories.add(resultDir);
+
+    if (parsedResult.name) {
+      prefixes.add(parsedResult.name);
+
+      for (const suffix of ['.json', '.jsonl']) {
+        if (parsedResult.name.endsWith(suffix)) {
+          prefixes.add(parsedResult.name.slice(0, -suffix.length));
+        }
+      }
     }
   }
+
+  directories.add(outputDir);
 
   const candidates: string[] = [];
   for (const prefix of prefixes) {
@@ -237,10 +278,8 @@ function findTextFile({ resultFile, outputDir, parsedPath }: { resultFile: strin
       continue;
     }
 
-    candidates.push(path.join(resultDir, `${prefix}.txt`));
-
-    if (resultDir !== outputDir) {
-      candidates.push(path.join(outputDir, `${prefix}.txt`));
+    for (const directory of directories) {
+      candidates.push(path.join(directory, `${prefix}.txt`));
     }
   }
 
