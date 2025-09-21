@@ -29,11 +29,13 @@ export function createWhisperService(environment: Environment, { logger }: Creat
       const command = environment.whisperBinary ?? 'python';
       await runProcess(command, args, { cwd: outputDir, logger });
 
-      const baseName = path.parse(inputPath).name;
-      const resultFile = path.join(outputDir, `${baseName}.json`);
-      const textFile = path.join(outputDir, `${baseName}.txt`);
+      const parsedPath = path.parse(inputPath);
+      const resultFile = findFirstExisting([
+        path.join(outputDir, `${parsedPath.name}.json`),
+        path.join(outputDir, `${parsedPath.base}.json`),
+      ]);
 
-      if (!fs.existsSync(resultFile)) {
+      if (!resultFile) {
         throw new Error('Le fichier JSON Whisper est introuvable');
       }
 
@@ -41,13 +43,22 @@ export function createWhisperService(environment: Environment, { logger }: Creat
       const data = JSON.parse(raw) as Partial<WhisperTranscriptionResult> & { segments?: unknown[] };
       let text: string;
 
-      try {
-        text = await fs.promises.readFile(textFile, 'utf8');
-      } catch (error) {
-        if (!isErrorWithCode(error) || error.code !== 'ENOENT') {
-          throw error;
-        }
+      const textFile = findFirstExisting([
+        path.join(outputDir, `${parsedPath.name}.txt`),
+        path.join(outputDir, `${parsedPath.base}.txt`),
+      ]);
 
+      if (textFile) {
+        try {
+          text = await fs.promises.readFile(textFile, 'utf8');
+        } catch (error) {
+          if (!isErrorWithCode(error) || error.code !== 'ENOENT') {
+            throw error;
+          }
+
+          text = typeof data.text === 'string' ? data.text : '';
+        }
+      } else {
         text = typeof data.text === 'string' ? data.text : '';
       }
 
@@ -92,6 +103,16 @@ function buildArgs({ inputPath, outputDir, config, command }: {
     args.push('--best_of', String(config.batchSize));
   }
   return args;
+}
+
+function findFirstExisting(paths: string[]): string | null {
+  for (const filePath of paths) {
+    if (fs.existsSync(filePath)) {
+      return filePath;
+    }
+  }
+
+  return null;
 }
 
 function shouldUsePythonModule(command: string | null): boolean {
