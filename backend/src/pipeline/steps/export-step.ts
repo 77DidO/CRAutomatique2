@@ -3,14 +3,16 @@ import fs from 'node:fs';
 import type { JobOutput, PipelineContext, WhisperTranscriptionSegment } from '../../types/index.js';
 
 export async function exportStep(context: PipelineContext): Promise<void> {
-  const { job, environment, jobStore } = context;
+  const { job, environment, jobStore, logger } = context;
   const jobDir = path.join(environment.jobsDir, job.id);
   const outputs: JobOutput[] = [];
 
   await jobStore.appendLog(job.id, 'Export des livrables');
+  logger.info({ jobId: job.id, jobDir }, 'Export step started');
 
   const transcription = context.data.transcription?.text ?? '';
   if (!transcription) {
+    logger.error({ jobId: job.id }, 'Export step failed due to missing transcription');
     throw new Error('Transcription introuvable, export impossible');
   }
   const transcriptPath = path.join(jobDir, 'transcription_raw.txt');
@@ -25,12 +27,20 @@ export async function exportStep(context: PipelineContext): Promise<void> {
     const summaryPath = path.join(jobDir, 'summary.md');
     await fs.promises.writeFile(summaryPath, context.data.summary.markdown, 'utf8');
     outputs.push({ label: 'Résumé', filename: 'summary.md', mimeType: 'text/markdown' });
+    logger.debug(
+      { jobId: job.id, summaryPath, summaryLength: context.data.summary.markdown.length },
+      'Summary exported',
+    );
   }
 
   if (context.data.transcription?.segments?.length) {
     const vttPath = path.join(jobDir, 'subtitles.vtt');
     await fs.promises.writeFile(vttPath, buildVtt(context.data.transcription.segments), 'utf8');
     outputs.push({ label: 'Sous-titres', filename: 'subtitles.vtt', mimeType: 'text/vtt' });
+    logger.debug(
+      { jobId: job.id, vttPath, segmentCount: context.data.transcription.segments.length },
+      'Subtitles exported',
+    );
   }
 
   for (const output of outputs) {
@@ -38,6 +48,7 @@ export async function exportStep(context: PipelineContext): Promise<void> {
   }
 
   context.data.outputs = outputs;
+  logger.info({ jobId: job.id, outputCount: outputs.length }, 'Export step completed');
 
   await jobStore.appendLog(job.id, 'Exports finalisés');
 }

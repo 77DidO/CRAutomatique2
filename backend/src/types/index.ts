@@ -168,6 +168,7 @@ export interface PipelineContext {
   environment: Environment;
   services: Services;
   jobStore: JobStore;
+  logger: Logger;
   data: PipelineData;
 }
 
