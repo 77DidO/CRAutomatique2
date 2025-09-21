@@ -8,7 +8,12 @@ export function createWhisperService(environment, { logger }) {
     async transcribe({ inputPath, outputDir, config }) {
       ensureDirectory(outputDir);
 
-      const args = buildArgs({ inputPath, outputDir, config });
+      const args = buildArgs({
+        inputPath,
+        outputDir,
+        config,
+        command: environment.whisperBinary,
+      });
 
       await runProcess(environment.whisperBinary, args, { cwd: outputDir, logger });
 
@@ -34,8 +39,14 @@ export function createWhisperService(environment, { logger }) {
   };
 }
 
-function buildArgs({ inputPath, outputDir, config }) {
-  const args = ['-m', 'whisper', inputPath, '--output_dir', outputDir, '--output_format', 'json'];
+function buildArgs({ inputPath, outputDir, config, command }) {
+  const args = [];
+
+  if (shouldUsePythonModule(command)) {
+    args.push('-m', 'whisper');
+  }
+
+  args.push(inputPath, '--output_dir', outputDir, '--output_format', 'json');
   if (config.model) {
     args.push('--model', config.model);
   }
@@ -52,6 +63,15 @@ function buildArgs({ inputPath, outputDir, config }) {
     args.push('--best_of', String(config.batchSize));
   }
   return args;
+}
+
+function shouldUsePythonModule(command) {
+  if (!command) {
+    return true;
+  }
+
+  const normalised = path.basename(String(command)).toLowerCase();
+  return normalised === 'python' || normalised.startsWith('python');
 }
 
 async function runProcess(command, args, { cwd, logger }) {
