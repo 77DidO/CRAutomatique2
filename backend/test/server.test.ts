@@ -60,8 +60,12 @@ test('createServer.start rejects when the port is already in use', async () => {
     debug: () => {},
   };
 
+  let resumeCallCount = 0;
+
   const fakePipeline = {
-    resume: async () => {},
+    resume: async () => {
+      resumeCallCount += 1;
+    },
   };
 
   const listenError = Object.assign(new Error('EADDRINUSE: address already in use'), {
@@ -111,4 +115,58 @@ test('createServer.start rejects when the port is already in use', async () => {
   ]);
 
   assert.strictEqual(fakeServer.listenerCount('error'), 0);
+  assert.strictEqual(resumeCallCount, 0);
+});
+
+test('createServer.start resolves and resumes the pipeline when listening succeeds', async () => {
+  const infoLogs: Array<{ port: number }> = [];
+  let resumeCallCount = 0;
+
+  const fakeLogger = {
+    info: (payload: { port: number }) => {
+      infoLogs.push(payload);
+    },
+    error: () => {},
+    warn: () => {},
+    debug: () => {},
+  };
+
+  const fakePipeline = {
+    resume: async () => {
+      resumeCallCount += 1;
+    },
+  };
+
+  const fakeServer = new FakeServer();
+
+  const fakeApp = {
+    listen: (_port: number, callback: () => void) => {
+      queueMicrotask(() => {
+        callback();
+      });
+      return fakeServer.asHttpServer();
+    },
+  };
+
+  const overrides: Parameters<typeof createServer>[0] = {
+    createLogger: () => fakeLogger,
+    ensureDataEnvironment: async () => ({} as never),
+    createJobRepository: async () => ({} as never),
+    createConfigRepository: async () => ({} as never),
+    createTemplateRepository: async () => ({} as never),
+    validateEnvironment: async () => {},
+    createWhisperService: () => ({} as never),
+    createFfmpegService: () => ({} as never),
+    createOpenAiService: () => ({} as never),
+    createPipelineEngine: () => fakePipeline as never,
+    createHttpApp: () => fakeApp as never,
+  };
+
+  const server = await createServer(overrides);
+
+  const { serverInstance } = await server.start(4100);
+
+  assert.strictEqual(resumeCallCount, 1);
+  assert.deepStrictEqual(infoLogs, [{ port: 4100 }]);
+  assert.strictEqual(serverInstance, fakeServer.asHttpServer());
 });
