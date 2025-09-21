@@ -179,3 +179,26 @@ test('whisper service locates json files inside nested directories', async () =>
   assert.equal(result.text, 'Texte imbriqué');
   assert.equal(result.language, 'fr');
 });
+
+test('whisper service locates json files inside deeply nested directories', async () => {
+  const rootDir = createTempDir();
+  const binary = createMockWhisperBinary(rootDir, {
+    writeTextFile: true,
+    textContent: 'Texte profondément imbriqué',
+    jsonText: 'JSON profondément imbriqué',
+    nested: true,
+    nestedSegments: ['mirror', 'absolute', 'path', 'with', 'more', 'than', 'five', 'levels'],
+  });
+
+  const environment = createEnvironment(rootDir, binary);
+  const service = createWhisperService(environment, { logger });
+
+  const inputPath = path.join(rootDir, 'deeply-nested-input.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const outputDir = path.join(rootDir, 'outputs');
+  const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
+
+  assert.equal(result.text, 'Texte profondément imbriqué');
+  assert.equal(result.language, 'fr');
+});
