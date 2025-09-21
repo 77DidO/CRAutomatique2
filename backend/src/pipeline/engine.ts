@@ -80,6 +80,13 @@ export class PipelineEngine {
 
   async cancel(jobId: string): Promise<void> {
     this.cancellations.add(jobId);
+    if (!this.running.has(jobId)) {
+      const index = this.queue.indexOf(jobId);
+      if (index !== -1) {
+        this.queue.splice(index, 1);
+        this.logger.debug({ jobId, queueLength: this.queue.length }, 'Pipeline job removed from queue due to cancellation');
+      }
+    }
     this.logger.info({ jobId }, 'Pipeline job cancellation requested');
   }
 
@@ -97,17 +104,26 @@ export class PipelineEngine {
       await this.runJob(nextId);
     } catch (unknownError) {
       const error = normaliseError(unknownError);
+      const jobStillExists = (await this.jobStore.get(nextId)) !== null;
       if (isCancelledError(error)) {
         this.logger.info({ jobId: nextId }, 'Pipeline job cancelled before completion');
-        await this.jobStore.update(nextId, { status: 'failed' });
-        await this.jobStore.appendLog(nextId, 'Pipeline annulé par l’utilisateur', 'warn');
+        if (jobStillExists) {
+          await this.jobStore.update(nextId, { status: 'failed' });
+          await this.jobStore.appendLog(nextId, 'Pipeline annulé par l’utilisateur', 'warn');
+        } else {
+          this.logger.debug({ jobId: nextId }, 'Skipping cancellation persistence because job no longer exists');
+        }
       } else {
         this.logger.error(
           { error: serialiseError(error), jobId: nextId },
           'Pipeline execution failed',
         );
-        await this.jobStore.update(nextId, { status: 'failed' });
-        await this.jobStore.appendLog(nextId, `Pipeline failed: ${error.message}`, 'error');
+        if (jobStillExists) {
+          await this.jobStore.update(nextId, { status: 'failed' });
+          await this.jobStore.appendLog(nextId, `Pipeline failed: ${error.message}`, 'error');
+        } else {
+          this.logger.debug({ jobId: nextId }, 'Skipping failure persistence because job no longer exists');
+        }
       }
     } finally {
       this.running.delete(nextId);
@@ -123,7 +139,8 @@ export class PipelineEngine {
   private async runJob(jobId: string): Promise<void> {
     const job = await this.jobStore.get(jobId);
     if (!job) {
-      throw new Error(`Unknown job ${jobId}`);
+      this.logger.debug({ jobId }, 'Skipping pipeline run because job no longer exists');
+      return;
     }
 
     await this.jobStore.update(jobId, { status: 'processing', progress: 0 });
