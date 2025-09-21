@@ -68,7 +68,7 @@ function createMockWhisperBinary(rootDir: string, options: {
     `const args = process.argv.slice(2);\n` +
     `const inputPath = args[0];\n` +
     `let outputDir = process.cwd();\n` +
-    `const outputFormats = [];\n` +
+    `let outputFormat = 'all';\n` +
     `for (let i = 0; i < args.length; i++) {\n` +
     `  if (args[i] === '--output_dir' && i + 1 < args.length) {\n` +
     `    outputDir = args[i + 1];\n` +
@@ -76,13 +76,7 @@ function createMockWhisperBinary(rootDir: string, options: {
     `    continue;\n` +
     `  }\n` +
     `  if (args[i] === '--output_format' && i + 1 < args.length) {\n` +
-    `    const raw = args[i + 1].split(',');\n` +
-    `    for (const value of raw) {\n` +
-    `      const trimmed = value.trim();\n` +
-    `      if (trimmed) {\n` +
-    `        outputFormats.push(trimmed);\n` +
-    `      }\n` +
-    `    }\n` +
+    `    outputFormat = args[i + 1].trim();\n` +
     `    i++;\n` +
     `    continue;\n` +
     `  }\n` +
@@ -98,7 +92,7 @@ function createMockWhisperBinary(rootDir: string, options: {
     `  fs.writeFileSync(jsonPath, JSON.stringify({ text: ${JSON.stringify(options.jsonText)}, language: 'fr', segments: [{ start: 0, end: 1, text: 'Bonjour' }] }));\n` +
     `}\n` +
     `if (${options.writeTextFile ? 'true' : 'false'}) {\n` +
-    `  if (outputFormats.includes('all') || outputFormats.includes('txt')) {\n` +
+    `  if (outputFormat === 'all' || outputFormat === 'txt') {\n` +
     `    const textPath = path.join(targetDir, baseName + '.txt');\n` +
     `    fs.writeFileSync(textPath, ${JSON.stringify(options.textContent)});\n` +
     `  }\n` +

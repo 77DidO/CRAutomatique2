@@ -109,9 +109,7 @@ function buildArgs({ inputPath, outputDir, config, command }: {
     args.push('-m', 'whisper');
   }
 
-  const outputFormats = ['json', 'txt'];
-
-  args.push(inputPath, '--output_dir', outputDir, '--output_format', outputFormats.join(','));
+  args.push(inputPath, '--output_dir', outputDir, '--output_format', 'all');
   if (config.model) {
     args.push('--model', config.model);
   }
