@@ -173,6 +173,8 @@ function createPrefixes(parsedPath: ParsedPathInfo): string[] {
 }
 
 function isMatchingWhisperJson(fileName: string, prefixes: string[]): boolean {
+  const normalisedFileName = normaliseForComparison(fileName);
+
   for (const prefix of prefixes) {
     if (!prefix) {
       continue;
@@ -180,17 +182,32 @@ function isMatchingWhisperJson(fileName: string, prefixes: string[]): boolean {
 
     for (const extension of ['.json', '.jsonl']) {
       const target = `${prefix}${extension}`;
+      const normalisedTarget = normaliseForComparison(target);
 
-      if (fileName === target) {
+      if (!normalisedTarget) {
+        continue;
+      }
+
+      if (normalisedFileName === normalisedTarget) {
         return true;
       }
 
-      if (fileName.startsWith(target)) {
+      if (normalisedFileName.startsWith(normalisedTarget)) {
         return true;
       }
 
-      if (fileName.endsWith(target)) {
+      if (normalisedFileName.endsWith(normalisedTarget)) {
         return true;
+      }
+
+      if (hasExtension(fileName, extension)) {
+        const baseName = fileName.slice(0, -extension.length);
+        const normalisedBase = normaliseForComparison(baseName);
+        const normalisedPrefix = normaliseForComparison(prefix);
+
+        if (normalisedBase && normalisedBase === normalisedPrefix) {
+          return true;
+        }
       }
     }
   }
@@ -251,6 +268,14 @@ function shouldUsePythonModule(command: string | null): boolean {
 
 function isErrorWithCode(error: unknown): error is { code?: string } {
   return typeof error === 'object' && error !== null && 'code' in error;
+}
+
+function normaliseForComparison(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/giu, '');
+}
+
+function hasExtension(fileName: string, extension: string): boolean {
+  return fileName.toLowerCase().endsWith(extension.toLowerCase());
 }
 
 async function runProcess(command: string, args: string[], { cwd, logger }: { cwd: string; logger: Logger }): Promise<void> {
