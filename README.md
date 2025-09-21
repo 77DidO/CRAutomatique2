@@ -15,7 +15,7 @@ Cette itération reconstruit l'application de compte-rendu automatique en respec
 5. **Exports** : les artefacts sont écrits sur disque (`transcription_raw.txt`, `summary.md`, `subtitles.vtt`) et exposés via l'API ;
 6. **Restitution** : le frontend affiche progression, logs et permet le téléchargement des exports.
 
-Tous les traitements audio restent locaux. En cas d'absence de réseau, les jobs aboutissent jusqu'à la transcription et mettent en attente la synthèse OpenAI.
+Tous les traitements audio restent locaux. En cas d'absence de réseau ou de clé OpenAI, les jobs aboutissent jusqu'à la transcription : la synthèse est simplement ignorée et un avertissement est consigné.
 
 ## Arborescence
 
@@ -34,7 +34,7 @@ start.ps1               Ouverture de shells dev prêts à l'emploi
 - npm 9+
 - Python 3.9+ avec `pip` (pour installer Whisper)
 - FFmpeg disponible sur la machine (sinon fournir `FFMPEG_PATH`)
-- Accès à l'API OpenAI (`OPENAI_API_KEY`) pour la synthèse
+- (Optionnel) Accès à l'API OpenAI (`OPENAI_API_KEY`) pour activer la synthèse automatique
 
 ## Installation rapide
 
@@ -62,7 +62,7 @@ FFMPEG_PATH=/usr/bin/ffmpeg
 WHISPER_PATH=python
 ```
 
-Copiez ce fichier en `.env` (ou exportez les variables dans votre shell). Au démarrage, le backend vérifie la présence des clés critiques et journalise les avertissements correspondants.
+Copiez ce fichier en `.env` (ou exportez les variables dans votre shell). Au démarrage, le backend vérifie la présence des clés critiques et journalise les avertissements correspondants. Laisser le placeholder `sk-replace-me` (ou une valeur vide) désactive la synthèse : la pipeline termine avec succès, en conservant uniquement la transcription et les exports associés, tout en émettant un avertissement explicite.
 
 ## Démarrage
 
