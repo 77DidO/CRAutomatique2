@@ -136,6 +136,26 @@
   color: #cbd5f5;
 }
 
+.input-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.link-button {
+  border: none;
+  background: none;
+  color: #818cf8;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.link-button:hover {
+  color: #a5b4fc;
+}
+
 .input-group input,
 .input-group textarea,
 .input-group select {

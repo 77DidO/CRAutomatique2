@@ -1,12 +1,20 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 const computeTypes = ['auto', 'int8', 'float32'];
 
 export default function ConfigPanel({ config, onSave }) {
   const [localConfig, setLocalConfig] = useState(config);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [clearApiKey, setClearApiKey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    setLocalConfig(config);
+    setApiKeyInput('');
+    setClearApiKey(false);
+  }, [config]);
 
   const updateSection = (path, value) => {
     setLocalConfig((prev) => {
@@ -30,13 +38,40 @@ export default function ConfigPanel({ config, onSave }) {
     setError(null);
     setSuccess(false);
     try {
-      await onSave(localConfig);
+      const payload = typeof structuredClone === 'function'
+        ? structuredClone(localConfig)
+        : JSON.parse(JSON.stringify(localConfig));
+
+      if (payload.llm) {
+        delete payload.llm.hasApiKey;
+
+        const trimmedApiKey = apiKeyInput.trim();
+
+        if (trimmedApiKey.length > 0) {
+          payload.llm.apiKey = trimmedApiKey;
+        } else if (clearApiKey) {
+          payload.llm.apiKey = null;
+        } else {
+          delete payload.llm.apiKey;
+        }
+      }
+
+      await onSave(payload);
       setSuccess(true);
+      setApiKeyInput('');
+      setClearApiKey(false);
     } catch (err) {
       setError(err.message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const hasStoredApiKey = Boolean(localConfig.llm?.hasApiKey);
+
+  const toggleClearApiKey = () => {
+    setApiKeyInput('');
+    setClearApiKey((prev) => !prev);
   };
 
   return (
@@ -118,13 +153,44 @@ export default function ConfigPanel({ config, onSave }) {
             />
           </div>
           <div className="input-group">
-            <label htmlFor="llm-api-key">Clé OpenAI (non stockée ici)</label>
+            <label htmlFor="llm-api-key">Clé OpenAI</label>
             <input
               id="llm-api-key"
               type="password"
-              placeholder="Configurer via variable d'environnement"
-              disabled
+              value={apiKeyInput}
+              placeholder={hasStoredApiKey ? 'Clé enregistrée — saisir pour remplacer' : 'Saisissez votre clé OpenAI'}
+              onChange={(event) => {
+                setApiKeyInput(event.target.value);
+                if (clearApiKey) {
+                  setClearApiKey(false);
+                }
+              }}
+              autoComplete="off"
             />
+            {hasStoredApiKey ? (
+              <p className="input-hint">
+                {clearApiKey ? (
+                  <>
+                    La clé enregistrée sera supprimée lors de la sauvegarde.{' '}
+                    <button type="button" className="link-button" onClick={toggleClearApiKey}>
+                      Annuler
+                    </button>
+                    .
+                  </>
+                ) : (
+                  <>
+                    Une clé est actuellement enregistrée. Laissez le champ vide pour la conserver, saisissez une nouvelle valeur
+                    pour la remplacer ou{' '}
+                    <button type="button" className="link-button" onClick={toggleClearApiKey}>
+                      supprimez la clé
+                    </button>
+                    .
+                  </>
+                )}
+              </p>
+            ) : (
+              <p className="input-hint">Votre clé sera stockée localement et utilisée uniquement pour la synthèse.</p>
+            )}
           </div>
         </fieldset>
 

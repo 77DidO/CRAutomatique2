@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { createHttpError } from '../../utils/http-error.js';
+import { maskSecrets, sanitisePayload } from './config-router.helpers.js';
 
 export function createConfigRouter({ configStore }) {
   const router = Router();
@@ -7,7 +8,7 @@ export function createConfigRouter({ configStore }) {
   router.get('/', async (req, res, next) => {
     try {
       const config = await configStore.read();
-      res.json(config);
+      res.json(maskSecrets(config));
     } catch (error) {
       next(error);
     }
@@ -19,8 +20,9 @@ export function createConfigRouter({ configStore }) {
         throw createHttpError(400, 'Invalid configuration payload');
       }
 
-      const updated = await configStore.write(req.body);
-      res.json(updated);
+      const sanitised = sanitisePayload(req.body);
+      const updated = await configStore.write(sanitised);
+      res.json(maskSecrets(updated));
     } catch (error) {
       next(error);
     }
