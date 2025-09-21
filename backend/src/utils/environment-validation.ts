@@ -1,10 +1,17 @@
-const REQUIRED = [];
+import type { ConfigStore, Logger } from '../types/index.js';
 
-const OPTIONAL_WARNINGS = [
+const REQUIRED: string[] = [];
+
+const OPTIONAL_WARNINGS: Array<{ key: string; message: string }> = [
   { key: 'OPENAI_API_KEY', message: "OPENAI_API_KEY manquant : la génération de résumés échouera tant qu'une clé n'est pas fournie." },
 ];
 
-export async function validateEnvironment({ logger, configStore } = {}) {
+interface ValidateEnvironmentOptions {
+  logger?: Logger;
+  configStore?: ConfigStore;
+}
+
+export async function validateEnvironment({ logger, configStore }: ValidateEnvironmentOptions = {}): Promise<void> {
   for (const key of REQUIRED) {
     if (!process.env[key]) {
       throw new Error(`Variable d'environnement obligatoire manquante : ${key}`);
@@ -20,7 +27,7 @@ export async function validateEnvironment({ logger, configStore } = {}) {
         hasValue = Boolean(config?.llm?.apiKey);
       } catch (error) {
         const message = "Impossible de lire la configuration lors de la validation de l'environnement";
-        if (logger && typeof logger.warn === 'function') {
+        if (logger) {
           logger.warn({ err: error, key: warning.key }, message);
         } else {
           console.warn(message, error);
@@ -29,7 +36,7 @@ export async function validateEnvironment({ logger, configStore } = {}) {
     }
 
     if (!hasValue) {
-      if (logger && typeof logger.warn === 'function') {
+      if (logger) {
         logger.warn({ key: warning.key }, warning.message);
       } else {
         console.warn(warning.message);
