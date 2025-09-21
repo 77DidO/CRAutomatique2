@@ -264,6 +264,10 @@ function createPrefixes(parsedPath: ParsedPathInfo): string[] {
 }
 
 function isMatchingWhisperJson(fileName: string, prefixes: string[]): boolean {
+  return matchesTranscriptName(fileName, prefixes, ['.json', '.jsonl']);
+}
+
+function matchesTranscriptName(fileName: string, prefixes: string[], extensions: string[]): boolean {
   const normalisedFileName = normaliseForComparison(fileName);
 
   for (const prefix of prefixes) {
@@ -271,7 +275,12 @@ function isMatchingWhisperJson(fileName: string, prefixes: string[]): boolean {
       continue;
     }
 
-    for (const extension of ['.json', '.jsonl']) {
+    const normalisedPrefix = normaliseForComparison(prefix);
+    if (!normalisedPrefix) {
+      continue;
+    }
+
+    for (const extension of extensions) {
       const target = `${prefix}${extension}`;
       const normalisedTarget = normaliseForComparison(target);
 
@@ -294,7 +303,6 @@ function isMatchingWhisperJson(fileName: string, prefixes: string[]): boolean {
       if (hasExtension(fileName, extension)) {
         const baseName = fileName.slice(0, -extension.length);
         const normalisedBase = normaliseForComparison(baseName);
-        const normalisedPrefix = normaliseForComparison(prefix);
 
         if (normalisedBase && normalisedBase === normalisedPrefix) {
           return true;
@@ -357,7 +365,7 @@ async function findTranscriptFileWithExtensions({
   parsedPath: ParsedPathInfo;
   extensions: string[];
 }): Promise<string | null> {
-  const prefixes = new Set<string>(createPrefixes(parsedPath));
+  const prefixSet = new Set<string>(createPrefixes(parsedPath));
   const directories = new Set<string>();
 
   if (resultFile) {
@@ -368,11 +376,11 @@ async function findTranscriptFileWithExtensions({
     directories.add(resultDir);
 
     if (parsedResult.name) {
-      prefixes.add(parsedResult.name);
+      prefixSet.add(parsedResult.name);
 
       for (const suffix of ['.json', '.jsonl']) {
         if (parsedResult.name.endsWith(suffix)) {
-          prefixes.add(parsedResult.name.slice(0, -suffix.length));
+          prefixSet.add(parsedResult.name.slice(0, -suffix.length));
         }
       }
     }
@@ -380,15 +388,22 @@ async function findTranscriptFileWithExtensions({
 
   directories.add(outputDir);
 
+  const prefixValues = Array.from(prefixSet).filter((value) => value);
+  const extensionValues = extensions.filter((value) => value);
+
+  if (prefixValues.length === 0 || extensionValues.length === 0) {
+    return null;
+  }
+
   if (directories.size > 0) {
     const candidates: string[] = [];
-    for (const prefix of prefixes) {
+    for (const prefix of prefixValues) {
       if (!prefix) {
         continue;
       }
 
       for (const directory of directories) {
-        for (const extension of extensions) {
+        for (const extension of extensionValues) {
           candidates.push(path.join(directory, `${prefix}${extension}`));
         }
       }
@@ -399,23 +414,40 @@ async function findTranscriptFileWithExtensions({
       return existing;
     }
 
+    for (const directory of directories) {
+      const entries = await fs.promises
+        .readdir(directory, { withFileTypes: true })
+        .catch((error: unknown) => {
+          if (!isErrorWithCode(error) || error.code !== 'ENOENT') {
+            throw error;
+          }
+
+          return null;
+        });
+
+      if (!entries) {
+        continue;
+      }
+
+      for (const entry of entries) {
+        if (!entry.isFile()) {
+          continue;
+        }
+
+        if (matchesTranscriptName(entry.name, prefixValues, extensionValues)) {
+          return path.join(directory, entry.name);
+        }
+      }
+    }
+
     if (resultFile) {
       return null;
     }
   }
 
-  const prefixValues = Array.from(prefixes).filter((value) => value);
-  if (prefixValues.length === 0) {
-    return null;
-  }
-
   return findFileRecursively(outputDir, ({ entry, queueDir }) => {
-    for (const prefix of prefixValues) {
-      for (const extension of extensions) {
-        if (entry.name === `${prefix}${extension}`) {
-          return path.join(queueDir, entry.name);
-        }
-      }
+    if (matchesTranscriptName(entry.name, prefixValues, extensionValues)) {
+      return path.join(queueDir, entry.name);
     }
 
     return null;
