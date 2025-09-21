@@ -1,10 +1,14 @@
 {
   "name": "cr-automatique-backend",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "setup": "npm install",
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "run": "node src/index.js",
+    "test": "node --test",
+    "package": "npm prune --production"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
