@@ -16,7 +16,20 @@ export async function summariseStep(context) {
     config: config.llm,
   });
 
-  context.data.summary = summary;
+  const markdown = typeof summary?.markdown === 'string' ? summary.markdown.trim() : '';
+
+  if (!markdown) {
+    const skippedMessage =
+      summary?.reason === 'missing_api_key'
+        ? "Résumé ignoré : clé API OpenAI manquante"
+        : 'Résumé non généré par le service OpenAI';
+
+    await jobStore.appendLog(job.id, skippedMessage, 'warn');
+    context.data.summary = null;
+    return;
+  }
+
+  context.data.summary = { markdown };
 
   await jobStore.appendLog(job.id, 'Résumé généré');
 }
