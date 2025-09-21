@@ -1,146 +1,96 @@
-import { useEffect, useMemo, useState } from 'react';
-
-const ACCEPTED_TYPES = '.mp3,.mp4,.wav,.m4a,.aac,.mov,.avi,.mkv,.webm';
+import React, { useEffect, useMemo, useState } from 'react';
 
 export default function UploadForm({ templates, onSubmit }) {
-  const [title, setTitle] = useState('');
-  const [templateId, setTemplateId] = useState('');
-  const [participants, setParticipants] = useState('');
   const [file, setFile] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [participants, setParticipants] = useState('');
+  const [templateId, setTemplateId] = useState(templates[0]?.id || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  const defaultTemplate = useMemo(() => {
-    if (templateId) {
-      return templateId;
-    }
-    if (templates?.length) {
-      return templates[0].id;
-    }
-    return 'default';
-  }, [templateId, templates]);
+  const templateOptions = useMemo(() => templates.map((tpl) => ({ value: tpl.id, label: tpl.name })), [templates]);
 
   useEffect(() => {
-    if (!templateId && templates?.length) {
-      setTemplateId(templates[0].id);
+    if (!templateId && templateOptions[0]) {
+      setTemplateId(templateOptions[0].value);
     }
-  }, [templateId, templates]);
+  }, [templateOptions, templateId]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!file) {
-      setError('Veuillez sélectionner un fichier audio ou vidéo.');
+      setError('Veuillez sélectionner un fichier audio.');
       return;
     }
-
-    setSubmitting(true);
     setError(null);
-
-    const formData = new FormData();
-    formData.append('file', file);
-    if (title.trim()) {
-      formData.append('title', title.trim());
-    }
-    if (defaultTemplate) {
-      formData.append('template', defaultTemplate);
-    }
-    if (participants.trim()) {
-      formData.append('participants', participants.trim());
-    }
-
+    setIsSubmitting(true);
     try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('participants', participants);
+      formData.append('templateId', templateId);
       await onSubmit(formData);
-      setTitle('');
-      setParticipants('');
       setFile(null);
-    } catch (submissionError) {
-      setError(submissionError.message);
+      setParticipants('');
+      setTemplateId(templateOptions[0]?.value || '');
+    } catch (err) {
+      setError(err.message);
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <form className="upload-form space-y-6" onSubmit={handleSubmit}>
-      <div className="form-field">
-        <label className="form-label" htmlFor="upload-file">
-          Fichier à traiter
-        </label>
-        <input
-          id="upload-file"
-          name="file"
-          className="file-input file-input-bordered"
-          type="file"
-          accept={ACCEPTED_TYPES}
-          onChange={(event) => {
-            setFile(event.target.files?.[0] ?? null);
-          }}
-          required
-        />
-        <p className="form-helper">Formats audio/vidéo courants acceptés (MP3, WAV, MP4, MOV...).</p>
-      </div>
+    <section className="card" aria-label="Formulaire d'import">
+      <h2 className="section-title">Importer un nouvel enregistrement</h2>
+      <p>
+        Les fichiers sont traités localement via FFmpeg et Whisper, puis enrichis avec OpenAI.
+        Les exports restent identiques à la version précédente (TXT, Markdown et VTT).
+      </p>
 
-      <div className="form-field">
-        <label className="form-label" htmlFor="upload-title">
-          Titre
-        </label>
-        <input
-          id="upload-title"
-          name="title"
-          className="input input-bordered"
-          type="text"
-          placeholder="Réunion hebdo, entretien, webinar..."
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-        />
-      </div>
+      <form className="upload-form" onSubmit={handleSubmit}>
+        <div className="input-group">
+          <label htmlFor="file">Fichier audio</label>
+          <input
+            id="file"
+            type="file"
+            accept="audio/*,video/*"
+            onChange={(event) => setFile(event.target.files[0] || null)}
+            required
+          />
+        </div>
 
-      <div className="form-field">
-        <label className="form-label" htmlFor="upload-template">
-          Gabarit
-        </label>
-        <select
-          id="upload-template"
-          name="template"
-          className="select select-bordered"
-          value={defaultTemplate}
-          onChange={(event) => setTemplateId(event.target.value)}
-        >
-          {(templates ?? []).map((template) => (
-            <option key={template.id} value={template.id}>
-              {template.name}
-            </option>
-          ))}
-          {!templates?.length && <option value="default">Gabarit par défaut</option>}
-        </select>
-        {templateId && (
-          <p className="form-helper">
-            {(templates ?? []).find((tpl) => tpl.id === templateId)?.description ?? 'Aucun descriptif disponible.'}
-          </p>
-        )}
-      </div>
+        <div className="input-group">
+          <label htmlFor="participants">Participants (séparés par une virgule)</label>
+          <input
+            id="participants"
+            type="text"
+            placeholder="Alice, Bob, ..."
+            value={participants}
+            onChange={(event) => setParticipants(event.target.value)}
+          />
+        </div>
 
-      <div className="form-field">
-        <label className="form-label" htmlFor="upload-participants">
-          Participants
-        </label>
-        <textarea
-          id="upload-participants"
-          name="participants"
-          className="textarea"
-          placeholder="Alice, Bob, Charlie"
-          value={participants}
-          onChange={(event) => setParticipants(event.target.value)}
-          rows={3}
-        />
-        <p className="form-helper">Séparez les noms par des virgules ou collez un tableau JSON.</p>
-      </div>
+        <div className="input-group">
+          <label htmlFor="template">Gabarit de synthèse</label>
+          <select
+            id="template"
+            value={templateId}
+            onChange={(event) => setTemplateId(event.target.value)}
+          >
+            {templateOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      {error && <p className="error-text text-sm m-0">{error}</p>}
+        {error && <p className="toast error">{error}</p>}
 
-      <button type="submit" className="btn btn-primary btn-md" disabled={submitting}>
-        {submitting ? 'Envoi en cours...' : 'Lancer le traitement'}
-      </button>
-    </form>
+        <button className="button primary" type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Envoi en cours…' : 'Lancer le traitement'}
+        </button>
+      </form>
+    </section>
   );
 }
