@@ -1,10 +1,11 @@
 import type { PipelineContext } from '../../types/index.js';
 
 export async function summariseStep(context: PipelineContext): Promise<void> {
-  const { job, config, template, services, jobStore } = context;
+  const { job, config, template, services, jobStore, logger } = context;
 
   if (!config.pipeline.enableSummaries) {
     await jobStore.appendLog(job.id, 'Synthèse LLM désactivée, étape ignorée');
+    logger.info({ jobId: job.id }, 'Summarise step skipped because summaries disabled');
     context.data.summary = null;
     return;
   }
@@ -12,11 +13,22 @@ export async function summariseStep(context: PipelineContext): Promise<void> {
   const transcription = context.data.transcription;
   if (!transcription) {
     await jobStore.appendLog(job.id, 'Transcription manquante, résumé ignoré', 'warn');
+    logger.warn({ jobId: job.id }, 'Summarise step skipped due to missing transcription');
     context.data.summary = null;
     return;
   }
 
   await jobStore.appendLog(job.id, 'Génération du résumé (OpenAI)');
+  const { provider, model, temperature, maxOutputTokens } = config.llm;
+  logger.info(
+    {
+      jobId: job.id,
+      templateId: template.id,
+      participants: job.participants,
+      llmConfig: { provider, model, temperature, maxOutputTokens },
+    },
+    'Summarise step started',
+  );
 
   const summary = await services.openai.generateSummary({
     transcription,
@@ -34,11 +46,13 @@ export async function summariseStep(context: PipelineContext): Promise<void> {
         : 'Résumé non généré par le service OpenAI';
 
     await jobStore.appendLog(job.id, skippedMessage, 'warn');
+    logger.warn({ jobId: job.id, reason: summary?.reason ?? 'unknown' }, 'Summarise step did not produce content');
     context.data.summary = null;
     return;
   }
 
   context.data.summary = { markdown };
+  logger.info({ jobId: job.id, markdownLength: markdown.length }, 'Summarise step completed');
 
   await jobStore.appendLog(job.id, 'Résumé généré');
 }
