@@ -12,12 +12,13 @@ import { validateEnvironment } from './utils/environment-validation.js';
 
 export async function createServer() {
   const logger = createLogger();
-  validateEnvironment(logger);
   const environment = await ensureDataEnvironment({ logger });
 
   const jobStore = await createJobRepository(environment, { logger });
   const configStore = await createConfigRepository(environment, { logger });
   const templateStore = await createTemplateRepository(environment, { logger });
+
+  await validateEnvironment({ logger, configStore });
 
   const whisper = createWhisperService(environment, { logger });
   const ffmpeg = createFfmpegService(environment, { logger });
