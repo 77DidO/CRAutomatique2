@@ -49,6 +49,7 @@ function createMockWhisperBinary(rootDir: string, options: {
   nested?: boolean;
   nestedSegments?: string[];
   jsonFileNameTemplate?: string;
+  writeJsonFile?: boolean;
 }): string {
   const scriptPath = path.join(rootDir, `mock-whisper-${crypto.randomUUID()}.mjs`);
   const nestedSegments = options.nestedSegments ?? [];
@@ -75,7 +76,13 @@ function createMockWhisperBinary(rootDir: string, options: {
     `    continue;\n` +
     `  }\n` +
     `  if (args[i] === '--output_format' && i + 1 < args.length) {\n` +
-    `    outputFormats.push(args[i + 1]);\n` +
+    `    const raw = args[i + 1].split(',');\n` +
+    `    for (const value of raw) {\n` +
+    `      const trimmed = value.trim();\n` +
+    `      if (trimmed) {\n` +
+    `        outputFormats.push(trimmed);\n` +
+    `      }\n` +
+    `    }\n` +
     `    i++;\n` +
     `    continue;\n` +
     `  }\n` +
@@ -85,8 +92,11 @@ function createMockWhisperBinary(rootDir: string, options: {
     `const targetDir = ${targetDirExpression};\n` +
     `const jsonFileName = ${jsonFileNameExpression};\n` +
     `fs.mkdirSync(targetDir, { recursive: true });\n` +
-    `const jsonPath = path.join(targetDir, jsonFileName);\n` +
-    `fs.writeFileSync(jsonPath, JSON.stringify({ text: ${JSON.stringify(options.jsonText)}, language: 'fr', segments: [{ start: 0, end: 1, text: 'Bonjour' }] }));\n` +
+    `const shouldWriteJson = ${options.writeJsonFile === false ? 'false' : 'true'};\n` +
+    `if (shouldWriteJson) {\n` +
+    `  const jsonPath = path.join(targetDir, jsonFileName);\n` +
+    `  fs.writeFileSync(jsonPath, JSON.stringify({ text: ${JSON.stringify(options.jsonText)}, language: 'fr', segments: [{ start: 0, end: 1, text: 'Bonjour' }] }));\n` +
+    `}\n` +
     `if (${options.writeTextFile ? 'true' : 'false'}) {\n` +
     `  if (outputFormats.includes('all') || outputFormats.includes('txt')) {\n` +
     `    const textPath = path.join(targetDir, baseName + '.txt');\n` +
@@ -120,6 +130,41 @@ test('whisper service reads generated text file when available', async () => {
   assert.equal(result.language, 'fr');
   assert.equal(result.model, baseConfig.model);
   assert.equal(result.segments?.length, 1);
+});
+
+test('whisper service falls back to txt output when json is missing', async () => {
+  const rootDir = createTempDir();
+  const warnings: Array<{ payload: unknown; message?: string }> = [];
+  const capturingLogger: Logger = {
+    info() {},
+    error() {},
+    debug() {},
+    warn(payload, message) {
+      warnings.push({ payload, message });
+    },
+  };
+
+  const binary = createMockWhisperBinary(rootDir, {
+    writeTextFile: true,
+    textContent: 'Transcription uniquement texte',
+    jsonText: 'Ne sera pas écrit',
+    writeJsonFile: false,
+  });
+
+  const environment = createEnvironment(rootDir, binary);
+  const service = createWhisperService(environment, { logger: capturingLogger });
+
+  const inputPath = path.join(rootDir, 'input.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const outputDir = path.join(rootDir, 'outputs');
+  const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
+
+  assert.equal(result.text, 'Transcription uniquement texte');
+  assert.equal(result.language, null);
+  assert.deepEqual(result.segments, []);
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0]?.message, 'Whisper JSON output missing; falling back to TXT output only');
 });
 
 test('whisper service falls back to JSON text when txt file is missing', async () => {
