@@ -14,6 +14,8 @@ interface CreateWhisperServiceOptions {
   logger: Logger;
 }
 
+type ParsedPathInfo = ReturnType<typeof path.parse>;
+
 export function createWhisperService(environment: Environment, { logger }: CreateWhisperServiceOptions): WhisperService {
   return {
     async transcribe({ inputPath, outputDir, config }) {
@@ -30,10 +32,7 @@ export function createWhisperService(environment: Environment, { logger }: Creat
       await runProcess(command, args, { cwd: outputDir, logger });
 
       const parsedPath = path.parse(inputPath);
-      const resultFile = findFirstExisting([
-        path.join(outputDir, `${parsedPath.name}.json`),
-        path.join(outputDir, `${parsedPath.base}.json`),
-      ]);
+      const resultFile = await findWhisperJsonFile(outputDir, parsedPath);
 
       if (!resultFile) {
         throw new Error('Le fichier JSON Whisper est introuvable');
@@ -43,10 +42,11 @@ export function createWhisperService(environment: Environment, { logger }: Creat
       const data = JSON.parse(raw) as Partial<WhisperTranscriptionResult> & { segments?: unknown[] };
       let text: string;
 
-      const textFile = findFirstExisting([
-        path.join(outputDir, `${parsedPath.name}.txt`),
-        path.join(outputDir, `${parsedPath.base}.txt`),
-      ]);
+      const textFile = findTextFile({
+        resultFile,
+        outputDir,
+        parsedPath,
+      });
 
       if (textFile) {
         try {
@@ -103,6 +103,116 @@ function buildArgs({ inputPath, outputDir, config, command }: {
     args.push('--best_of', String(config.batchSize));
   }
   return args;
+}
+
+async function findWhisperJsonFile(outputDir: string, parsedPath: ParsedPathInfo): Promise<string | null> {
+  const prefixes = createPrefixes(parsedPath);
+  const maxDepth = 5;
+  const queue: Array<{ dir: string; depth: number }> = [{ dir: outputDir, depth: 0 }];
+
+  while (queue.length > 0) {
+    const { dir, depth } = queue.shift()!;
+    const entries = await fs.promises
+      .readdir(dir, { withFileTypes: true })
+      .catch((error: unknown) => {
+        if (!isErrorWithCode(error) || error.code !== 'ENOENT') {
+          throw error;
+        }
+
+        return null;
+      });
+
+    if (!entries) {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isFile()) {
+        continue;
+      }
+
+      if (isMatchingWhisperJson(entry.name, prefixes)) {
+        return path.join(dir, entry.name);
+      }
+    }
+
+    if (depth >= maxDepth) {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        queue.push({ dir: path.join(dir, entry.name), depth: depth + 1 });
+      }
+    }
+  }
+
+  return null;
+}
+
+function createPrefixes(parsedPath: ParsedPathInfo): string[] {
+  const values = new Set<string>();
+  if (parsedPath.name) {
+    values.add(parsedPath.name);
+  }
+  if (parsedPath.base) {
+    values.add(parsedPath.base);
+  }
+  return Array.from(values);
+}
+
+function isMatchingWhisperJson(fileName: string, prefixes: string[]): boolean {
+  for (const prefix of prefixes) {
+    if (!prefix) {
+      continue;
+    }
+
+    if (fileName === `${prefix}.json` || fileName === `${prefix}.jsonl`) {
+      return true;
+    }
+
+    if (fileName.startsWith(`${prefix}.json`)) {
+      return true;
+    }
+
+    if (fileName.startsWith(`${prefix}.jsonl`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function findTextFile({ resultFile, outputDir, parsedPath }: { resultFile: string; outputDir: string; parsedPath: ParsedPathInfo }): string | null {
+  const resultDir = path.dirname(resultFile);
+  const baseFileName = path.basename(resultFile);
+  const prefixes = new Set<string>(createPrefixes(parsedPath));
+  const parsedResult = path.parse(baseFileName);
+
+  if (parsedResult.name) {
+    prefixes.add(parsedResult.name);
+  }
+
+  for (const suffix of ['.json', '.jsonl']) {
+    if (parsedResult.name.endsWith(suffix)) {
+      prefixes.add(parsedResult.name.slice(0, -suffix.length));
+    }
+  }
+
+  const candidates: string[] = [];
+  for (const prefix of prefixes) {
+    if (!prefix) {
+      continue;
+    }
+
+    candidates.push(path.join(resultDir, `${prefix}.txt`));
+
+    if (resultDir !== outputDir) {
+      candidates.push(path.join(outputDir, `${prefix}.txt`));
+    }
+  }
+
+  return findFirstExisting(candidates);
 }
 
 function findFirstExisting(paths: string[]): string | null {

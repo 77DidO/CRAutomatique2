@@ -46,8 +46,14 @@ function createMockWhisperBinary(rootDir: string, options: {
   textContent: string;
   jsonText: string;
   useBaseName?: boolean;
+  nested?: boolean;
+  nestedSegments?: string[];
 }): string {
   const scriptPath = path.join(rootDir, `mock-whisper-${crypto.randomUUID()}.mjs`);
+  const nestedSegments = options.nestedSegments ?? [];
+  const nestedSegmentsParam =
+    nestedSegments.length > 0 ? `, ${nestedSegments.map((segment) => JSON.stringify(segment)).join(', ')}` : '';
+  const targetDirExpression = options.nested ? `path.join(outputDir, baseName${nestedSegmentsParam})` : 'outputDir';
   const script = `#!/usr/bin/env node\n` +
     `import fs from 'node:fs';\n` +
     `import path from 'node:path';\n` +
@@ -69,11 +75,13 @@ function createMockWhisperBinary(rootDir: string, options: {
     `}\n` +
     `const parsed = path.parse(inputPath);\n` +
     `const baseName = ${options.useBaseName ? 'parsed.base' : 'parsed.name'};\n` +
-    `const jsonPath = path.join(outputDir, baseName + '.json');\n` +
+    `const targetDir = ${targetDirExpression};\n` +
+    `fs.mkdirSync(targetDir, { recursive: true });\n` +
+    `const jsonPath = path.join(targetDir, baseName + '.json');\n` +
     `fs.writeFileSync(jsonPath, JSON.stringify({ text: ${JSON.stringify(options.jsonText)}, language: 'fr', segments: [{ start: 0, end: 1, text: 'Bonjour' }] }));\n` +
     `if (${options.writeTextFile ? 'true' : 'false'}) {\n` +
     `  if (outputFormats.includes('all') || outputFormats.includes('txt')) {\n` +
-    `    const textPath = path.join(outputDir, baseName + '.txt');\n` +
+    `    const textPath = path.join(targetDir, baseName + '.txt');\n` +
     `    fs.writeFileSync(textPath, ${JSON.stringify(options.textContent)});\n` +
     `  }\n` +
     `}\n`;
@@ -146,5 +154,28 @@ test('whisper service handles output files that keep the original extension', as
   const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
 
   assert.equal(result.text, 'Texte avec extension');
+  assert.equal(result.language, 'fr');
+});
+
+test('whisper service locates json files inside nested directories', async () => {
+  const rootDir = createTempDir();
+  const binary = createMockWhisperBinary(rootDir, {
+    writeTextFile: true,
+    textContent: 'Texte imbriqué',
+    jsonText: 'JSON imbriqué',
+    nested: true,
+    nestedSegments: ['profond'],
+  });
+
+  const environment = createEnvironment(rootDir, binary);
+  const service = createWhisperService(environment, { logger });
+
+  const inputPath = path.join(rootDir, 'nested-input.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const outputDir = path.join(rootDir, 'outputs');
+  const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
+
+  assert.equal(result.text, 'Texte imbriqué');
   assert.equal(result.language, 'fr');
 });
