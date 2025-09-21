@@ -45,6 +45,7 @@ function createMockWhisperBinary(rootDir: string, options: {
   writeTextFile: boolean;
   textContent: string;
   jsonText: string;
+  useBaseName?: boolean;
 }): string {
   const scriptPath = path.join(rootDir, `mock-whisper-${crypto.randomUUID()}.mjs`);
   const script = `#!/usr/bin/env node\n` +
@@ -66,7 +67,8 @@ function createMockWhisperBinary(rootDir: string, options: {
     `    continue;\n` +
     `  }\n` +
     `}\n` +
-    `const baseName = path.parse(inputPath).name;\n` +
+    `const parsed = path.parse(inputPath);\n` +
+    `const baseName = ${options.useBaseName ? 'parsed.base' : 'parsed.name'};\n` +
     `const jsonPath = path.join(outputDir, baseName + '.json');\n` +
     `fs.writeFileSync(jsonPath, JSON.stringify({ text: ${JSON.stringify(options.jsonText)}, language: 'fr', segments: [{ start: 0, end: 1, text: 'Bonjour' }] }));\n` +
     `if (${options.writeTextFile ? 'true' : 'false'}) {\n` +
@@ -122,5 +124,27 @@ test('whisper service falls back to JSON text when txt file is missing', async (
   const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
 
   assert.equal(result.text, 'Fallback depuis le JSON');
+  assert.equal(result.language, 'fr');
+});
+
+test('whisper service handles output files that keep the original extension', async () => {
+  const rootDir = createTempDir();
+  const binary = createMockWhisperBinary(rootDir, {
+    writeTextFile: true,
+    textContent: 'Texte avec extension',
+    jsonText: 'JSON avec extension',
+    useBaseName: true,
+  });
+
+  const environment = createEnvironment(rootDir, binary);
+  const service = createWhisperService(environment, { logger });
+
+  const inputPath = path.join(rootDir, 'prepared.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const outputDir = path.join(rootDir, 'outputs');
+  const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
+
+  assert.equal(result.text, 'Texte avec extension');
   assert.equal(result.language, 'fr');
 });
