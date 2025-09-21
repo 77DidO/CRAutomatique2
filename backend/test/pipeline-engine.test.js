@@ -9,6 +9,7 @@ import { createJobRepository } from '../src/persistence/job-store.js';
 import { createConfigRepository } from '../src/persistence/config-store.js';
 import { createTemplateRepository } from '../src/persistence/template-store.js';
 import { createPipelineEngine } from '../src/pipeline/engine.js';
+import { createOpenAiService } from '../src/services/openai-service.js';
 
 function createTempRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'cr-automatique-test-'));
@@ -167,6 +168,82 @@ test('pipeline completes job when summary generation is skipped', async () => {
     logs.some((entry) => entry.level === 'warn' && entry.message.includes('Résumé ignoré')),
     'Expected warning log when summary is skipped',
   );
+});
+
+test('pipeline completes job when placeholder OpenAI key is provided', async () => {
+  const rootDir = createTempRoot();
+  process.env.DATA_ROOT = rootDir;
+  process.env.OPENAI_API_KEY = '  sk-replace-me  ';
+
+  const logger = { info() {}, error() {}, debug() {}, warn() {} };
+  const environment = await ensureDataEnvironment({ logger });
+
+  const jobStore = await createJobRepository(environment, { logger });
+  const configStore = await createConfigRepository(environment, { logger });
+  const templateStore = await createTemplateRepository(environment, { logger });
+
+  const services = {
+    ffmpeg: {
+      async normalizeAudio({ input, output }) {
+        await fs.promises.copyFile(input, output);
+      },
+    },
+    whisper: {
+      async transcribe() {
+        return {
+          text: 'Bonjour monde',
+          segments: [
+            { start: 0, end: 1, text: 'Bonjour' },
+            { start: 1, end: 2, text: 'monde' },
+          ],
+        };
+      },
+    },
+    openai: createOpenAiService({ configStore, logger }),
+  };
+
+  const pipeline = createPipelineEngine({
+    environment,
+    jobStore,
+    configStore,
+    templateStore,
+    services,
+    logger,
+  });
+
+  const uploadPath = path.join(environment.tmpDir, 'sample.wav');
+  await fs.promises.writeFile(uploadPath, 'fake-audio');
+
+  const job = await jobStore.create({
+    filename: 'sample.wav',
+    tempPath: uploadPath,
+    templateId: 'default',
+    participants: ['Alice'],
+  });
+
+  await pipeline.enqueue(job.id);
+
+  const finalJob = await waitFor(async () => {
+    const value = await jobStore.get(job.id);
+    if (value?.status === 'completed') {
+      return value;
+    }
+    return null;
+  }, 10_000);
+
+  assert.equal(finalJob.status, 'completed');
+  assert.equal(finalJob.outputs.length, 2);
+
+  const summaryPath = path.join(environment.jobsDir, job.id, 'summary.md');
+  assert.ok(!fs.existsSync(summaryPath));
+
+  const logs = await jobStore.getLogs(job.id);
+  assert.ok(
+    logs.some((entry) => entry.level === 'warn' && entry.message.includes('Résumé ignoré')),
+    'Expected warning log when placeholder key is ignored',
+  );
+
+  delete process.env.OPENAI_API_KEY;
 });
 
 async function waitFor(checker, timeout) {
