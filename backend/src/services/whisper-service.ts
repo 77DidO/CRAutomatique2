@@ -39,7 +39,17 @@ export function createWhisperService(environment: Environment, { logger }: Creat
 
       const raw = await fs.promises.readFile(resultFile, 'utf8');
       const data = JSON.parse(raw) as Partial<WhisperTranscriptionResult> & { segments?: unknown[] };
-      const text = await fs.promises.readFile(textFile, 'utf8');
+      let text: string;
+
+      try {
+        text = await fs.promises.readFile(textFile, 'utf8');
+      } catch (error) {
+        if (!isErrorWithCode(error) || error.code !== 'ENOENT') {
+          throw error;
+        }
+
+        text = typeof data.text === 'string' ? data.text : '';
+      }
 
       const segments = Array.isArray(data.segments) ? (data.segments as WhisperTranscriptionResult['segments']) : [];
 
@@ -65,7 +75,7 @@ function buildArgs({ inputPath, outputDir, config, command }: {
     args.push('-m', 'whisper');
   }
 
-  args.push(inputPath, '--output_dir', outputDir, '--output_format', 'json');
+  args.push(inputPath, '--output_dir', outputDir, '--output_format', 'all');
   if (config.model) {
     args.push('--model', config.model);
   }
@@ -91,6 +101,10 @@ function shouldUsePythonModule(command: string | null): boolean {
 
   const normalised = path.basename(String(command)).toLowerCase();
   return normalised === 'python' || normalised.startsWith('python');
+}
+
+function isErrorWithCode(error: unknown): error is { code?: string } {
+  return typeof error === 'object' && error !== null && 'code' in error;
 }
 
 async function runProcess(command: string, args: string[], { cwd, logger }: { cwd: string; logger: Logger }): Promise<void> {
