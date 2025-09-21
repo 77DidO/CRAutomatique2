@@ -18,6 +18,15 @@
 | `npm run build` (frontend) | Bundle production |
 | `npm run preview` (frontend) | Vérification du bundle |
 
+## Conflit de port (`EADDRINUSE`)
+
+- Symptôme : le backend s'arrête immédiatement au démarrage avec un log `HTTP server failed to start` et le code d'erreur `EADDRINUSE`.
+- Actions correctives :
+  1. Vérifier qu'une autre instance n'utilise pas déjà le port (par défaut `4000`) via `lsof -i :4000` ou `netstat -ano | find "4000"`.
+  2. Arrêter l'application en conflit (ancien backend, autre service proxy, etc.).
+  3. Relancer `npm run dev` / `npm run start`.
+- Alternative : définir une nouvelle valeur de `PORT` dans l'environnement ou `.env` (ex. `PORT=4100`) puis relancer le backend.
+
 ## Déploiement
 
 1. Construire le frontend : `cd frontend && npm run build`
