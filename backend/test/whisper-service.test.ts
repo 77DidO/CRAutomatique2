@@ -232,3 +232,47 @@ test('whisper service detects json files prefixed with absolute path markers', a
   assert.equal(result.text, 'JSON avec préfixe absolu');
   assert.equal(result.language, 'fr');
 });
+
+test('whisper service détecte les json suffixés avec _wav', async () => {
+  const rootDir = createTempDir();
+  const binary = createMockWhisperBinary(rootDir, {
+    writeTextFile: false,
+    textContent: 'Ne sera pas écrit',
+    jsonText: 'JSON suffixé _wav',
+    jsonFileNameTemplate: '%BASE%_wav.json',
+  });
+
+  const environment = createEnvironment(rootDir, binary);
+  const service = createWhisperService(environment, { logger });
+
+  const inputPath = path.join(rootDir, 'wav-suffix.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const outputDir = path.join(rootDir, 'outputs');
+  const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
+
+  assert.equal(result.text, 'JSON suffixé _wav');
+  assert.equal(result.language, 'fr');
+});
+
+test('whisper service détecte les json contenant espaces et tirets', async () => {
+  const rootDir = createTempDir();
+  const binary = createMockWhisperBinary(rootDir, {
+    writeTextFile: false,
+    textContent: 'Ne sera pas écrit',
+    jsonText: 'JSON avec espaces et tirets',
+    jsonFileNameTemplate: 'Résultat final - %BASE% .json',
+  });
+
+  const environment = createEnvironment(rootDir, binary);
+  const service = createWhisperService(environment, { logger });
+
+  const inputPath = path.join(rootDir, 'espace-tiret.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const outputDir = path.join(rootDir, 'outputs');
+  const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
+
+  assert.equal(result.text, 'JSON avec espaces et tirets');
+  assert.equal(result.language, 'fr');
+});
