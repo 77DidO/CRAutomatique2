@@ -252,6 +252,110 @@ test('pipeline completes job when placeholder OpenAI key is provided', async () 
   delete process.env.OPENAI_API_KEY;
 });
 
+test('pipeline handles job removal while queued and processing', async () => {
+  const rootDir = createTempRoot();
+  process.env.DATA_ROOT = rootDir;
+  process.env.OPENAI_API_KEY = 'test-key';
+
+  const logger = createLogger();
+  const environment = await ensureDataEnvironment({ logger });
+
+  const jobStore = await createJobRepository(environment, { logger });
+  const configStore = await createConfigRepository(environment, { logger });
+  const templateStore = await createTemplateRepository(environment, { logger });
+
+  const services: Services = {
+    ffmpeg: {
+      async normalizeAudio({ input, output }) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        await fs.promises.copyFile(input, output);
+      },
+    },
+    whisper: {
+      async transcribe(): Promise<WhisperTranscriptionResult> {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return {
+          model: 'base',
+          text: 'Bonjour monde',
+          segments: [
+            { start: 0, end: 1, text: 'Bonjour' },
+            { start: 1, end: 2, text: 'monde' },
+          ],
+          language: 'fr',
+        };
+      },
+    },
+    openai: {
+      async generateSummary(): Promise<SummaryResult> {
+        return { markdown: '# Résumé\n- Point clé' };
+      },
+    },
+  };
+
+  const pipeline = createPipelineEngine({
+    environment,
+    jobStore,
+    configStore,
+    templateStore,
+    services,
+    logger,
+  });
+
+  async function createJob(filename: string): Promise<Job> {
+    const uploadPath = path.join(environment.tmpDir, filename);
+    await fs.promises.writeFile(uploadPath, 'fake-audio');
+    return jobStore.create({
+      filename,
+      tempPath: uploadPath,
+      templateId: 'default',
+      participants: ['Alice'],
+    });
+  }
+
+  const processingJob = await createJob('processing-source.wav');
+  await pipeline.enqueue(processingJob.id);
+
+  await waitFor<Job>(async () => {
+    const value = await jobStore.get(processingJob.id);
+    return value?.status === 'processing' ? value : null;
+  }, 5_000);
+
+  const queuedJob = await createJob('queued-source.wav');
+  await pipeline.enqueue(queuedJob.id);
+
+  await jobStore.remove(queuedJob.id);
+
+  const completedProcessingJob = await waitFor<Job>(async () => {
+    const value = await jobStore.get(processingJob.id);
+    return value?.status === 'completed' ? value : null;
+  }, 10_000);
+  assert.equal(completedProcessingJob?.status, 'completed');
+
+  await waitFor(async () => {
+    const internals = pipeline as unknown as { queue: string[]; running: Set<string> };
+    const value = await jobStore.get(queuedJob.id);
+    return internals.queue.length === 0 && internals.running.size === 0 && value === null ? true : null;
+  }, 5_000);
+
+  const jobRemovedDuringProcessing = await createJob('processing-source-2.wav');
+  await pipeline.enqueue(jobRemovedDuringProcessing.id);
+
+  await waitFor<Job>(async () => {
+    const value = await jobStore.get(jobRemovedDuringProcessing.id);
+    return value?.status === 'processing' ? value : null;
+  }, 5_000);
+
+  await jobStore.remove(jobRemovedDuringProcessing.id);
+
+  await waitFor(async () => {
+    const internals = pipeline as unknown as { queue: string[]; running: Set<string> };
+    const value = await jobStore.get(jobRemovedDuringProcessing.id);
+    return internals.queue.length === 0 && internals.running.size === 0 && value === null ? true : null;
+  }, 10_000);
+
+  delete process.env.OPENAI_API_KEY;
+});
+
 async function waitFor<T>(checker: () => Promise<T | null>, timeout: number): Promise<T> {
   const started = Date.now();
   while (Date.now() - started < timeout) {
