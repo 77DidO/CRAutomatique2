@@ -1,8 +1,12 @@
 import path from 'node:path';
-import fs from 'node:fs';
 import { ensureDirectory, ensureFile } from './fs.js';
+import type { AppConfig, Environment, Logger, Template } from '../types/index.js';
 
-export async function ensureDataEnvironment({ logger }) {
+interface EnsureDataEnvironmentOptions {
+  logger: Logger;
+}
+
+export async function ensureDataEnvironment({ logger }: EnsureDataEnvironmentOptions): Promise<Environment> {
   const rootDir = process.env.DATA_ROOT || path.join(process.cwd(), 'data');
   const jobsDir = path.join(rootDir, 'jobs');
   const uploadsDir = path.join(rootDir, 'uploads');
@@ -37,7 +41,7 @@ export async function ensureDataEnvironment({ logger }) {
   };
 }
 
-function defaultConfig() {
+function defaultConfig(): AppConfig {
   return {
     whisper: {
       model: 'base',
@@ -60,7 +64,7 @@ function defaultConfig() {
   };
 }
 
-function defaultTemplates() {
+function defaultTemplates(): { templates: Template[] } {
   return {
     templates: [
       {

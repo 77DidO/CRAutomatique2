@@ -1,8 +1,8 @@
 import { createServer } from './server.js';
 
-async function main() {
+async function main(): Promise<void> {
   const server = await createServer();
-  const port = process.env.PORT || 4000;
+  const port = Number(process.env.PORT ?? 4000);
 
   await server.start(port);
 }

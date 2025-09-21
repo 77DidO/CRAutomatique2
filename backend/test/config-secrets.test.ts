@@ -3,20 +3,29 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
-
 import { ensureDataEnvironment } from '../src/utils/data-environment.js';
 import { createConfigRepository } from '../src/persistence/config-store.js';
 import { maskSecrets, sanitisePayload } from '../src/http/routes/config-router.helpers.js';
+import type { Logger } from '../src/types/index.js';
 
-function createTempRoot() {
+function createTempRoot(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'cr-config-secrets-test-'));
+}
+
+function createLogger(): Logger {
+  return {
+    info() {},
+    error() {},
+    debug() {},
+    warn() {},
+  };
 }
 
 test('maskSecrets hides the API key and reports its presence', async () => {
   const rootDir = createTempRoot();
   process.env.DATA_ROOT = rootDir;
 
-  const logger = { info() {}, error() {}, debug() {}, warn() {} };
+  const logger = createLogger();
   const environment = await ensureDataEnvironment({ logger });
   const configStore = await createConfigRepository(environment, { logger });
 

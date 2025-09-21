@@ -1,15 +1,17 @@
-export function createLogger() {
+import type { LogLevel, Logger } from '../types/index.js';
+
+export function createLogger(): Logger {
   return {
-    info(payload, message) {
+    info(payload: unknown, message?: string) {
       logWithLevel('info', payload, message);
     },
-    error(payload, message) {
+    error(payload: unknown, message?: string) {
       logWithLevel('error', payload, message);
     },
-    warn(payload, message) {
+    warn(payload: unknown, message?: string) {
       logWithLevel('warn', payload, message);
     },
-    debug(payload, message) {
+    debug(payload: unknown, message?: string) {
       if (process.env.LOG_LEVEL === 'debug') {
         logWithLevel('debug', payload, message);
       }
@@ -17,17 +19,16 @@ export function createLogger() {
   };
 }
 
-function logWithLevel(level, payload, message) {
+function logWithLevel(level: LogLevel, payload: unknown, message?: string): void {
   const time = new Date().toISOString();
-  const entry = { level, time };
+  const entry: Record<string, unknown> = { level, time };
   if (typeof message === 'undefined' && typeof payload === 'string') {
     entry.message = payload;
   } else {
-    entry.message = message || '';
-    if (payload) {
+    entry.message = message ?? '';
+    if (typeof payload !== 'undefined') {
       entry.payload = payload;
     }
   }
-  // eslint-disable-next-line no-console
   console.log(JSON.stringify(entry));
 }
