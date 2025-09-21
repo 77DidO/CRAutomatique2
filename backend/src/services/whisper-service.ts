@@ -178,16 +178,20 @@ function isMatchingWhisperJson(fileName: string, prefixes: string[]): boolean {
       continue;
     }
 
-    if (fileName === `${prefix}.json` || fileName === `${prefix}.jsonl`) {
-      return true;
-    }
+    for (const extension of ['.json', '.jsonl']) {
+      const target = `${prefix}${extension}`;
 
-    if (fileName.startsWith(`${prefix}.json`)) {
-      return true;
-    }
+      if (fileName === target) {
+        return true;
+      }
 
-    if (fileName.startsWith(`${prefix}.jsonl`)) {
-      return true;
+      if (fileName.startsWith(target)) {
+        return true;
+      }
+
+      if (fileName.endsWith(target)) {
+        return true;
+      }
     }
   }
 
