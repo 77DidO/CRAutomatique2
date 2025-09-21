@@ -6,6 +6,7 @@ import { exportStep } from './steps/export-step.js';
 import type {
   ConfigStore,
   Environment,
+  HttpError,
   Job,
   JobStore,
   Logger,
@@ -96,9 +97,18 @@ export class PipelineEngine {
       await this.runJob(nextId);
     } catch (unknownError) {
       const error = normaliseError(unknownError);
-      this.logger.error({ error, jobId: nextId }, 'Pipeline execution failed');
-      await this.jobStore.update(nextId, { status: 'failed' });
-      await this.jobStore.appendLog(nextId, `Pipeline failed: ${error.message}`, 'error');
+      if (isCancelledError(error)) {
+        this.logger.info({ jobId: nextId }, 'Pipeline job cancelled before completion');
+        await this.jobStore.update(nextId, { status: 'failed' });
+        await this.jobStore.appendLog(nextId, 'Pipeline annulé par l’utilisateur', 'warn');
+      } else {
+        this.logger.error(
+          { error: serialiseError(error), jobId: nextId },
+          'Pipeline execution failed',
+        );
+        await this.jobStore.update(nextId, { status: 'failed' });
+        await this.jobStore.appendLog(nextId, `Pipeline failed: ${error.message}`, 'error');
+      }
     } finally {
       this.running.delete(nextId);
       this.cancellations.delete(nextId);
@@ -182,4 +192,13 @@ function normaliseError(error: unknown): Error {
     return new Error(error);
   }
   return new Error('Unknown error');
+}
+
+function isCancelledError(error: Error): error is HttpError {
+  return typeof (error as Partial<HttpError>).status === 'number' && (error as Partial<HttpError>).status === 499;
+}
+
+function serialiseError(error: Error): { message: string; name: string; stack?: string } {
+  const { message, name, stack } = error;
+  return typeof stack === 'string' ? { message, name, stack } : { message, name };
 }
