@@ -1,6 +1,45 @@
 import React, { useEffect, useState } from 'react';
+import '../styles/config-panel.css';
 
 const computeTypes = ['auto', 'int8', 'float32'];
+
+const whisperModels = [
+  {
+    name: 'tiny',
+    description: 'Le plus rapide, qualité basique',
+    multilingual: true,
+    sizeInMemory: '~1 GB',
+    relativeDuration: '~32x plus rapide que temps réel'
+  },
+  {
+    name: 'base',
+    description: 'Rapide, qualité correcte',
+    multilingual: true,
+    sizeInMemory: '~1 GB',
+    relativeDuration: '~16x plus rapide que temps réel'
+  },
+  {
+    name: 'small',
+    description: 'Équilibre vitesse/qualité',
+    multilingual: true,
+    sizeInMemory: '~2 GB',
+    relativeDuration: '~6x plus rapide que temps réel'
+  },
+  {
+    name: 'medium',
+    description: 'Haute qualité, plus lent',
+    multilingual: true,
+    sizeInMemory: '~5 GB',
+    relativeDuration: '~2x plus rapide que temps réel'
+  },
+  {
+    name: 'large-v3',
+    description: 'Meilleure qualité possible',
+    multilingual: true,
+    sizeInMemory: '~10 GB',
+    relativeDuration: '~1x temps réel'
+  }
+];
 
 export default function ConfigPanel({ config, onSave }) {
   const [localConfig, setLocalConfig] = useState(config);
@@ -82,11 +121,22 @@ export default function ConfigPanel({ config, onSave }) {
           <legend>Whisper local</legend>
           <div className="input-group">
             <label htmlFor="whisper-model">Modèle</label>
-            <input
+            <select
               id="whisper-model"
               value={localConfig.whisper.model}
               onChange={(event) => updateSection(['whisper', 'model'], event.target.value)}
-            />
+            >
+              {whisperModels.map((model) => (
+                <option key={model.name} value={model.name}>
+                  {model.name} - {model.description}
+                </option>
+              ))}
+            </select>
+            <small className="help-text">
+              {whisperModels.find(m => m.name === localConfig.whisper.model)?.relativeDuration}
+              {' • '}
+              {whisperModels.find(m => m.name === localConfig.whisper.model)?.sizeInMemory} de mémoire requise
+            </small>
           </div>
           <div className="input-group">
             <label htmlFor="whisper-language">Langue (optionnel)</label>

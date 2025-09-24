@@ -1,9 +1,25 @@
 import type { ConfigStore, Logger } from '../types/index.js';
 
-const REQUIRED: string[] = [];
+const REQUIRED: Array<{ key: string; message: string }> = [
+  { 
+    key: 'DATA_ROOT',
+    message: 'Le dossier de données est requis pour le stockage des fichiers'
+  },
+];
 
 const OPTIONAL_WARNINGS: Array<{ key: string; message: string }> = [
-  { key: 'OPENAI_API_KEY', message: "OPENAI_API_KEY manquant : la génération de résumés échouera tant qu'une clé n'est pas fournie." },
+  { 
+    key: 'OPENAI_API_KEY',
+    message: "OPENAI_API_KEY manquant : la génération de résumés échouera tant qu'une clé n'est pas fournie."
+  },
+  {
+    key: 'WHISPER_PYTHON_PATH',
+    message: "WHISPER_PYTHON_PATH non défini : utilisation du chemin par défaut du venv"
+  },
+  {
+    key: 'FFMPEG_PATH',
+    message: "FFMPEG_PATH non défini : utilisation de l'installation système"
+  },
 ];
 
 interface ValidateEnvironmentOptions {
@@ -11,11 +27,42 @@ interface ValidateEnvironmentOptions {
   configStore?: ConfigStore;
 }
 
+import fs from 'node:fs';
+
+async function checkExecutableExists(path: string | null | undefined): Promise<boolean> {
+  if (!path) return false;
+  try {
+    await fs.promises.access(path, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function validateEnvironment({ logger, configStore }: ValidateEnvironmentOptions = {}): Promise<void> {
-  for (const key of REQUIRED) {
-    if (!process.env[key]) {
-      throw new Error(`Variable d'environnement obligatoire manquante : ${key}`);
+  // Validation des variables requises
+  for (const required of REQUIRED) {
+    if (!process.env[required.key]) {
+      throw new Error(required.message || `Variable d'environnement obligatoire manquante : ${required.key}`);
     }
+  }
+
+  // Vérification des exécutables
+  const pythonPath = process.env.WHISPER_PYTHON_PATH || "C:\\Projets\\portefeuille\\.venv\\Scripts\\python.exe";
+  const ffmpegPath = process.env.FFMPEG_PATH;
+
+  if (!(await checkExecutableExists(pythonPath))) {
+    logger?.warn(
+      { path: pythonPath },
+      "L'exécutable Python n'est pas accessible. Vérifiez le chemin WHISPER_PYTHON_PATH"
+    );
+  }
+
+  if (ffmpegPath && !(await checkExecutableExists(ffmpegPath))) {
+    logger?.warn(
+      { path: ffmpegPath },
+      "L'exécutable FFmpeg n'est pas accessible. Vérifiez le chemin FFMPEG_PATH"
+    );
   }
 
   for (const warning of OPTIONAL_WARNINGS) {

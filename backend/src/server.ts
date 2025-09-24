@@ -102,7 +102,14 @@ export async function createServer(
   });
 
   return {
-    start(port: number) {
+    async start(port: number) {
+      const { waitForPortAvailable } = await import('./utils/port-check.js');
+      
+      // Attendre que le port soit disponible
+      if (!await waitForPortAvailable(port)) {
+        throw new Error(`Le port ${port} n'est pas disponible après plusieurs tentatives`);
+      }
+      
       return new Promise<{ serverInstance: Server }>((resolve, reject) => {
         let eventedServer: {
           addListener(event: 'error', listener: (error: ListenError) => void): void;

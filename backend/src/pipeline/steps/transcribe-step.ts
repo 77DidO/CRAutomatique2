@@ -1,4 +1,5 @@
 import path from 'node:path';
+import fs from 'node:fs';
 import type { PipelineContext } from '../../types/index.js';
 
 export async function transcribeStep(context: PipelineContext): Promise<void> {
@@ -8,6 +9,26 @@ export async function transcribeStep(context: PipelineContext): Promise<void> {
     throw new Error('Chemin audio préparé introuvable pour la transcription');
   }
   const transcriptDir = path.join(environment.jobsDir, job.id, 'transcript');
+  
+  // Fonction d'attente
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  
+  // Tentative de nettoyage avec plusieurs essais
+  for (let i = 0; i < 3; i++) {
+    try {
+      if (fs.existsSync(transcriptDir)) {
+        await fs.promises.rm(transcriptDir, { recursive: true, force: true });
+      }
+      break; // Si on arrive ici, c'est que ça a fonctionné
+    } catch (error) {
+      if (i === 2) { // Dernier essai
+        logger.warn({ error }, 'Échec du nettoyage du dossier de transcription après plusieurs tentatives');
+      } else {
+        logger.info(`Tentative ${i + 1} de nettoyage du dossier échouée, nouvelle tentative dans 1s...`);
+        await sleep(1000); // Attendre 1 seconde avant de réessayer
+      }
+    }
+  }
 
   await jobStore.appendLog(job.id, 'Transcription locale (Whisper)');
   logger.info(

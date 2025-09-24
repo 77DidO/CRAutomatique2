@@ -1,5 +1,5 @@
 const origin = window.location.origin.replace(/\/$/, '');
-const fallback = origin.includes('5173') ? origin.replace(/:\d+$/, ':4000') : origin;
+const fallback = origin.includes('5173') ? origin.replace(/:\d+$/, ':4001') : origin;
 const API_BASE = import.meta.env.VITE_BACKEND_URL || fallback;
 
 async function request(path, options = {}) {

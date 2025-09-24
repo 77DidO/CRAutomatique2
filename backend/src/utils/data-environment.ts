@@ -25,7 +25,7 @@ export async function ensureDataEnvironment({ logger }: EnsureDataEnvironmentOpt
   ensureFile(templatesFile, JSON.stringify(defaultTemplates(), null, 2));
   ensureFile(jobsFile, JSON.stringify({ jobs: [], logs: {} }, null, 2));
 
-  const whisperBinary = process.env.WHISPER_PATH || 'python';
+  const whisperBinary = process.env.WHISPER_PYTHON_PATH || 'python';
   const ffmpegBinary = process.env.FFMPEG_PATH || null;
 
   return {

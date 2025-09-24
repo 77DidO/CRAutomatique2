@@ -50,13 +50,62 @@ export interface JobsFilePayload {
   logs: Record<string, JobLogEntry[]>;
 }
 
+export type WhisperModelSize = 'tiny' | 'base' | 'small' | 'medium' | 'large' | 'large-v2' | 'large-v3';
+
+export interface WhisperModelInfo {
+  name: WhisperModelSize;
+  description: string;
+  multilingual: boolean;
+  sizeInMemory: string;
+  relativeDuration: string;
+}
+
+export const WHISPER_MODELS: WhisperModelInfo[] = [
+  {
+    name: 'tiny',
+    description: 'Le plus rapide, qualité basique',
+    multilingual: true,
+    sizeInMemory: '~1 GB',
+    relativeDuration: '~32x plus rapide que temps réel'
+  },
+  {
+    name: 'base',
+    description: 'Rapide, qualité correcte',
+    multilingual: true,
+    sizeInMemory: '~1 GB',
+    relativeDuration: '~16x plus rapide que temps réel'
+  },
+  {
+    name: 'small',
+    description: 'Équilibre vitesse/qualité',
+    multilingual: true,
+    sizeInMemory: '~2 GB',
+    relativeDuration: '~6x plus rapide que temps réel'
+  },
+  {
+    name: 'medium',
+    description: 'Haute qualité, plus lent',
+    multilingual: true,
+    sizeInMemory: '~5 GB',
+    relativeDuration: '~2x plus rapide que temps réel'
+  },
+  {
+    name: 'large-v3',
+    description: 'Meilleure qualité possible',
+    multilingual: true,
+    sizeInMemory: '~10 GB',
+    relativeDuration: '~1x temps réel'
+  }
+];
+
 export interface WhisperConfig {
-  model: string;
+  model: WhisperModelSize;
   language: string | null;
   computeType: string;
   batchSize: number;
   vad: boolean;
   chunkDuration: number;
+  timeout?: number; // Timeout en millisecondes pour la transcription
 }
 
 export interface LlmConfig {
