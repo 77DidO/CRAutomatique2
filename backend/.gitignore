@@ -3,3 +3,6 @@ coverage
 data
 tmp
 dist
+backend/tools/**/bin/*.exe
+backend/tools/bin/
+backend/tools/ffmpeg/ffmpeg-master-latest-win64-gpl/bin/

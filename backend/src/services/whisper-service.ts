@@ -142,59 +142,107 @@ try:
     model_name = "${config.model}"
     model_id = f"openai/whisper-{model_name}"
     print(f"Loading model: {model_id}")
-    ov_model = OVModelForSpeechSeq2Seq.from_pretrained(model_id, export=True)
-    processor = AutoProcessor.from_pretrained(model_id)
     
-    # Set OpenVINO backend options for better performance
-    ov_model.half()  # Use FP16 for better performance
-    ov_model.set_providers(["CPUExecutionProvider"])
-    
-    # Load audio file
-    print(f"Processing audio file: {input_path}")
-    audio_input = whisper.load_audio(input_path)
-    
-    # Process audio with OpenVINO optimized model
-    inputs = processor(audio_input, return_tensors="pt", sampling_rate=16000)
-    
-    print("Starting transcription...")
-    generated_ids = ov_model.generate(
-        inputs["input_features"],
-        language="${config.language || 'fr'}",
-        task="transcribe",
-        return_timestamps=True
+    # Load processor first with fast tokenizer
+    processor = WhisperProcessor.from_pretrained(
+        model_id,
+        use_fast=True
     )
     
-    # Decode the generated IDs to text
-    transcription = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+    # Load and convert model to OpenVINO with optimized configuration
+    ov_model = OVModelForSpeechSeq2Seq.from_pretrained(
+        model_id,
+        export=True,
+        trust_remote_code=True,
+        load_in_8bit=False,
+        device="CPU",
+        optimize_model=True,
+        use_cache=True,  # Enable KV cache for better performance
+        use_flash_attention_2=False  # Disable flash attention for better compatibility
+    )
     
-    # Prepare the result dictionary
+    # Process audio data
+    print(f"Processing audio file: {input_path}")
+    audio = whisper.load_audio(input_path)
+    audio = whisper.pad_or_trim(audio)
+    
+    # Convert to feature inputs
+    inputs = processor(audio, sampling_rate=16000, return_tensors="pt")
+    input_features = inputs.input_features
+    
+    # Generate with explicit forced decoder ids for language
+    forced_decoder_ids = processor.get_decoder_prompt_ids(language="${config.language || 'fr'}", task="transcribe")
+    attention_mask = torch.ones_like(input_features, dtype=torch.long)
+    
+    # Run generation
+    print("Starting transcription with OpenVINO...")
+    
+    # Configure generation parameters
+    generation_config = {
+        "task": "transcribe",
+        "language": "${config.language || 'fr'}",
+        "return_timestamps": True,
+        "use_cache": True,
+        "num_beams": 1,
+        "max_new_tokens": 445,  # Réduit pour tenir compte des tokens spéciaux
+        "forced_decoder_ids": forced_decoder_ids,
+        "attention_mask": attention_mask,
+        "return_dict_in_generate": True,
+        "temperature": 0,
+        "suppress_tokens": None  # Désactive la suppression de tokens par défaut
+    }
+    
+    print("Running generation...")
+    outputs = ov_model.generate(
+        input_features,
+        **generation_config
+    )
+    
+    print("Processing transcription output...")
+    transcription = None
+    segments = []
+    
+    if hasattr(outputs, "sequences"):
+        # Process main transcription
+        transcription = processor.batch_decode(
+            outputs.sequences, 
+            skip_special_tokens=True
+        )[0]
+        
+        # Extract segments if available
+        if hasattr(outputs, "segments"):
+            for segment in outputs.segments:
+                text = processor.decode(segment["tokens"], skip_special_tokens=True)
+                if text.strip():
+                    segments.append({
+                        "id": len(segments),
+                        "text": text,
+                        "start": segment.get("start", 0),
+                        "end": segment.get("end", 0)
+                    })
+    else:
+        # Fallback for direct sequence output
+        transcription = processor.batch_decode(
+            outputs,
+            skip_special_tokens=True
+        )[0]
+    
+    # Ensure we have a transcription
+    if not transcription:
+        raise ValueError("La transcription a échoué - pas de sortie valide du modèle")
+    
+    # Prepare the final result dictionary
     result = {
         "text": transcription,
-        "segments": [],
+        "segments": segments,
         "language": "${config.language || 'fr'}"
     }
 
-    # Clean up any previous model to free memory
-    if 'last_model' in globals():
-        del globals()['last_model']
-        import gc
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
-    # Store current model for future cleanup
-    globals()['last_model'] = model
-
-    # Transcribe with explicit parameters
-    result = model.transcribe(
-        input_path,
-        language="${config.language || 'fr'}",
-        verbose=True,
-        task="transcribe",
-        temperature=0,
-        best_of=1,
-        beam_size=1
-    )
+    # Clean up memory
+    import gc
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     # Sauvegarder en JSON
     json_path = os.path.join(output_dir, "transcription.json")
