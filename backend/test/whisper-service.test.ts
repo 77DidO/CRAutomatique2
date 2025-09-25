@@ -476,3 +476,60 @@ test('whisper service throws when no textual output can be recovered', async () 
     /Whisper output missing textual data: no JSON, TXT, TSV, or VTT transcripts were produced\./u,
   );
 });
+
+test('python-based transcription script includes WhisperProcessor import', async () => {
+  const rootDir = createTempDir();
+  const outputDir = path.join(rootDir, 'outputs');
+  const pythonMockPath = path.join(rootDir, 'mock-python-interpreter.mjs');
+
+  const mockPythonScript = `#!/usr/bin/env node\n`
+    + `import fs from 'node:fs';\n`
+    + `import path from 'node:path';\n`
+    + `const [scriptPath] = process.argv.slice(2);\n`
+    + `if (!scriptPath) {\n`
+    + `  console.error('Missing script path');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `const content = fs.readFileSync(scriptPath, 'utf8');\n`
+    + `if (!content.includes('from transformers import WhisperProcessor as _WhisperProcessor')) {\n`
+    + `  console.error('WhisperProcessor import is missing');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('AutoProcessor.from_pretrained')) {\n`
+    + `  console.error('AutoProcessor fallback is missing');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('WhisperProcessor unavailable; falling back to AutoProcessor')) {\n`
+    + `  console.error('Missing WhisperProcessor fallback log');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('Failed to initialize WhisperProcessor (')) {\n`
+    + `  console.error('Missing WhisperProcessor failure diagnostic');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `const directory = path.dirname(scriptPath);\n`
+    + `const transcriptPath = path.join(directory, 'transcript.json');\n`
+    + `const result = {\n`
+    + `  text: 'Texte transcrit',\n`
+    + `  language: 'fr',\n`
+    + `  segments: [{ start: 0, end: 1.5, text: 'Bonjour tout le monde' }],\n`
+    + `};\n`
+    + `fs.writeFileSync(transcriptPath, JSON.stringify(result));\n`
+    + `console.log(JSON.stringify(result));\n`
+    + `process.exit(0);\n`;
+
+  fs.writeFileSync(pythonMockPath, mockPythonScript, { mode: 0o755 });
+
+  const environment = createEnvironment(rootDir, pythonMockPath);
+  const service = createWhisperService(environment, { logger });
+
+  const inputPath = path.join(rootDir, 'input.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const result = await service.transcribe({ inputPath, outputDir, config: { ...baseConfig, model: 'medium' } });
+
+  assert.equal(result.text, 'Texte transcrit');
+  assert.equal(result.language, 'fr');
+  assert.equal(result.model, 'medium');
+  assert.deepEqual(result.segments, [{ start: 0, end: 1.5, text: 'Bonjour tout le monde' }]);
+});
