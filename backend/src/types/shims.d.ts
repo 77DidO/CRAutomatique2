@@ -85,6 +85,17 @@ declare module 'node:fs' {
   export default fs;
 }
 
+declare module 'node:net' {
+  interface Server {
+    listen(port: number): void;
+    close(): void;
+    once(event: string, listener: (...args: unknown[]) => void): void;
+  }
+  function createServer(): Server;
+  const net: { createServer: typeof createServer };
+  export default net;
+}
+
 declare module 'node:crypto' {
   export function randomUUID(): string;
 }

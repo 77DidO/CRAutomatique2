@@ -15,274 +15,463 @@ interface CreateWhisperServiceOptions {
   logger: Logger;
 }
 
-async function validatePythonEnvironment(pythonPath: string, logger: Logger): Promise<void> {
-  try {
-    // First check if Python exists and print its path
-    await runProcess(pythonPath, ["-c", "import sys; print(f'Using Python: {sys.executable}')"], { cwd: process.cwd(), logger });
-    
-    // Then check if we can import whisper and verify it's using the correct environment
-    const checkScript = "import whisper; print(f'Whisper version: {whisper.__version__}')";
-    await runProcess(pythonPath, ["-c", checkScript], { cwd: process.cwd(), logger });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erreur inconnue';
-    throw new Error(`Environnement Python invalide: ${message}`);
-  }
+type TranscriptFallbackType = 'txt' | 'tsv' | 'vtt';
+
+type ParsedPathInfo = ReturnType<typeof path.parse>;
+
+type AlternativeTranscript = {
+  type: Exclude<TranscriptFallbackType, 'txt'>;
+  path: string;
+  segments: WhisperTranscriptionSegment[];
+};
+
+interface RunProcessOptions {
+  cwd: string;
+  logger: Logger;
+  timeout?: number;
 }
 
-async function runProcess(
-  command: string,
-  args: string[],
-  { cwd, logger, timeout = 300000 }: { cwd: string; logger: Logger; timeout?: number }
-): Promise<void> {
+function isErrorWithCode(error: unknown): error is { code: string } {
+  return Boolean(error && typeof error === 'object' && 'code' in error);
+}
+
+async function runProcess(command: string, args: string[], { cwd, logger, timeout }: RunProcessOptions): Promise<void> {
   await new Promise<void>((resolve, reject) => {
-    logger.info({ command, args, cwd }, 'Démarrage du processus');
-    
+    logger.info({ command, args, cwd }, 'Démarrage du processus Whisper');
+
     const child = spawn(command, args, { cwd });
     let stdout = '';
     let stderr = '';
 
-    const timer = setTimeout(() => {
-      child.kill();
-      reject(new Error(`Processus arrêté après ${timeout}ms d'exécution`));
-    }, timeout);
+    const timer = timeout
+      ? setTimeout(() => {
+          child.kill();
+          reject(new Error(`Processus Whisper arrêté après ${timeout}ms d'exécution`));
+        }, timeout)
+      : null;
 
     child.stdout.on('data', (chunk: unknown) => {
       const value = typeof chunk === 'string' ? chunk : String(chunk);
       stdout += value;
-      logger.info({ chunk: value }, 'Sortie de la commande');
+      logger.info({ chunk: value }, 'Sortie Whisper');
     });
 
     child.stderr.on('data', (chunk: unknown) => {
       const value = typeof chunk === 'string' ? chunk : String(chunk);
       stderr += value;
-      logger.warn({ chunk: value }, 'Erreur de la commande');
+      logger.warn({ chunk: value }, 'Erreur Whisper');
     });
 
     child.on('error', (error: Error) => {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       reject(error);
     });
 
     child.on('close', (code: number | null) => {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       if (code !== 0) {
-        reject(new Error(`Processus terminé avec le code ${code}:\n${stderr}`));
+        reject(new Error(`Processus Whisper terminé avec le code ${code}:\n${stderr}`));
         return;
       }
+
       logger.info(
         { stdout: stdout.substring(0, 500), stderr: stderr.substring(0, 500) },
-        'Processus terminé avec succès'
+        'Processus Whisper terminé avec succès'
       );
       resolve();
     });
   });
 }
 
-export function createWhisperService(environment: Environment, { logger }: CreateWhisperServiceOptions): WhisperService {
-  // Use absolute path to the virtual environment's Python
-  const pythonPath = environment.whisperBinary || 
-    process.env.WHISPER_PYTHON_PATH || 
-    path.resolve(process.cwd(), '.venv', 'Scripts', 'python.exe');
+async function readDirectoryRecursive(dir: string): Promise<string[]> {
+  const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+  const files: string[] = [];
 
-  validatePythonEnvironment(pythonPath, logger).catch(error => {
-    logger.error({ error }, "Échec de validation de l'environnement Python");
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await readDirectoryRecursive(fullPath)));
+    } else {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
+
+function scoreCandidate(filePath: string, parsed: ParsedPathInfo): number {
+  const baseName = parsed.name.toLowerCase();
+  const baseWithExtension = parsed.base.toLowerCase();
+  const fileName = path.basename(filePath).toLowerCase();
+  let score = 0;
+
+  if (fileName.includes(baseWithExtension)) {
+    score += 4;
+  }
+
+  if (fileName.includes(baseName)) {
+    score += 3;
+  }
+
+  if (fileName.startsWith(baseName)) {
+    score += 1;
+  }
+
+  if (fileName.startsWith(baseWithExtension)) {
+    score += 1;
+  }
+
+  // Penalise deeply nested matches to prefer simple layouts
+  const depth = filePath.split(path.sep).length;
+  score -= depth * 0.01;
+
+  return score;
+}
+
+function findBestMatchingFile(files: string[], parsed: ParsedPathInfo, extension: string): string | null {
+  const lowerExt = extension.toLowerCase();
+  const candidates = files.filter((file) => file.toLowerCase().endsWith(lowerExt));
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  candidates.sort((a, b) => {
+    const scoreDiff = scoreCandidate(b, parsed) - scoreCandidate(a, parsed);
+    if (scoreDiff !== 0) {
+      return scoreDiff;
+    }
+
+    return a.length - b.length;
   });
 
+  return candidates[0] ?? null;
+}
+
+function parseJsonSegments(data: unknown): WhisperTranscriptionSegment[] {
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  const segments: WhisperTranscriptionSegment[] = [];
+
+  for (const segment of data) {
+    if (!segment || typeof segment !== 'object') {
+      continue;
+    }
+
+    const { start, end, text } = segment as { start?: unknown; end?: unknown; text?: unknown };
+    const parsedStart = typeof start === 'number' ? start : Number.parseFloat(String(start ?? ''));
+    const parsedEnd = typeof end === 'number' ? end : Number.parseFloat(String(end ?? ''));
+    const parsedText = typeof text === 'string' ? text.trim() : '';
+
+    if (!Number.isNaN(parsedStart) && !Number.isNaN(parsedEnd) && parsedText.length > 0) {
+      segments.push({ start: parsedStart, end: parsedEnd, text: parsedText });
+    }
+  }
+
+  return segments;
+}
+
+function parseTsvSegments(content: string): WhisperTranscriptionSegment[] {
+  const lines = content.split(/\r?\n/u).map((line) => line.trim()).filter((line) => line.length > 0);
+  if (lines.length === 0) {
+    return [];
+  }
+
+  const segments: WhisperTranscriptionSegment[] = [];
+
+  for (const line of lines) {
+    const [startRaw, endRaw, ...textParts] = line.split('\t');
+    if (!startRaw || !endRaw || textParts.length === 0) {
+      continue;
+    }
+
+    // Skip header rows
+    if (startRaw.toLowerCase() === 'start' && endRaw.toLowerCase() === 'end') {
+      continue;
+    }
+
+    const start = Number.parseFloat(startRaw);
+    const end = Number.parseFloat(endRaw);
+    const text = textParts.join('\t').trim();
+
+    if (!Number.isNaN(start) && !Number.isNaN(end) && text.length > 0) {
+      segments.push({ start, end, text });
+    }
+  }
+
+  return segments;
+}
+
+function parseTimestamp(value: string): number | null {
+  const match = value.trim().match(/^(\d{1,2}):(\d{2}):(\d{2})\.(\d{3})$/u);
+  if (!match) {
+    return null;
+  }
+
+  const [, hours, minutes, seconds, milliseconds] = match;
+  const totalSeconds = Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds) + Number(milliseconds) / 1000;
+  return Number.isFinite(totalSeconds) ? totalSeconds : null;
+}
+
+function parseVttSegments(content: string): WhisperTranscriptionSegment[] {
+  const sanitized = content.replace(/^\uFEFF/u, '').trim();
+  if (sanitized.length === 0) {
+    return [];
+  }
+
+  const blocks = sanitized
+    .split(/\r?\n\r?\n/u)
+    .map((block) => block.trim())
+    .filter((block) => block.length > 0 && block.toUpperCase() !== 'WEBVTT');
+
+  const segments: WhisperTranscriptionSegment[] = [];
+
+  for (const block of blocks) {
+    const lines = block.split(/\r?\n/u).filter((line) => line.trim().length > 0);
+    if (lines.length < 2) {
+      continue;
+    }
+
+    const timingLine = lines[0]?.trim();
+    const cueMatch = timingLine.match(/-->+/u);
+    if (!cueMatch) {
+      continue;
+    }
+
+    const [startRaw, endRaw] = timingLine.split(/-->+/u).map((value) => value.trim());
+    const start = startRaw ? parseTimestamp(startRaw) : null;
+    const end = endRaw ? parseTimestamp(endRaw) : null;
+    const text = lines.slice(1).join(' ').trim();
+
+    if (start !== null && end !== null && text.length > 0) {
+      segments.push({ start, end, text });
+    }
+  }
+
+  return segments;
+}
+
+function buildTextFromSegments(segments: WhisperTranscriptionSegment[]): string {
+  return segments
+    .map((segment) => segment.text?.trim() ?? '')
+    .filter((text) => text.length > 0)
+    .join(' ')
+    .trim();
+}
+
+async function findAlternativeTranscript(
+  files: string[],
+  parsed: ParsedPathInfo
+): Promise<AlternativeTranscript | null> {
+  const tsvFile = findBestMatchingFile(files, parsed, '.tsv');
+  if (tsvFile) {
+    const raw = await fs.promises.readFile(tsvFile, 'utf8');
+    const segments = parseTsvSegments(raw);
+    if (segments.length > 0) {
+      return { type: 'tsv', path: tsvFile, segments };
+    }
+  }
+
+  const vttFile = findBestMatchingFile(files, parsed, '.vtt');
+  if (vttFile) {
+    const raw = await fs.promises.readFile(vttFile, 'utf8');
+    const segments = parseVttSegments(raw);
+    if (segments.length > 0) {
+      return { type: 'vtt', path: vttFile, segments };
+    }
+  }
+
+  return null;
+}
+
+function buildWhisperArgs(inputPath: string, outputDir: string, config: WhisperConfig): string[] {
+  const args = [inputPath, '--output_dir', outputDir, '--output_format', 'all'];
+
+  if (config.model) {
+    args.push('--model', config.model);
+  }
+
+  if (config.language) {
+    args.push('--language', config.language);
+  }
+
+  if (config.computeType) {
+    args.push('--compute_type', config.computeType);
+  }
+
+  if (typeof config.batchSize === 'number' && Number.isFinite(config.batchSize) && config.batchSize > 0) {
+    args.push('--batch_size', String(config.batchSize));
+  }
+
+  return args;
+}
+
+async function recoverFromMissingJson({
+  files,
+  parsed,
+  logger,
+  inputPath,
+  outputDir,
+  textFromJson,
+}: {
+  files: string[];
+  parsed: ParsedPathInfo;
+  logger: Logger;
+  inputPath: string;
+  outputDir: string;
+  textFromJson: string | null;
+}): Promise<{ text: string; segments: WhisperTranscriptionSegment[]; type: TranscriptFallbackType; path?: string }> {
+  const textFile = findBestMatchingFile(files, parsed, '.txt');
+  let fallbackSourceType: TranscriptFallbackType | null = null;
+  let fallbackSourcePath: string | undefined;
+  let text: string | null = null;
+  let segments: WhisperTranscriptionSegment[] = [];
+
+  if (textFile) {
+    try {
+      text = await fs.promises.readFile(textFile, 'utf8');
+      fallbackSourceType = 'txt';
+      fallbackSourcePath = textFile;
+    } catch (error) {
+      if (!isErrorWithCode(error) || error.code !== 'ENOENT') {
+        throw error;
+      }
+    }
+  }
+
+  if (text === null) {
+    const alternative = await findAlternativeTranscript(files, parsed);
+    if (alternative) {
+      fallbackSourceType = alternative.type;
+      fallbackSourcePath = alternative.path;
+      segments = alternative.segments;
+      text = buildTextFromSegments(segments);
+    }
+  }
+
+  if (text === null || (text.trim().length === 0 && segments.length === 0 && (!textFromJson || textFromJson.trim().length === 0))) {
+    throw new Error('Whisper output missing textual data: no JSON, TXT, TSV, or VTT transcripts were produced.');
+  }
+
+  if (text === null) {
+    text = textFromJson ?? '';
+  }
+
+  const warnPayload: Record<string, unknown> = { inputPath, outputDir };
+  if (textFile) {
+    warnPayload.textFile = textFile;
+  }
+  if (fallbackSourcePath && fallbackSourcePath !== textFile) {
+    warnPayload.fallbackSource = fallbackSourcePath;
+  }
+
+  const type = fallbackSourceType ?? 'txt';
+  const message =
+    type === 'txt'
+      ? 'Whisper JSON output missing; falling back to TXT output only'
+      : `Whisper JSON output missing; falling back to ${type.toUpperCase()} output`;
+
+  logger.warn(warnPayload, message);
+
+  if (segments.length === 0 && type === 'txt') {
+    segments = [];
+  }
+
   return {
-    async transcribe({ inputPath, outputDir, config }: { inputPath: string; outputDir: string; config: WhisperConfig }): Promise<WhisperTranscriptionResult> {
+    text,
+    segments,
+    type,
+    path: fallbackSourcePath,
+  };
+}
+
+export function createWhisperService(environment: Environment, { logger }: CreateWhisperServiceOptions): WhisperService {
+  const command = environment.whisperBinary ?? process.env.WHISPER_BINARY ?? 'whisper';
+
+  return {
+    async transcribe({ inputPath, outputDir, config }): Promise<WhisperTranscriptionResult> {
       ensureDirectory(outputDir);
-      await validatePythonEnvironment(pythonPath, logger);
 
-      // Augmenter le timeout pour la transcription (30 minutes)
-      const transcriptionTimeout = 30 * 60 * 1000;
-      logger.info({ timeout: transcriptionTimeout }, 'Configuration du timeout de transcription');
+      const args = buildWhisperArgs(inputPath, outputDir, config);
+      const timeout = 30 * 60 * 1000; // 30 minutes
+      await runProcess(command, args, { cwd: outputDir, logger, timeout });
 
-      const transcribeScript = `
-import sys
-import whisper
-import os
-import json
-import torch
-import numpy as np
-from pathlib import Path
+      const parsedPath = path.parse(inputPath);
+      const files = await readDirectoryRecursive(outputDir);
+      const jsonFile = findBestMatchingFile(files, parsedPath, '.json');
 
-# Configure paths
-home_dir = Path.home()
-ffmpeg_path = str(home_dir / "scoop" / "apps" / "ffmpeg" / "current" / "bin")
+      if (!jsonFile) {
+        const fallback = await recoverFromMissingJson({
+          files,
+          parsed: parsedPath,
+          logger,
+          inputPath,
+          outputDir,
+          textFromJson: null,
+        });
 
-# Set environment variables
-os.environ["PATH"] = os.pathsep.join([ffmpeg_path, os.environ.get("PATH", "")])
-os.environ["PYTHONPATH"] = os.pathsep.join([
-    os.path.dirname(os.path.dirname(sys.executable)),
-    os.environ.get("PYTHONPATH", "")
-])
-
-# Debug info
-print(f"Python executable: {sys.executable}")
-print(f"PYTHONPATH: {os.environ.get('PYTHONPATH', '')}")
-print(f"PATH: {os.environ.get('PATH', '')}")
-print(f"FFmpeg path exists: {os.path.exists(ffmpeg_path)}")
-
-try:
-    output_dir = r"${outputDir}"
-    input_path = r"${inputPath}"
-
-    print(f"Démarrage de la transcription : {input_path}")
-    print(f"Dossier de sortie : {output_dir}")
-
-    import torch
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Using device: {device}")
-
-    # Load model with appropriate settings
-    # Initialize OpenVINO for better CPU performance
-    print("Initializing OpenVINO optimized model...")
-    model_name = "${config.model}"
-    model_id = f"openai/whisper-{model_name}"
-    print(f"Loading model: {model_id}")
-    
-    # Load processor first with fast tokenizer
-    processor = WhisperProcessor.from_pretrained(
-        model_id,
-        use_fast=True
-    )
-    
-    # Load and convert model to OpenVINO with optimized configuration
-    ov_model = OVModelForSpeechSeq2Seq.from_pretrained(
-        model_id,
-        export=True,
-        trust_remote_code=True,
-        load_in_8bit=False,
-        device="CPU",
-        optimize_model=True,
-        use_cache=True,  # Enable KV cache for better performance
-        use_flash_attention_2=False  # Disable flash attention for better compatibility
-    )
-    
-    # Process audio data
-    print(f"Processing audio file: {input_path}")
-    audio = whisper.load_audio(input_path)
-    audio = whisper.pad_or_trim(audio)
-    
-    # Convert to feature inputs
-    inputs = processor(audio, sampling_rate=16000, return_tensors="pt")
-    input_features = inputs.input_features
-    
-    # Generate with explicit forced decoder ids for language
-    forced_decoder_ids = processor.get_decoder_prompt_ids(language="${config.language || 'fr'}", task="transcribe")
-    attention_mask = torch.ones_like(input_features, dtype=torch.long)
-    
-    # Run generation
-    print("Starting transcription with OpenVINO...")
-    
-    # Configure generation parameters
-    generation_config = {
-        "task": "transcribe",
-        "language": "${config.language || 'fr'}",
-        "return_timestamps": True,
-        "use_cache": True,
-        "num_beams": 1,
-        "max_new_tokens": 445,  # Réduit pour tenir compte des tokens spéciaux
-        "forced_decoder_ids": forced_decoder_ids,
-        "attention_mask": attention_mask,
-        "return_dict_in_generate": True,
-        "temperature": 0,
-        "suppress_tokens": None  # Désactive la suppression de tokens par défaut
-    }
-    
-    print("Running generation...")
-    outputs = ov_model.generate(
-        input_features,
-        **generation_config
-    )
-    
-    print("Processing transcription output...")
-    transcription = None
-    segments = []
-    
-    if hasattr(outputs, "sequences"):
-        # Process main transcription
-        transcription = processor.batch_decode(
-            outputs.sequences, 
-            skip_special_tokens=True
-        )[0]
-        
-        # Extract segments if available
-        if hasattr(outputs, "segments"):
-            for segment in outputs.segments:
-                text = processor.decode(segment["tokens"], skip_special_tokens=True)
-                if text.strip():
-                    segments.append({
-                        "id": len(segments),
-                        "text": text,
-                        "start": segment.get("start", 0),
-                        "end": segment.get("end", 0)
-                    })
-    else:
-        # Fallback for direct sequence output
-        transcription = processor.batch_decode(
-            outputs,
-            skip_special_tokens=True
-        )[0]
-    
-    # Ensure we have a transcription
-    if not transcription:
-        raise ValueError("La transcription a échoué - pas de sortie valide du modèle")
-    
-    # Prepare the final result dictionary
-    result = {
-        "text": transcription,
-        "segments": segments,
-        "language": "${config.language || 'fr'}"
-    }
-
-    # Clean up memory
-    import gc
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-
-    # Sauvegarder en JSON
-    json_path = os.path.join(output_dir, "transcription.json")
-    print(f"Sauvegarde JSON vers : {json_path}")
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False, indent=2)
-
-    # Sauvegarder en texte brut
-    txt_path = os.path.join(output_dir, "transcription.txt")
-    print(f"Sauvegarde TXT vers : {txt_path}")
-    with open(txt_path, "w", encoding="utf-8") as f:
-        f.write(result["text"])
-
-    print("Transcription terminée avec succès")
-except Exception as e:
-    print(f"Erreur lors de la transcription : {str(e)}", file=sys.stderr)
-    raise
-`;
-
-      const scriptPath = path.join(outputDir, "_transcribe.py");
-      await fs.promises.writeFile(scriptPath, transcribeScript);
-
-      await runProcess(pythonPath, [scriptPath], { cwd: outputDir, logger, timeout: transcriptionTimeout });
-
-      const jsonPath = path.join(outputDir, 'transcription.json');
-      const textPath = path.join(outputDir, 'transcription.txt');
-
-      logger.info({ jsonPath, textPath }, 'Vérification des fichiers de sortie');
-
-      if (!fs.existsSync(jsonPath) || !fs.existsSync(textPath)) {
-        throw new Error(`Les fichiers de sortie n'ont pas été créés : ${jsonPath} ou ${textPath} manquant`);
+        return {
+          model: config.model,
+          text: fallback.text,
+          segments: fallback.segments,
+          language: null,
+        } satisfies WhisperTranscriptionResult;
       }
 
-      const result = JSON.parse(await fs.promises.readFile(jsonPath, 'utf8'));
-      const text = await fs.promises.readFile(textPath, 'utf8');
+      const raw = await fs.promises.readFile(jsonFile, 'utf8');
+      const data = JSON.parse(raw) as Partial<WhisperTranscriptionResult> & { segments?: unknown };
+
+      const jsonText = typeof data.text === 'string' ? data.text : null;
+      const language = typeof data.language === 'string' ? data.language : config.language ?? null;
+      let segments = parseJsonSegments(data.segments);
+
+      const textFile = findBestMatchingFile(files, parsedPath, '.txt');
+      let text: string | null = null;
+
+      if (textFile) {
+        try {
+          text = await fs.promises.readFile(textFile, 'utf8');
+        } catch (error) {
+          if (!isErrorWithCode(error) || error.code !== 'ENOENT') {
+            throw error;
+          }
+        }
+      }
+
+      if (text === null) {
+        text = jsonText ?? '';
+      }
+
+      if (text.trim().length === 0 && segments.length === 0) {
+        const fallback = await recoverFromMissingJson({
+          files,
+          parsed: parsedPath,
+          logger,
+          inputPath,
+          outputDir,
+          textFromJson: jsonText,
+        });
+
+        if (fallback.type !== 'txt') {
+          segments = fallback.segments;
+        }
+
+        return {
+          model: config.model,
+          text: fallback.text,
+          segments,
+          language: fallback.type === 'txt' ? null : language,
+        } satisfies WhisperTranscriptionResult;
+      }
 
       return {
         model: config.model,
         text,
-        segments: result.segments || [],
-        language: result.language || config.language || null,
-      };
+        segments,
+        language,
+      } satisfies WhisperTranscriptionResult;
     },
   };
 }
