@@ -1,12 +1,5 @@
 import type { ConfigStore, Logger } from '../types/index.js';
 
-const REQUIRED: Array<{ key: string; message: string }> = [
-  { 
-    key: 'DATA_ROOT',
-    message: 'Le dossier de données est requis pour le stockage des fichiers'
-  },
-];
-
 const OPTIONAL_WARNINGS: Array<{ key: string; message: string }> = [
   { 
     key: 'OPENAI_API_KEY',
@@ -41,17 +34,11 @@ async function checkExecutableExists(path: string | null | undefined): Promise<b
 
 export async function validateEnvironment({ logger, configStore }: ValidateEnvironmentOptions = {}): Promise<void> {
   // Validation des variables requises
-  for (const required of REQUIRED) {
-    if (!process.env[required.key]) {
-      throw new Error(required.message || `Variable d'environnement obligatoire manquante : ${required.key}`);
-    }
-  }
-
   // Vérification des exécutables
-  const pythonPath = process.env.WHISPER_PYTHON_PATH || "C:\\Projets\\portefeuille\\.venv\\Scripts\\python.exe";
+  const pythonPath = process.env.WHISPER_PYTHON_PATH;
   const ffmpegPath = process.env.FFMPEG_PATH;
 
-  if (!(await checkExecutableExists(pythonPath))) {
+  if (pythonPath && !(await checkExecutableExists(pythonPath))) {
     logger?.warn(
       { path: pythonPath },
       "L'exécutable Python n'est pas accessible. Vérifiez le chemin WHISPER_PYTHON_PATH"
