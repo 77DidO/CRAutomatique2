@@ -5,7 +5,7 @@
 | Import audio → pipeline | `queued` → `processing` → `completed/failed` | POST `/api/items` + ajout dans la file pipeline | exports TXT/MD/VTT, logs horodatés, progression | Exceptions étapes → `failed` + log erreur + conservation dossier |
 | Transcription Whisper | `context.data.preparedPath` → `transcription` | Étape `transcribeStep` | Texte brut + segments + langue | CLI introuvable → exception ; JSON manquant → exception |
 | Synthèse OpenAI | `summary` | Étape `summariseStep` si `enableSummaries=true` | Markdown structuré | Clé manquante → étape ignorée + avertissement ; réponse vide → exception |
-| Exports | `outputs[]` | Étape `exportStep` | `transcription_raw.txt`, `summary.md`, `subtitles.vtt` | Transcription vide → exception bloquante |
+| Exports | `outputs[]` | Étape `exportStep` | `transcription_raw.txt`, `summary.md`, `subtitles.vtt` (si `enableSubtitles=true`) | Transcription vide → exception bloquante |
 | Suppression | `remove` | DELETE `/api/items/:id` | Dossier supprimé + job/logs retirés | Job introuvable → 404 |
 
 ## Cas d'erreurs & reprise
