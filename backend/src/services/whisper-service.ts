@@ -104,8 +104,6 @@ import os
 import json
 import torch
 import numpy as np
-from optimum.intel import OVModelForSpeechSeq2Seq
-from transformers import AutoProcessor, WhisperProcessor
 from pathlib import Path
 
 # Configure paths
