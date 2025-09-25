@@ -476,3 +476,204 @@ test('whisper service throws when no textual output can be recovered', async () 
     /Whisper output missing textual data: no JSON, TXT, TSV, or VTT transcripts were produced\./u,
   );
 });
+
+test('python-based transcription script includes WhisperProcessor import', async () => {
+  const rootDir = createTempDir();
+  const outputDir = path.join(rootDir, 'outputs');
+  const pythonMockPath = path.join(rootDir, 'mock-python-interpreter.mjs');
+
+  const mockPythonScript = `#!/usr/bin/env node\n`
+    + `import fs from 'node:fs';\n`
+    + `import path from 'node:path';\n`
+    + `const [scriptPath] = process.argv.slice(2);\n`
+    + `if (!scriptPath) {\n`
+    + `  console.error('Missing script path');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `const content = fs.readFileSync(scriptPath, 'utf8');\n`
+    + `if (!content.includes('from transformers import WhisperProcessor as _WhisperProcessor')) {\n`
+    + `  console.error('WhisperProcessor import is missing');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('AutoProcessor.from_pretrained')) {\n`
+    + `  console.error('AutoProcessor fallback is missing');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('def run_transformers_transcription():')) {\n`
+    + `  console.error('Transformers fallback function is missing');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('Initializing Transformers speech recognition pipeline...')) {\n`
+    + `  console.error('Missing Transformers initialization log');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('AutoModelForSpeechSeq2Seq.from_pretrained')) {\n`
+    + `  console.error('Missing AutoModelForSpeechSeq2Seq usage');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('WhisperProcessor unavailable; falling back to AutoProcessor')) {\n`
+    + `  console.error('Missing WhisperProcessor fallback log');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('Failed to initialize WhisperProcessor (')) {\n`
+    + `  console.error('Missing WhisperProcessor failure diagnostic');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `const directory = path.dirname(scriptPath);\n`
+    + `const transcriptPath = path.join(directory, 'transcript.json');\n`
+    + `const result = {\n`
+    + `  text: 'Texte transcrit',\n`
+    + `  language: 'fr',\n`
+    + `  segments: [{ start: 0, end: 1.5, text: 'Bonjour tout le monde' }],\n`
+    + `};\n`
+    + `fs.writeFileSync(transcriptPath, JSON.stringify(result));\n`
+    + `console.log(JSON.stringify(result));\n`
+    + `process.exit(0);\n`;
+
+  fs.writeFileSync(pythonMockPath, mockPythonScript, { mode: 0o755 });
+
+  const environment = createEnvironment(rootDir, pythonMockPath);
+  const service = createWhisperService(environment, { logger });
+
+  const inputPath = path.join(rootDir, 'input.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const result = await service.transcribe({ inputPath, outputDir, config: { ...baseConfig, model: 'medium' } });
+
+  assert.equal(result.text, 'Texte transcrit');
+  assert.equal(result.language, 'fr');
+  assert.equal(result.model, 'medium');
+  assert.deepEqual(result.segments, [{ start: 0, end: 1.5, text: 'Bonjour tout le monde' }]);
+});
+
+test('python-based transcription retries without WhisperProcessor when NameError occurs', async () => {
+  const rootDir = createTempDir();
+  const outputDir = path.join(rootDir, 'outputs');
+  const pythonMockPath = path.join(rootDir, 'mock-python-nameerror-interpreter.mjs');
+
+  const failingThenPassingScript = `#!/usr/bin/env node\n`
+    + `import fs from 'node:fs';\n`
+    + `import path from 'node:path';\n`
+    + `const [scriptPath] = process.argv.slice(2);\n`
+    + `if (!scriptPath) {\n`
+    + `  console.error('Missing script path');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `const directory = path.dirname(scriptPath);\n`
+    + `const markerPath = path.join(directory, 'invocations.txt');\n`
+    + `let count = 0;\n`
+    + `if (fs.existsSync(markerPath)) {\n`
+    + `  const raw = fs.readFileSync(markerPath, 'utf8');\n`
+    + `  const parsed = Number.parseInt(raw, 10);\n`
+    + `  if (!Number.isNaN(parsed)) {\n`
+    + `    count = parsed;\n`
+    + `  }\n`
+    + `}\n`
+    + `count += 1;\n`
+    + `fs.writeFileSync(markerPath, String(count));\n`
+    + `if (count === 1) {\n`
+    + `  console.error("Erreur lors de la transcription : name 'WhisperProcessor' is not defined");\n`
+    + `  console.error('Traceback (most recent call last):');\n`
+    + `  console.error('  File "_transcribe.py", line 46, in <module>');\n`
+    + `  console.error("    processor = WhisperProcessor.from_pretrained(MODEL_ID)");\n`
+    + `  console.error("NameError: name 'WhisperProcessor' is not defined");\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `const content = fs.readFileSync(scriptPath, 'utf8');\n`
+    + `if (!content.includes('def run_transformers_transcription():')) {\n`
+    + `  console.error('Transformers fallback script was not generated');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `const transcriptPath = path.join(directory, 'transcript.json');\n`
+    + `const result = { text: 'Transcription reussie', language: 'fr', segments: [] };\n`
+    + `fs.writeFileSync(transcriptPath, JSON.stringify(result));\n`
+    + `console.log(JSON.stringify(result));\n`
+    + `process.exit(0);\n`;
+
+  fs.writeFileSync(pythonMockPath, failingThenPassingScript, { mode: 0o755 });
+
+  const environment = createEnvironment(rootDir, pythonMockPath);
+  const service = createWhisperService(environment, { logger });
+
+  const inputPath = path.join(rootDir, 'input.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
+
+  assert.equal(result.text, 'Transcription reussie');
+  assert.equal(result.language, 'fr');
+  assert.equal(result.model, baseConfig.model);
+  assert.deepEqual(result.segments, []);
+
+  const invocationMarker = path.join(outputDir, 'invocations.txt');
+  const rawCount = await fs.promises.readFile(invocationMarker, 'utf8');
+  assert.equal(Number.parseInt(rawCount, 10), 2);
+});
+
+test('python-based transcription skips OpenVINO when WhisperProcessor probe fails', async () => {
+  const rootDir = createTempDir();
+  const outputDir = path.join(rootDir, 'outputs');
+  const pythonMockPath = path.join(rootDir, 'mock-python-probe');
+
+  const probeAwareScript = `#!/usr/bin/env node\n`
+    + `import fs from 'node:fs';\n`
+    + `import path from 'node:path';\n`
+    + `const args = process.argv.slice(2);\n`
+    + `const markerPath = path.join(process.cwd(), 'probe-count.txt');\n`
+    + `if (args.length > 0 && args[0] === '-c') {\n`
+    + `  let count = 0;\n`
+    + `  if (fs.existsSync(markerPath)) {\n`
+    + `    const raw = fs.readFileSync(markerPath, 'utf8');\n`
+    + `    const parsed = Number.parseInt(raw, 10);\n`
+    + `    if (!Number.isNaN(parsed)) {\n`
+    + `      count = parsed;\n`
+    + `    }\n`
+    + `  }\n`
+    + `  fs.writeFileSync(markerPath, String(count + 1));\n`
+    + `  console.error('Mock WhisperProcessor import failure');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (args.length === 0) {\n`
+    + `  console.error('Missing script path');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `const [scriptPath] = args;\n`
+    + `const content = fs.readFileSync(scriptPath, 'utf8');\n`
+    + `if (content.includes('def run_openvino_transcription():')) {\n`
+    + `  console.error('OpenVINO block should not be generated when probe fails');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('def run_transformers_transcription():')) {\n`
+    + `  console.error('Transformers transcription block is missing');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `const transcriptPath = path.join(path.dirname(scriptPath), 'transcript.json');\n`
+    + `const result = { text: 'Transcription directe', language: 'fr', segments: [] };\n`
+    + `fs.writeFileSync(transcriptPath, JSON.stringify(result));\n`
+    + `console.log(JSON.stringify(result));\n`
+    + `process.exit(0);\n`;
+
+  fs.writeFileSync(pythonMockPath, probeAwareScript, { mode: 0o755 });
+
+  const environment = createEnvironment(rootDir, pythonMockPath);
+  const service = createWhisperService(environment, { logger });
+
+  const inputPath = path.join(rootDir, 'input.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
+
+  assert.equal(result.text, 'Transcription directe');
+  assert.equal(result.language, 'fr');
+  assert.equal(result.model, baseConfig.model);
+  assert.deepEqual(result.segments, []);
+
+  const scriptPath = path.join(outputDir, '_transcribe.py');
+  const generatedScript = await fs.promises.readFile(scriptPath, 'utf8');
+  assert.ok(generatedScript.includes('def run_transformers_transcription():'));
+  assert.ok(!generatedScript.includes('def run_openvino_transcription():'));
+
+  const markerPath = path.join(outputDir, 'probe-count.txt');
+  const probeCountRaw = await fs.promises.readFile(markerPath, 'utf8');
+  assert.equal(Number.parseInt(probeCountRaw, 10), 1);
+});
