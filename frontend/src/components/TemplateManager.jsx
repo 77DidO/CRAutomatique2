@@ -77,6 +77,11 @@ export default function TemplateManager({ templates, onCreate, onUpdate, onDelet
       </form>
 
       <div className="template-grid">
+        <div className="template-grid-header" aria-hidden="true">
+          <span>Nom</span>
+          <span>Description</span>
+          <span>Actions</span>
+        </div>
         {sortedTemplates.map((template) => (
           <TemplateCard
             key={template.id}
@@ -115,7 +120,7 @@ function TemplateCard({ template, isEditing, onEdit, onCancel, onDelete, onSave 
 
   if (isEditing) {
     return (
-      <form className="template-card" onSubmit={handleSubmit}>
+      <form className="template-card template-card--edit" onSubmit={handleSubmit}>
         <div className="input-group">
           <label htmlFor={`name-${template.id}`}>Nom</label>
           <input
@@ -156,12 +161,9 @@ function TemplateCard({ template, isEditing, onEdit, onCancel, onDelete, onSave 
   }
 
   return (
-    <article className="template-card">
-      <header>
-        <h3>{template.name}</h3>
-        <p className="job-meta">{template.description || 'Pas de description'}</p>
-      </header>
-      <pre className="prompt-preview">{template.prompt}</pre>
+    <article className="template-card template-card--view">
+      <h3 className="template-name">{template.name}</h3>
+      <p className="template-description job-meta">{template.description || 'Pas de description'}</p>
       <div className="template-actions">
         <button className="button secondary" type="button" onClick={onEdit}>
           Modifier
@@ -170,6 +172,7 @@ function TemplateCard({ template, isEditing, onEdit, onCancel, onDelete, onSave 
           Supprimer
         </button>
       </div>
+      <pre className="prompt-preview">{template.prompt}</pre>
     </article>
   );
 }
