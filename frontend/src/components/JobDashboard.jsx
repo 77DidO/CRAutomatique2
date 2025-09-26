@@ -35,7 +35,7 @@ export default function JobDashboard({ jobs, selectedJob, onSelectJob, onDeleteJ
   }, [selectedJob]);
 
   return (
-    <section className="grid gap-6 md:grid-cols-2">
+    <section className="history-stack">
       <div className="surface-card space-y-4">
         <div>
           <h2 className="section-title">Historique des traitements</h2>
@@ -43,8 +43,13 @@ export default function JobDashboard({ jobs, selectedJob, onSelectJob, onDeleteJ
         </div>
         <JobList jobs={jobs} selectedJob={selectedJob} onSelect={onSelectJob} onDelete={onDeleteJob} />
       </div>
-      <div className="surface-card">
-        <JobDetail job={selectedJob} logs={logs} isLoadingLogs={isLoadingLogs} />
+      <div className="surface-card history-detail-card">
+        <JobDetail
+          job={selectedJob}
+          logs={logs}
+          isLoadingLogs={isLoadingLogs}
+          onDeleteJob={onDeleteJob}
+        />
       </div>
     </section>
   );

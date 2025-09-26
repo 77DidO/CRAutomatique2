@@ -1,7 +1,26 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import StatusBadge from './StatusBadge.jsx';
 
 export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
+  const [openMenuId, setOpenMenuId] = useState(null);
+
+  useEffect(() => {
+    function handlePointerDown(event) {
+      if (
+        event.target.closest('.history-row-menu') ||
+        event.target.closest('.history-row-menu-trigger')
+      ) {
+        return;
+      }
+      setOpenMenuId(null);
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, []);
+
   if (!jobs.length) {
     return <p className="history-empty">Aucun traitement pour le moment.</p>;
   }
@@ -14,8 +33,8 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
             <th scope="col">Fichier</th>
             <th scope="col">Statut</th>
             <th scope="col">Progression</th>
-            <th scope="col" className="text-right">
-              Actions
+            <th scope="col" className="history-row-menu-header">
+              <span className="sr-only">Actions</span>
             </th>
           </tr>
         </thead>
@@ -23,6 +42,7 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
           {jobs.map((job) => {
             const isActive = selectedJob?.id === job.id;
             const progressValue = Math.round(job.progress ?? 0);
+            const isMenuOpen = openMenuId === job.id;
             return (
               <tr
                 key={job.id}
@@ -47,28 +67,55 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
                     <span className="status-progress-value">{progressValue}%</span>
                   </div>
                 </td>
-                <td>
-                  <div className="history-table-actions">
+                <td className="history-row-menu-cell">
+                  <div className="history-row-menu">
                     <button
                       type="button"
-                      className="btn btn-secondary btn-xs"
+                      className="history-row-menu-trigger btn btn-ghost btn-icon"
+                      aria-haspopup="true"
+                      aria-expanded={isMenuOpen}
                       onClick={(event) => {
                         event.stopPropagation();
-                        onSelect(job.id);
+                        setOpenMenuId((current) => (current === job.id ? null : job.id));
                       }}
                     >
-                      Consulter
+                      <span className="sr-only">Afficher les actions</span>
+                      <span aria-hidden="true">⋮</span>
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn-error btn-xs"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDelete(job.id);
-                      }}
-                    >
-                      Supprimer
-                    </button>
+                    {isMenuOpen && (
+                      <div className="history-row-menu__content" role="menu">
+                        <button
+                          type="button"
+                          className="history-row-menu__item"
+                          role="menuitem"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setOpenMenuId(null);
+                            onSelect(job.id);
+                          }}
+                        >
+                          Voir le détail
+                        </button>
+                        <button
+                          type="button"
+                          className="history-row-menu__item history-row-menu__item--danger"
+                          role="menuitem"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setOpenMenuId(null);
+                            if (
+                              window.confirm(
+                                'Voulez-vous vraiment supprimer ce traitement ? Cette action est irréversible.'
+                              )
+                            ) {
+                              onDelete(job.id);
+                            }
+                          }}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </td>
               </tr>
