@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import StatusBadge from './StatusBadge.jsx';
 
 function formatTimestamp(seconds) {
@@ -29,24 +29,128 @@ function formatDuration(seconds) {
   return `${secs}s`;
 }
 
-export default function JobDetail({ job, logs, isLoadingLogs }) {
+function canPreviewMimeType(mimeType) {
+  if (!mimeType) {
+    return true;
+  }
+  const normalized = mimeType.toLowerCase();
+  return (
+    normalized.startsWith('text/') ||
+    normalized.includes('json') ||
+    normalized.includes('markdown') ||
+    normalized === 'application/xml'
+  );
+}
+
+export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   const [speakerData, setSpeakerData] = useState(null);
   const [isLoadingSpeakers, setIsLoadingSpeakers] = useState(false);
   const [speakersError, setSpeakersError] = useState(null);
+  const [selectedOutput, setSelectedOutput] = useState(null);
+  const [isLoadingOutput, setIsLoadingOutput] = useState(false);
+  const [outputError, setOutputError] = useState(null);
+  const [outputContent, setOutputContent] = useState('');
 
   const segmentsOutput = job?.outputs?.find((output) => output.filename === 'segments.json');
   const jobId = job?.id ?? null;
   const jobUpdatedAt = job?.updatedAt ?? null;
   const segmentsFilename = segmentsOutput?.filename ?? null;
   const segmentsKey = jobId && segmentsFilename ? `${jobId}:${segmentsFilename}:${jobUpdatedAt}` : null;
+  const outputs = useMemo(() => job?.outputs ?? [], [job?.outputs]);
+  const selectedOutputFilename = selectedOutput?.filename ?? null;
+  const selectedOutputMime = selectedOutput?.mimeType ?? null;
+  const canPreviewOutput = selectedOutput ? canPreviewMimeType(selectedOutputMime) : false;
+
+  useEffect(() => {
+    setSelectedOutput(null);
+    setIsLoadingOutput(false);
+    setOutputError(null);
+    setOutputContent('');
+  }, [jobId]);
+
+  useEffect(() => {
+    if (!selectedOutputFilename) {
+      return;
+    }
+    const stillExists = outputs.some((output) => output.filename === selectedOutputFilename);
+    if (!stillExists) {
+      setSelectedOutput(null);
+      setIsLoadingOutput(false);
+      setOutputError(null);
+      setOutputContent('');
+    }
+  }, [outputs, selectedOutputFilename]);
+
+  useEffect(() => {
+    if (!jobId || !selectedOutput) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    let isMounted = true;
+    const { filename, mimeType } = selectedOutput;
+
+    if (!canPreviewMimeType(mimeType)) {
+      setOutputContent('');
+      setOutputError(null);
+      setIsLoadingOutput(false);
+      return () => {
+        isMounted = false;
+        controller.abort();
+      };
+    }
+
+    async function fetchOutput() {
+      setIsLoadingOutput(true);
+      setOutputError(null);
+      setOutputContent('');
+      try {
+        const response = await fetch(`/api/assets/${jobId}/${filename}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const rawText = await response.text();
+        let formatted = rawText;
+        if (mimeType?.toLowerCase().includes('json')) {
+          try {
+            formatted = JSON.stringify(JSON.parse(rawText), null, 2);
+          } catch (error) {
+            formatted = rawText;
+          }
+        }
+        if (isMounted) {
+          setOutputContent(formatted);
+        }
+      } catch (error) {
+        if (isMounted) {
+          const err = error instanceof Error ? error : new Error('Erreur inconnue');
+          if (err.name !== 'AbortError') {
+            setOutputError(err.message);
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingOutput(false);
+        }
+      }
+    }
+
+    fetchOutput();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [jobId, selectedOutput]);
 
   useEffect(() => {
     let isMounted = true;
-
-  if (!jobId || !segmentsFilename || !segmentsKey) {
-    setSpeakerData(null);
-    setSpeakersError(null);
-    setIsLoadingSpeakers(false);
+    if (!jobId || !segmentsFilename || !segmentsKey) {
+      setSpeakerData(null);
+      setSpeakersError(null);
+      setIsLoadingSpeakers(false);
       return () => {
         isMounted = false;
       };
@@ -103,12 +207,30 @@ export default function JobDetail({ job, logs, isLoadingLogs }) {
   return (
     <div className="history-detail">
       <header className="history-detail-header">
-        <div>
-          <h2 className="section-title">{job.filename}</h2>
-          <div className="text-base-content/70 text-sm">
-            Déclenché le {new Date(job.createdAt).toLocaleString()} • Dernière mise à jour{' '}
-            {new Date(job.updatedAt).toLocaleString()}
+        <div className="history-detail-heading">
+          <div>
+            <h2 className="section-title history-detail-title">{job.filename}</h2>
+            <div className="text-base-content/70 text-sm">
+              Déclenché le {new Date(job.createdAt).toLocaleString()} • Dernière mise à jour{' '}
+              {new Date(job.updatedAt).toLocaleString()}
+            </div>
           </div>
+          <button
+            type="button"
+            className="history-delete-btn btn btn-error btn-sm btn-icon"
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Voulez-vous vraiment supprimer ce traitement ? Cette action est irréversible.'
+                )
+              ) {
+                onDeleteJob?.(job.id);
+              }
+            }}
+          >
+            <span className="sr-only">Supprimer ce traitement</span>
+            <span aria-hidden="true">🗑</span>
+          </button>
         </div>
         <div className="status-line">
           <div className="status-actions">
@@ -127,27 +249,66 @@ export default function JobDetail({ job, logs, isLoadingLogs }) {
         <h3 id="job-outputs" className="section-title">
           Exports disponibles
         </h3>
-        {job.outputs?.length ? (
+        {outputs.length ? (
           <div className="resource-list">
-            {job.outputs.map((output) => (
-              <a
-                key={output.filename}
-                className="resource-link"
-                href={`/api/assets/${job.id}/${output.filename}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span>{output.label}</span>
-                <span className="text-base-content/70 text-sm">{output.mimeType}</span>
-              </a>
-            ))}
+            {outputs.map((output) => {
+              const isActive = selectedOutput?.filename === output.filename;
+              return (
+                <button
+                  key={output.filename}
+                  type="button"
+                  className={`resource-link${isActive ? ' is-active' : ''}`}
+                  onClick={() => {
+                    setSelectedOutput({
+                      filename: output.filename,
+                      label: output.label,
+                      mimeType: output.mimeType,
+                    });
+                  }}
+                >
+                  <span>{output.label}</span>
+                  <span className="text-base-content/70 text-sm">{output.mimeType}</span>
+                </button>
+              );
+            })}
           </div>
         ) : (
           <p className="text-base-content/70">Aucun export n'est encore disponible.</p>
         )}
+        {selectedOutput && (
+          <div className="resource-preview">
+            <div className="resource-preview__header">
+              <div>
+                <p className="resource-preview__title">{selectedOutput.label}</p>
+                <p className="resource-preview__meta text-sm">
+                  {selectedOutput.filename}
+                  {selectedOutput.mimeType ? ` • ${selectedOutput.mimeType}` : ''}
+                </p>
+              </div>
+              <a
+                className="btn btn-secondary btn-sm"
+                href={`/api/assets/${job.id}/${selectedOutput.filename}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Télécharger
+              </a>
+            </div>
+            {isLoadingOutput && <p className="text-base-content/70">Chargement de l'export…</p>}
+            {outputError && <p className="error-text">Impossible de charger l'export : {outputError}</p>}
+            {!isLoadingOutput && !outputError && !canPreviewOutput && (
+              <p className="text-base-content/70">
+                Ce format ne peut pas être prévisualisé. Utilisez le bouton de téléchargement pour le consulter.
+              </p>
+            )}
+            {!isLoadingOutput && !outputError && canPreviewOutput && (
+              <pre className="resource-preview__content">{outputContent}</pre>
+            )}
+          </div>
+        )}
       </section>
 
-      <section aria-labelledby="job-speakers" className="space-y-3">
+      <section aria-labelledby="job-speakers" className="space-y-3 history-speakers">
         <h3 id="job-speakers" className="section-title">
           Interventions par speaker
         </h3>
@@ -217,16 +378,26 @@ export default function JobDetail({ job, logs, isLoadingLogs }) {
         </h3>
         {isLoadingLogs && <p className="text-base-content/70">Chargement des logs…</p>}
         {logs.length ? (
-          <div className="log-list">
-            {logs.map((entry, index) => (
-              <div key={`${entry.timestamp}-${index}`} className="log-entry">
-                <div className="meta">
-                  {new Date(entry.timestamp).toLocaleTimeString()} • {entry.level?.toUpperCase()}
-                </div>
-                <div>{entry.message}</div>
-              </div>
-            ))}
-          </div>
+          <ol className="pipeline-timeline" aria-label="Chronologie du pipeline">
+            {logs.map((entry, index) => {
+              const level = typeof entry.level === 'string' ? entry.level.toLowerCase() : 'info';
+              const levelLabel = typeof entry.level === 'string' ? entry.level.toUpperCase() : 'INFO';
+              return (
+                <li
+                  key={`${entry.timestamp}-${index}`}
+                  className={`pipeline-timeline__item pipeline-timeline__item--${level}`}
+                >
+                  <div className="pipeline-timeline__marker" aria-hidden="true" />
+                  <div className="pipeline-timeline__content">
+                    <div className="pipeline-timeline__meta">
+                      {new Date(entry.timestamp).toLocaleTimeString()} • {levelLabel}
+                    </div>
+                    <div className="pipeline-timeline__message">{entry.message}</div>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
         ) : (
           !isLoadingLogs && <p className="logs-placeholder">Aucun événement pour le moment.</p>
         )}
