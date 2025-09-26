@@ -185,6 +185,7 @@ export interface OpenAiService {
     template: Template;
     participants: string[];
     config: LlmConfig;
+    speakerOverview?: string;
   }): Promise<SummaryResult>;
 }
 

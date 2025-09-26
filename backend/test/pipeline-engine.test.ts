@@ -61,7 +61,7 @@ test('pipeline completes job with stub services', async () => {
       },
     },
     openai: {
-      async generateSummary(): Promise<SummaryResult> {
+      async generateSummary(_args?: unknown): Promise<SummaryResult> {
         return { markdown: '# Résumé\n- Point clé' };
       },
     },
@@ -94,13 +94,17 @@ test('pipeline completes job with stub services', async () => {
   }, 10_000);
 
   assert.equal(finalJob?.status, 'completed');
-  assert.equal(finalJob?.outputs.length, 3);
+  assert.equal(finalJob?.outputs.length, 5);
 
   const transcriptPath = path.join(environment.jobsDir, job.id, 'transcription_raw.txt');
+  const timedTranscriptPath = path.join(environment.jobsDir, job.id, 'transcription_timed.txt');
+  const segmentsJsonPath = path.join(environment.jobsDir, job.id, 'segments.json');
   const summaryPath = path.join(environment.jobsDir, job.id, 'summary.md');
   const subtitlesPath = path.join(environment.jobsDir, job.id, 'subtitles.vtt');
 
   assert.ok(fs.existsSync(transcriptPath));
+  assert.ok(fs.existsSync(timedTranscriptPath));
+  assert.ok(fs.existsSync(segmentsJsonPath));
   assert.ok(fs.existsSync(summaryPath));
   assert.ok(fs.existsSync(subtitlesPath));
 });
@@ -144,7 +148,7 @@ test('pipeline skips subtitle export when disabled in config', async () => {
       },
     },
     openai: {
-      async generateSummary(): Promise<SummaryResult> {
+      async generateSummary(_args?: unknown): Promise<SummaryResult> {
         return { markdown: '# Résumé\n- Point clé' };
       },
     },
@@ -177,17 +181,21 @@ test('pipeline skips subtitle export when disabled in config', async () => {
   }, 10_000);
 
   assert.equal(finalJob?.status, 'completed');
-  assert.equal(finalJob?.outputs.length, 2);
+  assert.equal(finalJob?.outputs.length, 4);
   assert.deepEqual(
     (finalJob?.outputs.map((output) => output.filename).sort() ?? []),
-    ['summary.md', 'transcription_raw.txt'],
+    ['segments.json', 'summary.md', 'transcription_raw.txt', 'transcription_timed.txt'],
   );
 
   const transcriptPath = path.join(environment.jobsDir, job.id, 'transcription_raw.txt');
+  const timedTranscriptPath = path.join(environment.jobsDir, job.id, 'transcription_timed.txt');
+  const segmentsJsonPath = path.join(environment.jobsDir, job.id, 'segments.json');
   const summaryPath = path.join(environment.jobsDir, job.id, 'summary.md');
   const subtitlesPath = path.join(environment.jobsDir, job.id, 'subtitles.vtt');
 
   assert.ok(fs.existsSync(transcriptPath));
+  assert.ok(fs.existsSync(timedTranscriptPath));
+  assert.ok(fs.existsSync(segmentsJsonPath));
   assert.ok(fs.existsSync(summaryPath));
   assert.ok(!fs.existsSync(subtitlesPath));
 
@@ -231,7 +239,7 @@ test('pipeline completes job when summary generation is skipped', async () => {
       },
     },
     openai: {
-      async generateSummary(): Promise<SummaryResult> {
+      async generateSummary(_args?: unknown): Promise<SummaryResult> {
         return { markdown: null, reason: 'missing_api_key' };
       },
     },
@@ -264,7 +272,7 @@ test('pipeline completes job when summary generation is skipped', async () => {
   }, 10_000);
 
   assert.equal(finalJob?.status, 'completed');
-  assert.equal(finalJob?.outputs.length, 2);
+  assert.equal(finalJob?.outputs.length, 4);
 
   const summaryPath = path.join(environment.jobsDir, job.id, 'summary.md');
   assert.ok(!fs.existsSync(summaryPath));
@@ -342,7 +350,7 @@ test('pipeline completes job when placeholder OpenAI key is provided', async () 
   }, 10_000);
 
   assert.equal(finalJob?.status, 'completed');
-  assert.equal(finalJob?.outputs.length, 2);
+  assert.equal(finalJob?.outputs.length, 4);
 
   const summaryPath = path.join(environment.jobsDir, job.id, 'summary.md');
   assert.ok(!fs.existsSync(summaryPath));
