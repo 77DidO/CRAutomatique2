@@ -1,78 +1,72 @@
-import React, { useEffect, useState } from 'react';
-import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AppProvider, useAppContext } from './context/AppContext.jsx';
 import { api } from './api/client.js';
+import { useInterval } from './hooks/useInterval.js';
 import UploadForm from './components/UploadForm.jsx';
+import JobDashboard from './components/JobDashboard.jsx';
 import ConfigPanel from './components/ConfigPanel.jsx';
 import TemplateManager from './components/TemplateManager.jsx';
-import HistoryListPage from './pages/HistoryListPage.jsx';
-import JobDetailPage from './pages/JobDetailPage.jsx';
 import './styles/app.css';
 
-const NAV_ITEMS = [
-  { id: 'upload', label: 'Nouveau traitement', to: '/' },
-  { id: 'history', label: 'Historique', to: '/historique' },
-  { id: 'config', label: 'Configuration', to: '/configuration' },
-  { id: 'templates', label: 'Gabarits', to: '/gabarits' },
+const TABS = [
+  { id: 'upload', label: 'Nouveau traitement' },
+  { id: 'jobs', label: 'Historique' },
+  { id: 'config', label: 'Configuration' },
+  { id: 'templates', label: 'Gabarits' },
 ];
 
 function AppShell() {
-  const {
-    config,
-    setConfig,
-    templates,
-    setTemplates,
-    jobs,
-    isJobsLoading,
-    jobsError,
-    refreshJobs,
-  } = useAppContext();
+  const { config, setConfig, templates, setTemplates, jobs, setJobs } = useAppContext();
+  const [activeTab, setActiveTab] = useState('upload');
+  const [selectedJobId, setSelectedJobId] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const navigate = useNavigate();
+
+  const selectedJob = useMemo(() => jobs.find((job) => job.id === selectedJobId) || null, [jobs, selectedJobId]);
 
   useEffect(() => {
-    let isMounted = true;
-
     async function bootstrap() {
       try {
-        const [initialConfig, tpl] = await Promise.all([
+        const [initialConfig, tpl, jobList] = await Promise.all([
           api.getConfig(),
           api.listTemplates(),
+          api.listJobs(),
         ]);
-        if (!isMounted) {
-          return;
-        }
         setConfig(initialConfig);
         setTemplates(tpl);
+        setJobs(jobList);
+        setSelectedJobId(jobList[0]?.id || null);
       } catch (err) {
-        if (isMounted) {
-          const message = err instanceof Error ? err.message : String(err);
-          setError(message);
-        }
+        setError(err.message);
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     }
-
     bootstrap();
+  }, [setConfig, setTemplates, setJobs]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [setConfig, setTemplates]);
+  useInterval(async () => {
+    try {
+      const jobList = await api.listJobs();
+      setJobs(jobList);
+      if (selectedJobId && !jobList.some((job) => job.id === selectedJobId)) {
+        setSelectedJobId(jobList[0]?.id || null);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  }, 4000);
 
   const handleUpload = async (payload) => {
     setError(null);
     try {
       const job = await api.createJob(payload);
-      await refreshJobs();
-      navigate(`/historique/${job.id}`);
+      const refreshed = await api.listJobs();
+      setJobs(refreshed);
+      setSelectedJobId(job.id);
+      setActiveTab('jobs');
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
+      setError(err.message);
       throw err;
     }
   };
@@ -81,58 +75,54 @@ function AppShell() {
     setError(null);
     try {
       await api.deleteJob(jobId);
-      await refreshJobs();
+      const refreshed = await api.listJobs();
+      setJobs(refreshed);
+      if (selectedJobId === jobId) {
+        setSelectedJobId(refreshed[0]?.id || null);
+      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
+      setError(err.message);
     }
+  };
+
+  const handleSelectJob = (jobId) => {
+    setSelectedJobId(jobId);
+    setActiveTab('jobs');
   };
 
   const handleSaveConfig = async (nextConfig) => {
     setError(null);
-    try {
-      const updated = await api.updateConfig(nextConfig);
-      setConfig(updated);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-      throw err;
-    }
+    const updated = await api.updateConfig(nextConfig);
+    setConfig(updated);
   };
 
   const handleCreateTemplate = async (template) => {
-    setError(null);
     try {
       const created = await api.createTemplate(template);
       setTemplates(await api.listTemplates());
       return created;
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
+      setError(err.message);
       throw err;
     }
   };
 
   const handleUpdateTemplate = async (id, template) => {
-    setError(null);
     try {
       await api.updateTemplate(id, template);
       setTemplates(await api.listTemplates());
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
+      setError(err.message);
       throw err;
     }
   };
 
   const handleDeleteTemplate = async (id) => {
-    setError(null);
     try {
       await api.deleteTemplate(id);
       setTemplates(await api.listTemplates());
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
+      setError(err.message);
     }
   };
 
@@ -144,22 +134,24 @@ function AppShell() {
           <p className="home-subtitle">Traitement audio local avec résumés assistés OpenAI</p>
         </div>
         <nav className="navbar" aria-label="Navigation principale">
-          {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.id}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                [
+          {TABS.map((tab) => {
+            const isActive = tab.id === activeTab;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                className={[
                   'btn',
                   isActive ? 'btn-primary' : 'btn-secondary',
                   'btn-sm',
-                ].join(' ')
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
+                ].join(' ')}
+                aria-current={isActive ? 'page' : undefined}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </nav>
       </header>
 
@@ -175,50 +167,26 @@ function AppShell() {
         </div>
       ) : (
         <main className="space-y-8">
-          <Routes>
-            <Route
-              path="/"
-              element={<UploadForm templates={templates} onSubmit={handleUpload} />}
+          {activeTab === 'upload' && <UploadForm templates={templates} onSubmit={handleUpload} />}
+          {activeTab === 'jobs' && (
+            <JobDashboard
+              jobs={jobs}
+              selectedJob={selectedJob}
+              onSelectJob={handleSelectJob}
+              onDeleteJob={handleDeleteJob}
             />
-            <Route
-              path="/historique"
-              element={(
-                <HistoryListPage
-                  jobs={jobs}
-                  isLoading={isJobsLoading}
-                  error={jobsError}
-                  onDeleteJob={handleDeleteJob}
-                />
-              )}
+          )}
+          {activeTab === 'config' && config && (
+            <ConfigPanel config={config} onSave={handleSaveConfig} />
+          )}
+          {activeTab === 'templates' && (
+            <TemplateManager
+              templates={templates}
+              onCreate={handleCreateTemplate}
+              onUpdate={handleUpdateTemplate}
+              onDelete={handleDeleteTemplate}
             />
-            <Route path="/historique/:jobId" element={<JobDetailPage jobsError={jobsError} />} />
-            <Route
-              path="/configuration"
-              element={
-                config ? (
-                  <ConfigPanel config={config} onSave={handleSaveConfig} />
-                ) : (
-                  <div className="surface-card">
-                    <p className="text-base-content/70">
-                      Configuration indisponible. Veuillez réessayer plus tard.
-                    </p>
-                  </div>
-                )
-              }
-            />
-            <Route
-              path="/gabarits"
-              element={(
-                <TemplateManager
-                  templates={templates}
-                  onCreate={handleCreateTemplate}
-                  onUpdate={handleUpdateTemplate}
-                  onDelete={handleDeleteTemplate}
-                />
-              )}
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          )}
         </main>
       )}
     </div>
