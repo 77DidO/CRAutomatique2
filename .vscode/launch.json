@@ -20,7 +20,7 @@
     },
     {
       "name": "Brave: Vite UI",
-      "type": "pwa-chrome",
+      "type": "chrome",
       "request": "launch",
       "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}/frontend",
