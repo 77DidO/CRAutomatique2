@@ -12,6 +12,7 @@ export async function exportStep(context: PipelineContext): Promise<void> {
 
   const transcription = context.data.transcription?.text ?? '';
   if (!transcription) {
+    // Sans transcription, la suite des exports serait incohérente : on préfère remonter une erreur claire.
     logger.error({ jobId: job.id }, 'Export step failed due to missing transcription');
     throw new Error('Transcription introuvable, export impossible');
   }
@@ -38,6 +39,7 @@ export async function exportStep(context: PipelineContext): Promise<void> {
   }
 
   if (config.pipeline.enableSubtitles && context.data.transcription?.segments?.length) {
+    // Génération des sous-titres à la volée pour éviter d'écrire sur disque si la fonctionnalité est désactivée.
     const vttPath = path.join(jobDir, 'subtitles.vtt');
     await fs.promises.writeFile(vttPath, buildVtt(context.data.transcription.segments), 'utf8');
     outputs.push({ label: 'Sous-titres', filename: 'subtitles.vtt', mimeType: 'text/vtt' });
