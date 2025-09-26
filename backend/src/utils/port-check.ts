@@ -6,22 +6,32 @@ export function isPortAvailable(port: number): Promise<boolean> {
     server.once('error', () => {
       resolve(false);
     });
-    
+
     server.once('listening', () => {
       server.close();
       resolve(true);
     });
-    
+
     server.listen(port);
   });
 }
 
-export async function waitForPortAvailable(port: number, retries = 5, delay = 1000): Promise<boolean> {
-  for (let i = 0; i < retries; i++) {
-    if (await isPortAvailable(port)) {
-      return true;
+export async function findAvailablePort(
+  startPort: number,
+  maxAttempts = 20,
+  delayMs = 1000,
+): Promise<number> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const candidatePort = startPort + attempt;
+
+    if (await isPortAvailable(candidatePort)) {
+      return candidatePort;
     }
-    await new Promise(resolve => setTimeout(resolve, delay));
+
+    if (attempt < maxAttempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
-  return false;
+
+  throw new Error(`Unable to find an available port starting from ${startPort} after ${maxAttempts} attempts`);
 }

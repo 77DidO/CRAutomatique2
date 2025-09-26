@@ -64,6 +64,8 @@ WHISPER_PATH=python
 
 Copiez ce fichier en `.env` (ou exportez les variables dans votre shell). Au démarrage, le backend vérifie la présence des clés critiques et journalise les avertissements correspondants. Laisser le placeholder `sk-replace-me` (ou une valeur vide) désactive la synthèse : la pipeline termine avec succès, en conservant uniquement la transcription et les exports associés, tout en émettant un avertissement explicite.
 
+Au lancement, le serveur HTTP tente de se lier au port défini par `PORT` (4000 par défaut). S'il est déjà utilisé, il attend et essaie automatiquement les ports suivants jusqu'à en trouver un disponible (20 tentatives par défaut). Le port retenu est indiqué dans les logs ; définissez `PORT` si vous souhaitez forcer un port précis.
+
 ## Démarrage
 
 ### Backend
@@ -73,7 +75,7 @@ cd backend
 npm run dev
 ```
 
-- API disponible sur `http://localhost:4000`
+- API disponible sur `http://localhost:<port>` (le service tente `PORT` ou 4000 par défaut et essaie automatiquement les ports suivants si nécessaire ; le port final est journalisé)
 - Dossiers de travail créés automatiquement dans `DATA_ROOT`
 - Les jobs en attente sont repris automatiquement après redémarrage
 
