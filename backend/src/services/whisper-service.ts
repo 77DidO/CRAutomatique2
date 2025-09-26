@@ -509,6 +509,7 @@ function buildPythonTranscribeScript({
         ov_config=ov_config,
     )
 
+
     asr = pipeline(
         "automatic-speech-recognition",
         model=model,
@@ -516,6 +517,7 @@ function buildPythonTranscribeScript({
         feature_extractor=feature_extractor,
         chunk_length_s=CHUNK_LENGTH,
         batch_size=BATCH_SIZE,
+
         device=device_override.lower(),
     )
 

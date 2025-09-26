@@ -663,6 +663,7 @@ test('python-based transcription configures OpenVINO cache and performance hints
   assert.ok(generatedScript.includes('log(f"Using OpenVINO device: {device_override} (cache: {cache_dir})")'));
 });
 
+
 test('python-based transcription skips OpenVINO when WhisperProcessor probe fails', async () => {
   const rootDir = createTempDir();
   const outputDir = path.join(rootDir, 'outputs');
