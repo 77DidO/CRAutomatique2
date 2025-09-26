@@ -13,6 +13,7 @@ interface ServerDependencies {
   createTemplateRepository: typeof import('./persistence/template-store.js').createTemplateRepository;
   validateEnvironment: typeof import('./utils/environment-validation.js').validateEnvironment;
   createWhisperService: typeof import('./services/whisper-service.js').createWhisperService;
+  createSpeakerDiarizationService: typeof import('./services/speaker-diarization-service.js').createSpeakerDiarizationService;
   createFfmpegService: typeof import('./services/ffmpeg-service.js').createFfmpegService;
   createOpenAiService: typeof import('./services/openai-service.js').createOpenAiService;
   createPipelineEngine: typeof import('./pipeline/engine.js').createPipelineEngine;
@@ -44,6 +45,11 @@ async function loadDependencies(
   }
   if (!dependencies.createWhisperService) {
     dependencies.createWhisperService = (await import('./services/whisper-service.js')).createWhisperService;
+  }
+  if (!dependencies.createSpeakerDiarizationService) {
+    dependencies.createSpeakerDiarizationService = (
+      await import('./services/speaker-diarization-service.js')
+    ).createSpeakerDiarizationService;
   }
   if (!dependencies.createFfmpegService) {
     dependencies.createFfmpegService = (await import('./services/ffmpeg-service.js')).createFfmpegService;
@@ -79,6 +85,7 @@ export async function createServer(
 
   const services: Services = {
     whisper: dependencies.createWhisperService(environment, { logger }),
+    diarization: dependencies.createSpeakerDiarizationService(environment, { logger }),
     ffmpeg: dependencies.createFfmpegService(environment),
     openai: dependencies.createOpenAiService({ logger, configStore }),
   };
