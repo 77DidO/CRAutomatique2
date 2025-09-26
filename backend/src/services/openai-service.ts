@@ -18,11 +18,18 @@ interface GenerateSummaryArgs {
   template: Template;
   participants: string[];
   config: LlmConfig;
+  speakerOverview?: string;
 }
 
 export function createOpenAiService({ configStore, logger }: CreateOpenAiServiceOptions): OpenAiService {
   return {
-    async generateSummary({ transcription, template, participants, config }: GenerateSummaryArgs): Promise<SummaryResult> {
+    async generateSummary({
+      transcription,
+      template,
+      participants,
+      config,
+      speakerOverview,
+    }: GenerateSummaryArgs): Promise<SummaryResult> {
       const rawApiKey = process.env.OPENAI_API_KEY || (await configStore.read()).llm?.apiKey;
       const apiKey = sanitiseApiKey(rawApiKey);
 
@@ -34,7 +41,7 @@ export function createOpenAiService({ configStore, logger }: CreateOpenAiService
       const OpenAI = await loadOpenAi();
       const client = new OpenAI({ apiKey });
 
-      const prompt = buildPrompt({ transcription, template, participants });
+      const prompt = buildPrompt({ transcription, template, participants, speakerOverview });
 
       const response = await client.chat.completions.create({
         model: config.model,
@@ -56,15 +63,22 @@ export function createOpenAiService({ configStore, logger }: CreateOpenAiService
   };
 }
 
-function buildPrompt({ transcription, template, participants }: {
+function buildPrompt({
+  transcription,
+  template,
+  participants,
+  speakerOverview,
+}: {
   transcription: WhisperTranscriptionResult;
   template: Template;
   participants: string[];
+  speakerOverview?: string;
 }): string {
   const participantBlock = participants.length
     ? `Participants impliqués : ${participants.join(', ')}.`
     : 'Participants non identifiés.';
-  return `${template.prompt}\n\n${participantBlock}\n\nTranscription :\n${transcription.text}`;
+  const overviewBlock = speakerOverview ? `${speakerOverview}\n\n` : '';
+  return `${template.prompt}\n\n${participantBlock}\n\n${overviewBlock}Transcription :\n${transcription.text}`;
 }
 
 function sanitiseApiKey(value: unknown): string {

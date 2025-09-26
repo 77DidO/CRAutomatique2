@@ -1,4 +1,5 @@
 import type { PipelineContext } from '../../types/index.js';
+import { buildSpeakerTimeline, formatSpeakerOverview } from '../utils/speaker-utils.js';
 
 export async function summariseStep(context: PipelineContext): Promise<void> {
   const { job, config, template, services, jobStore, logger } = context;
@@ -21,6 +22,9 @@ export async function summariseStep(context: PipelineContext): Promise<void> {
 
   await jobStore.appendLog(job.id, 'Génération du résumé (OpenAI)');
   const { provider, model, temperature, maxOutputTokens } = config.llm;
+
+  const speakerTimeline = buildSpeakerTimeline(context.data.transcription?.segments);
+  const speakerOverview = formatSpeakerOverview(speakerTimeline?.speakers);
   logger.info(
     {
       jobId: job.id,
@@ -36,6 +40,7 @@ export async function summariseStep(context: PipelineContext): Promise<void> {
     template,
     participants: job.participants,
     config: config.llm,
+    speakerOverview: speakerOverview ?? undefined,
   });
 
   const markdown = typeof summary?.markdown === 'string' ? summary.markdown.trim() : '';

@@ -1,10 +1,101 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import StatusBadge from './StatusBadge.jsx';
 
+function formatTimestamp(seconds) {
+  if (typeof seconds !== 'number' || Number.isNaN(seconds) || !Number.isFinite(seconds)) {
+    return '00:00:00';
+  }
+  const totalSeconds = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+  return [hours, minutes, secs].map((value) => String(value).padStart(2, '0')).join(':');
+}
+
+function formatDuration(seconds) {
+  if (typeof seconds !== 'number' || Number.isNaN(seconds) || !Number.isFinite(seconds)) {
+    return '0s';
+  }
+  const totalSeconds = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${secs}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${secs}s`;
+  }
+  return `${secs}s`;
+}
+
 export default function JobDetail({ job, logs, isLoadingLogs }) {
+  const [speakerData, setSpeakerData] = useState(null);
+  const [isLoadingSpeakers, setIsLoadingSpeakers] = useState(false);
+  const [speakersError, setSpeakersError] = useState(null);
+
+  const segmentsOutput = job?.outputs?.find((output) => output.filename === 'segments.json');
+  const jobId = job?.id ?? null;
+  const jobUpdatedAt = job?.updatedAt ?? null;
+  const segmentsFilename = segmentsOutput?.filename ?? null;
+  const segmentsKey = jobId && segmentsFilename ? `${jobId}:${segmentsFilename}:${jobUpdatedAt}` : null;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!jobId || !segmentsFilename || !segmentsKey) {
+      setSpeakerData(null);
+      setSpeakersError(null);
+      setIsLoadingSpeakers(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const controller = new AbortController();
+    setSpeakerData(null);
+    setIsLoadingSpeakers(true);
+    setSpeakersError(null);
+
+    async function fetchSegments() {
+      try {
+        const response = await fetch(`/api/assets/${jobId}/${segmentsFilename}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const payload = await response.json();
+        if (isMounted) {
+          setSpeakerData(payload);
+        }
+      } catch (error) {
+        if (isMounted) {
+          const err = error instanceof Error ? error : new Error('Erreur inconnue');
+          if (err.name !== 'AbortError') {
+            setSpeakersError(err.message);
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingSpeakers(false);
+        }
+      }
+    }
+
+    fetchSegments();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [jobId, segmentsFilename, segmentsKey]);
+
   if (!job) {
     return <p>Sélectionnez un traitement pour afficher les détails.</p>;
   }
+
+  const hasSegmentsOutput = job.outputs?.some((output) => output.filename === 'segments.json');
 
   return (
     <div className="job-detail">
@@ -42,6 +133,49 @@ export default function JobDetail({ job, logs, isLoadingLogs }) {
           </div>
         ) : (
           <p>Aucun export n'est encore disponible.</p>
+        )}
+      </section>
+
+      <section aria-labelledby="job-speakers">
+        <h3 id="job-speakers">Interventions par speaker</h3>
+        {!hasSegmentsOutput && <p>Données speaker non disponibles pour ce traitement.</p>}
+        {hasSegmentsOutput && isLoadingSpeakers && <p>Chargement des segments…</p>}
+        {hasSegmentsOutput && speakersError && (
+          <p className="text-error">Impossible de charger les segments : {speakersError}</p>
+        )}
+        {hasSegmentsOutput && !isLoadingSpeakers && !speakersError && speakerData && (
+          <div className="speaker-section">
+            {speakerData.speakers?.length ? (
+              <ul className="speaker-stats">
+                {speakerData.speakers.map((speaker) => (
+                  <li key={speaker.id}>
+                    <span className="label">{speaker.label}</span>
+                    <span className="meta">
+                      {speaker.segmentCount} intervention{speaker.segmentCount > 1 ? 's' : ''} •{' '}
+                      {formatDuration(speaker.totalDuration)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>Aucun speaker identifié.</p>
+            )}
+            {speakerData.segments?.length ? (
+              <div className="segment-timeline" role="list">
+                {speakerData.segments.map((segment) => (
+                  <div key={segment.index} className="segment-row" role="listitem">
+                    <div className="time-range">
+                      {formatTimestamp(segment.start)} – {formatTimestamp(segment.end)}
+                    </div>
+                    <div className="speaker-label">{segment.speakerLabel || 'Speaker ?'}</div>
+                    <div className="segment-text">{segment.text || <em>(Silence)</em>}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>Aucune découpe segmentée disponible.</p>
+            )}
+          </div>
         )}
       </section>
 
