@@ -495,7 +495,7 @@ test('python-based transcription script includes WhisperProcessor import', async
     + `  console.error('WhisperProcessor import is missing');\n`
     + `  process.exit(1);\n`
     + `}\n`
-    + `if (!content.includes('AutoProcessor.from_pretrained')) {\n`
+    + `if (!content.includes('AutoProcessor.from_pretrained(MODEL_ID)')) {\n`
     + `  console.error('AutoProcessor fallback is missing');\n`
     + `  process.exit(1);\n`
     + `}\n`
@@ -507,7 +507,7 @@ test('python-based transcription script includes WhisperProcessor import', async
     + `  console.error('Missing Transformers initialization log');\n`
     + `  process.exit(1);\n`
     + `}\n`
-    + `if (!content.includes('AutoModelForSpeechSeq2Seq.from_pretrained')) {\n`
+    + `if (!content.includes('AutoModelForSpeechSeq2Seq.from_pretrained(MODEL_ID)')) {\n`
     + `  console.error('Missing AutoModelForSpeechSeq2Seq usage');\n`
     + `  process.exit(1);\n`
     + `}\n`
@@ -517,6 +517,22 @@ test('python-based transcription script includes WhisperProcessor import', async
     + `}\n`
     + `if (!content.includes('Failed to initialize WhisperProcessor (')) {\n`
     + `  console.error('Missing WhisperProcessor failure diagnostic');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('MODEL_ID = "openai/whisper-medium.en"')) {\n`
+    + `  console.error('Missing MODEL_ID definition for medium.en');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('FALLBACK_MODEL_ID = "medium.en"')) {\n`
+    + `  console.error('Missing fallback model identifier for medium.en');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('whisper.load_model(FALLBACK_MODEL_ID)')) {\n`
+    + `  console.error('Fallback Whisper loader not configured');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('original request: {MODEL_ID}')) {\n`
+    + `  console.error('Fallback log missing original MODEL_ID reference');\n`
     + `  process.exit(1);\n`
     + `}\n`
     + `const directory = path.dirname(scriptPath);\n`
@@ -538,11 +554,11 @@ test('python-based transcription script includes WhisperProcessor import', async
   const inputPath = path.join(rootDir, 'input.wav');
   await fs.promises.writeFile(inputPath, 'audio');
 
-  const result = await service.transcribe({ inputPath, outputDir, config: { ...baseConfig, model: 'medium' } });
+  const result = await service.transcribe({ inputPath, outputDir, config: { ...baseConfig, model: 'medium.en' } });
 
   assert.equal(result.text, 'Texte transcrit');
   assert.equal(result.language, 'fr');
-  assert.equal(result.model, 'medium');
+  assert.equal(result.model, 'medium.en');
   assert.deepEqual(result.segments, [{ start: 0, end: 1.5, text: 'Bonjour tout le monde' }]);
 });
 
@@ -661,6 +677,11 @@ test('python-based transcription configures OpenVINO cache and performance hints
   assert.ok(generatedScript.includes('cache_dir_env = os.environ.get("WHISPER_OPENVINO_CACHE_DIR")'));
   assert.ok(generatedScript.includes('ov_config = {"CACHE_DIR": str(cache_dir)}'));
   assert.ok(generatedScript.includes('log(f"Using OpenVINO device: {device_override} (cache: {cache_dir})")'));
+  assert.ok(generatedScript.includes('MODEL_ID = "openai/whisper-base"'));
+  assert.ok(generatedScript.includes('FALLBACK_MODEL_ID = "base"'));
+  assert.ok(generatedScript.includes('whisper.load_model(FALLBACK_MODEL_ID)'));
+  assert.ok(generatedScript.includes('original request: {MODEL_ID}'));
+  assert.ok(generatedScript.includes('AutoProcessor.from_pretrained(MODEL_ID)'));
 });
 
 

@@ -50,7 +50,19 @@ export interface JobsFilePayload {
   logs: Record<string, JobLogEntry[]>;
 }
 
-export type WhisperModelSize = 'tiny' | 'base' | 'small' | 'medium' | 'large' | 'large-v2' | 'large-v3';
+export type WhisperModelSize =
+  | 'tiny'
+  | 'tiny.en'
+  | 'base'
+  | 'base.en'
+  | 'small'
+  | 'small.en'
+  | 'medium'
+  | 'medium.en'
+  | 'large'
+  | 'large-v1'
+  | 'large-v2'
+  | 'large-v3';
 
 export interface WhisperModelInfo {
   name: WhisperModelSize;
