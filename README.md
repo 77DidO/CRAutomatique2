@@ -1,4 +1,4 @@
-# CR Automatique 2 — Rebuild 2025
+# CR Automatique 2 — Rebuild 2025 
 
 Cette itération reconstruit l'application de compte-rendu automatique en respectant la parité d'écrans et de fonctionnalités tout en renforçant le pipeline local (FFmpeg + Whisper) et l'intégration OpenAI. Le dépôt expose :
 
