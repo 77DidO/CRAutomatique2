@@ -87,6 +87,20 @@ npm run dev
 - Interface sur `http://localhost:5173`
 - L'URL backend est déterminée via `VITE_BACKEND_URL` ; à défaut, le port 4000 est utilisé par défaut
 
+### Activer la diarisation des locuteurs
+
+Le pipeline peut enrichir la transcription avec l'identité des intervenants lorsqu'un script Python de diarisation est disponible.
+
+1. Installez les dépendances nécessaires (PyTorch + bibliothèque de diarisation de votre choix) dans un environnement Python dédié et exposez un script compatible avec l'API `speaker-diarization.py` (arguments `--input` et `--output` produisant un fichier JSON de segments).
+2. Renseignez les variables d'environnement côté backend :
+   - `DIARIZATION_PYTHON_PATH` : exécutable Python à utiliser (`python`, `python3`, chemin virtuel, …) ;
+   - `DIARIZATION_SCRIPT_PATH` : chemin absolu du script de diarisation si vous n'utilisez pas l'emplacement par défaut `backend/tools/speaker-diarization.py` ;
+   - `DIARIZATION_MODEL` (optionnel) : identifiant de modèle transmis au script ;
+   - `DIARIZATION_TIMEOUT` (optionnel) : durée maximale d'exécution en millisecondes.
+3. Activez le flag **Activer la diarisation des locuteurs** depuis l'onglet Configuration du frontend (ou en modifiant `config.json` via l'API).
+
+Le guide détaillé (prérequis Python, format JSON attendu, conseils de mise en production) est disponible dans `docs/DIARIZATION.md`.
+
 ## Scripts & packaging
 
 | Commande | Description |
