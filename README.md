@@ -135,6 +135,7 @@ Le dossier `samples/` contient un guide pour générer localement :
 ## Documentation complémentaire
 
 - `docs/ARCHITECTURE.md` : diagrammes logiques/physiques, dépendances, stockage
+- `docs/VSCode.md` : configuration VS Code + Codex pour piloter l'environnement local
 - `docs/WORKFLOWS.md` : matrice états → événements → sorties → erreurs
 - `docs/OPERATIONS.md` : procédures Dev/Ops, scripts, reprise après incident
 - `docs/SECURITY.md` : gestion des secrets, PII, principe de moindre privilège
