@@ -17,13 +17,20 @@
       "label": "Backend: dev",
       "type": "npm",
       "script": "dev",
-      "path": "backend"
+      "path": "backend",
+      "isBackground": true
     },
     {
       "label": "Frontend: dev",
       "type": "npm",
       "script": "dev",
-      "path": "frontend"
+      "path": "frontend",
+      "isBackground": true
+    },
+    {
+      "label": "Dev: backend+frontend",
+      "dependsOn": ["Backend: dev", "Frontend: dev"],
+      "dependsOrder": "parallel"
     },
     {
       "label": "Backend: test",
