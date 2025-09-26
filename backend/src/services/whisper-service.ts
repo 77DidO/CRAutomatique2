@@ -9,6 +9,7 @@ import type {
   WhisperService,
   WhisperTranscriptionResult,
   WhisperTranscriptionSegment,
+  DiarizationSegment,
 } from '../types/index.js';
 
 interface CreateWhisperServiceOptions {
@@ -169,13 +170,77 @@ function parseJsonSegments(data: unknown): WhisperTranscriptionSegment[] {
       continue;
     }
 
-    const { start, end, text } = segment as { start?: unknown; end?: unknown; text?: unknown };
+    const { start, end, text, speaker } = segment as {
+      start?: unknown;
+      end?: unknown;
+      text?: unknown;
+      speaker?: unknown;
+    };
     const parsedStart = typeof start === 'number' ? start : Number.parseFloat(String(start ?? ''));
     const parsedEnd = typeof end === 'number' ? end : Number.parseFloat(String(end ?? ''));
     const parsedText = typeof text === 'string' ? text.trim() : '';
+    const diarization = parseDiarizationSegments((segment as { diarization?: unknown }).diarization);
+
+    let parsedSpeaker: string | null = null;
+    if (typeof speaker === 'string') {
+      parsedSpeaker = speaker.trim();
+    } else if (typeof speaker === 'number') {
+      parsedSpeaker = String(speaker);
+    } else if (speaker != null) {
+      parsedSpeaker = String(speaker);
+    }
+
+    if (parsedSpeaker && parsedSpeaker.length === 0) {
+      parsedSpeaker = null;
+    }
 
     if (!Number.isNaN(parsedStart) && !Number.isNaN(parsedEnd) && parsedText.length > 0) {
-      segments.push({ start: parsedStart, end: parsedEnd, text: parsedText });
+      const payload: WhisperTranscriptionSegment = { start: parsedStart, end: parsedEnd, text: parsedText };
+      if (parsedSpeaker) {
+        payload.speaker = parsedSpeaker;
+      }
+      if (diarization.length > 0) {
+        payload.diarization = diarization;
+      }
+      segments.push(payload);
+    }
+  }
+
+  return segments;
+}
+
+function parseDiarizationSegments(data: unknown): DiarizationSegment[] {
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  const segments: DiarizationSegment[] = [];
+
+  for (const item of data) {
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
+
+    const { start, end, speaker } = item as { start?: unknown; end?: unknown; speaker?: unknown };
+    const parsedStart = typeof start === 'number' ? start : Number.parseFloat(String(start ?? ''));
+    const parsedEnd = typeof end === 'number' ? end : Number.parseFloat(String(end ?? ''));
+    let parsedSpeaker: string | null = null;
+
+    if (typeof speaker === 'string') {
+      parsedSpeaker = speaker.trim();
+    } else if (typeof speaker === 'number') {
+      parsedSpeaker = String(speaker);
+    } else if (speaker != null) {
+      parsedSpeaker = String(speaker);
+    }
+
+    if (
+      !Number.isNaN(parsedStart) &&
+      !Number.isNaN(parsedEnd) &&
+      parsedSpeaker &&
+      parsedSpeaker.length > 0
+    ) {
+      segments.push({ start: parsedStart, end: parsedEnd, speaker: parsedSpeaker });
     }
   }
 

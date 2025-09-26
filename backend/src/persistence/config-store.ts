@@ -1,6 +1,12 @@
 import fs from 'node:fs';
 import type { AppConfig, ConfigStore, DeepPartial, Logger } from '../types/index.js';
 
+const PIPELINE_DEFAULTS = {
+  enableSummaries: true,
+  enableSubtitles: true,
+  enableDiarization: false,
+} as const;
+
 interface CreateConfigRepositoryOptions {
   logger: Logger;
 }
@@ -33,21 +39,30 @@ class JsonConfigStore implements ConfigStore {
     }
     const raw = await fs.promises.readFile(this.filePath, 'utf8');
     try {
-      this.cache = JSON.parse(raw || '{}') as AppConfig;
+      const parsed = JSON.parse(raw || '{}') as AppConfig;
+      this.cache = applyConfigDefaults(parsed);
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Unknown config parse error');
       this.logger.error({ err }, 'Failed to parse configuration, returning empty object');
-      this.cache = {} as AppConfig;
+      this.cache = applyConfigDefaults({} as AppConfig);
     }
     return this.cache;
   }
 
   async write(patch: DeepPartial<AppConfig>): Promise<AppConfig> {
     const current = await this.read();
-    this.cache = merge(current, patch);
+    this.cache = applyConfigDefaults(merge(current, patch));
     await fs.promises.writeFile(this.filePath, JSON.stringify(this.cache, null, 2), 'utf8');
     return this.cache;
   }
+}
+
+function applyConfigDefaults(config: AppConfig): AppConfig {
+  const pipeline = config?.pipeline ? { ...config.pipeline } : {};
+  return {
+    ...config,
+    pipeline: { ...PIPELINE_DEFAULTS, ...pipeline },
+  } as AppConfig;
 }
 
 function merge<T>(target: T, patch: DeepPartial<T>): T {
