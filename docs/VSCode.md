@@ -31,22 +31,25 @@ Le fichier [.vscode/tasks.json](../.vscode/tasks.json) expose six tâches prête
 Le fichier [.vscode/launch.json](../.vscode/launch.json) fournit deux configurations ainsi qu'un *compound* :
 
 1. **API: npm run dev (inspect)** – Démarre le backend via `npm run dev` en injectant `NODE_OPTIONS=--inspect` afin d'ouvrir le port d'inspection Node (utile pour placer des points d'arrêt TypeScript). Les variables de `backend/.env` sont automatiquement chargées.
-2. **Brave: Vite UI** – Ouvre l'interface sur `http://localhost:5173` dans Brave (adaptez `runtimeExecutable` si vous utilisez un autre navigateur).
+2. **Brave: Vite UI** – Ouvre l'interface sur `http://localhost:5173` dans Brave, lance la tâche `Frontend: dev`, isole la session dans un profil dédié (`.vscode/.brave-debug-profile`) et active un journal de trace détaillé. Vous pouvez modifier `runtimeExecutable` si vous utilisez un autre navigateur basé sur Chromium.
+
 3. **CRAuto: dev (backend+frontend)** – Combine les deux configurations ci-dessus et déclenche la tâche `Dev: backend+frontend` avant d'attacher les débogueurs.
 
 ### Séquence type
 
 1. `Ctrl+Shift+P` → `Tasks: Run Task` → `Dev: backend+frontend` (ou lancez directement le compound, qui exécutera cette tâche automatiquement).
-2. Onglet **Run and Debug** → sélectionnez *CRAuto: dev (backend+frontend)* → ▶️. VS Code démarre le backend en mode inspecteur, lance le frontend et attache le débogueur navigateur.
+2. Onglet **Run and Debug** → sélectionnez *CRAuto: dev (backend+frontend)* → ▶️. VS Code démarre le backend en mode inspecteur, lance le frontend, ouvre Brave avec DevTools et attache le débogueur navigateur.
 3. Les terminaux restent ouverts pendant toute la session et relayent les erreurs (ports occupés, exceptions, erreurs Vite…).
 
 ## Intégration Codex
 
 Pour permettre à Codex de piloter ces workflows :
+1. **Autoriser l'exécution de commandes VS Code** – Ouvrez `Fichier → Préférences → Paramètres` puis recherchez « Codex ». Dans la section **Extensions → ChatGPT / Codex**, activez **Allow Command Execution** (si le basculement est visible). Sur certaines versions pré-release l'option est absente : dans ce cas, passez simplement à l'étape suivante, l'extension est déjà autorisée à invoquer les commandes VS Code.
+2. **Associer les prompts aux commandes VS Code** – Dans Codex, utilisez `Ctrl+Shift+P` → `Codex: Run VS Code Command` (ou la fonctionnalité « Custom Actions » selon la version) et mappez chaque prompt `.codex/prompts/*.txt` vers :
+   - `workbench.action.tasks.runTask` avec l'argument `Backend: dev`, `Frontend: dev`, `Dev: backend+frontend` ou `Backend: test` ;
+   - `workbench.action.debug.start` avec la configuration `CRAuto: dev (backend+frontend)` ou directement `Brave: Vite UI` pour ouvrir/fermer Brave en mode trace.
+3. **Partager les journaux** – Les tâches se lançant dans le terminal intégré (mode `panel: "shared"`), Codex voit exactement les mêmes sorties que vous. Il peut donc diagnostiquer un port bloqué, un crash Vite ou relayer les erreurs TypeScript/Node.
 
-1. **Autoriser l'exécution de commandes VS Code** – Dans les paramètres de l'extension, activez l'option qui autorise le lancement de tâches/terminaux.
-2. **Associer les prompts** – Mappez vos fichiers `.codex/prompts/*.txt` aux commandes `workbench.action.tasks.runTask` (pour `Backend: dev`, `Frontend: dev`, `Dev: backend+frontend`, `Backend: test`, etc.) et `workbench.action.debug.start` (pour lancer le compound ou une configuration spécifique).
-3. **Partager les journaux** – Les tâches se lançant dans le terminal intégré, Codex voit exactement les mêmes sorties que vous. Il peut donc diagnostiquer un port bloqué, un crash Vite, ou relayer les erreurs TypeScript/Node.
 4. **Modification de code** – Une fois les tâches actives, Codex peut appliquer des changements locaux (via Git) tout en conservant les serveurs en fonctionnement. Pensez à lui fournir le contexte (`.vscode/tasks.json`, `.vscode/launch.json`, fichiers ouverts) pour des suggestions précises.
 
 ## Dépannage rapide
