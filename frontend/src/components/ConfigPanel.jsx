@@ -114,15 +114,18 @@ export default function ConfigPanel({ config, onSave }) {
   };
 
   return (
-    <section className="card">
+    <section className="surface-card space-y-6">
       <h2 className="section-title">Configuration du pipeline</h2>
-      <form className="config-form" onSubmit={handleSubmit}>
-        <fieldset>
+      <form className="space-y-6" onSubmit={handleSubmit}>
+        <fieldset className="space-y-6">
           <legend>Whisper local</legend>
-          <div className="input-group">
-            <label htmlFor="whisper-model">Modèle</label>
+          <div className="form-field">
+            <label className="form-label" htmlFor="whisper-model">
+              Modèle
+            </label>
             <select
               id="whisper-model"
+              className="select select-bordered"
               value={localConfig.whisper.model}
               onChange={(event) => updateSection(['whisper', 'model'], event.target.value)}
             >
@@ -132,24 +135,30 @@ export default function ConfigPanel({ config, onSave }) {
                 </option>
               ))}
             </select>
-            <small className="help-text">
-              {whisperModels.find(m => m.name === localConfig.whisper.model)?.relativeDuration}
+            <p className="form-helper">
+              {whisperModels.find((m) => m.name === localConfig.whisper.model)?.relativeDuration}
               {' • '}
-              {whisperModels.find(m => m.name === localConfig.whisper.model)?.sizeInMemory} de mémoire requise
-            </small>
+              {whisperModels.find((m) => m.name === localConfig.whisper.model)?.sizeInMemory} de mémoire requise
+            </p>
           </div>
-          <div className="input-group">
-            <label htmlFor="whisper-language">Langue (optionnel)</label>
+          <div className="form-field">
+            <label className="form-label" htmlFor="whisper-language">
+              Langue (optionnel)
+            </label>
             <input
               id="whisper-language"
+              className="input input-bordered"
               value={localConfig.whisper.language ?? ''}
               onChange={(event) => updateSection(['whisper', 'language'], event.target.value)}
             />
           </div>
-          <div className="input-group">
-            <label htmlFor="whisper-compute">Type de calcul</label>
+          <div className="form-field">
+            <label className="form-label" htmlFor="whisper-compute">
+              Type de calcul
+            </label>
             <select
               id="whisper-compute"
+              className="select select-bordered"
               value={localConfig.whisper.computeType}
               onChange={(event) => updateSection(['whisper', 'computeType'], event.target.value)}
             >
@@ -160,10 +169,13 @@ export default function ConfigPanel({ config, onSave }) {
               ))}
             </select>
           </div>
-          <div className="input-group">
-            <label htmlFor="whisper-batch">Taille de batch</label>
+          <div className="form-field">
+            <label className="form-label" htmlFor="whisper-batch">
+              Taille de batch
+            </label>
             <input
               id="whisper-batch"
+              className="input input-bordered"
               type="number"
               min="0"
               value={localConfig.whisper.batchSize ?? 0}
@@ -172,40 +184,52 @@ export default function ConfigPanel({ config, onSave }) {
           </div>
         </fieldset>
 
-        <fieldset>
+        <fieldset className="space-y-6">
           <legend>OpenAI</legend>
-          <div className="input-group">
-            <label htmlFor="llm-model">Modèle</label>
+          <div className="form-field">
+            <label className="form-label" htmlFor="llm-model">
+              Modèle
+            </label>
             <input
               id="llm-model"
+              className="input input-bordered"
               value={localConfig.llm.model}
               onChange={(event) => updateSection(['llm', 'model'], event.target.value)}
             />
           </div>
-          <div className="input-group">
-            <label htmlFor="llm-temperature">Température</label>
+          <div className="form-field">
+            <label className="form-label" htmlFor="llm-temperature">
+              Température
+            </label>
             <input
               id="llm-temperature"
+              className="input input-bordered"
               type="number"
               step="0.1"
               value={localConfig.llm.temperature}
               onChange={(event) => updateSection(['llm', 'temperature'], Number(event.target.value))}
             />
           </div>
-          <div className="input-group">
-            <label htmlFor="llm-max-tokens">Tokens maximum</label>
+          <div className="form-field">
+            <label className="form-label" htmlFor="llm-max-tokens">
+              Tokens maximum
+            </label>
             <input
               id="llm-max-tokens"
+              className="input input-bordered"
               type="number"
               min="1"
               value={localConfig.llm.maxOutputTokens}
               onChange={(event) => updateSection(['llm', 'maxOutputTokens'], Number(event.target.value))}
             />
           </div>
-          <div className="input-group">
-            <label htmlFor="llm-api-key">Clé OpenAI</label>
+          <div className="form-field">
+            <label className="form-label" htmlFor="llm-api-key">
+              Clé OpenAI
+            </label>
             <input
               id="llm-api-key"
+              className="input input-bordered"
               type="password"
               value={apiKeyInput}
               placeholder={hasStoredApiKey ? 'Clé enregistrée — saisir pour remplacer' : 'Saisissez votre clé OpenAI'}
@@ -218,11 +242,11 @@ export default function ConfigPanel({ config, onSave }) {
               autoComplete="off"
             />
             {hasStoredApiKey ? (
-              <p className="input-hint">
+              <p className="form-helper">
                 {clearApiKey ? (
                   <>
                     La clé enregistrée sera supprimée lors de la sauvegarde.{' '}
-                    <button type="button" className="link-button" onClick={toggleClearApiKey}>
+                    <button type="button" className="link cursor-pointer" onClick={toggleClearApiKey}>
                       Annuler
                     </button>
                     .
@@ -231,7 +255,7 @@ export default function ConfigPanel({ config, onSave }) {
                   <>
                     Une clé est actuellement enregistrée. Laissez le champ vide pour la conserver, saisissez une nouvelle valeur
                     pour la remplacer ou{' '}
-                    <button type="button" className="link-button" onClick={toggleClearApiKey}>
+                    <button type="button" className="link cursor-pointer" onClick={toggleClearApiKey}>
                       supprimez la clé
                     </button>
                     .
@@ -239,43 +263,49 @@ export default function ConfigPanel({ config, onSave }) {
                 )}
               </p>
             ) : (
-              <p className="input-hint">Votre clé sera stockée localement et utilisée uniquement pour la synthèse.</p>
+              <p className="form-helper">Votre clé sera stockée localement et utilisée uniquement pour la synthèse.</p>
             )}
           </div>
         </fieldset>
 
-        <fieldset>
+        <fieldset className="space-y-4">
           <legend>Options du pipeline</legend>
-          <label className="toggle">
+          <label htmlFor="pipeline-summaries" className="toggle-field">
+            <span>Activer la synthèse OpenAI</span>
             <input
+              id="pipeline-summaries"
+              className="toggle toggle-primary"
               type="checkbox"
               checked={localConfig.pipeline.enableSummaries}
               onChange={(event) => updateSection(['pipeline', 'enableSummaries'], event.target.checked)}
             />
-            <span>Activer la synthèse OpenAI</span>
           </label>
-          <label className="toggle">
+          <label htmlFor="pipeline-subtitles" className="toggle-field">
+            <span>Générer les sous-titres VTT</span>
             <input
+              id="pipeline-subtitles"
+              className="toggle toggle-primary"
               type="checkbox"
               checked={localConfig.pipeline.enableSubtitles}
               onChange={(event) => updateSection(['pipeline', 'enableSubtitles'], event.target.checked)}
             />
-            <span>Générer les sous-titres VTT</span>
           </label>
-          <label className="toggle">
+          <label htmlFor="pipeline-diarization" className="toggle-field">
+            <span>Activer la diarisation des locuteurs</span>
             <input
+              id="pipeline-diarization"
+              className="toggle toggle-primary"
               type="checkbox"
               checked={Boolean(localConfig.pipeline.enableDiarization)}
               onChange={(event) => updateSection(['pipeline', 'enableDiarization'], event.target.checked)}
             />
-            <span>Activer la diarisation des locuteurs</span>
           </label>
         </fieldset>
 
-        {error && <p className="toast error">{error}</p>}
-        {success && <p className="toast success">Configuration sauvegardée</p>}
+        {error && <div className="alert alert--error">{error}</div>}
+        {success && <div className="alert alert--success">Configuration sauvegardée</div>}
 
-        <button className="button primary" type="submit" disabled={saving}>
+        <button className="btn btn-primary btn-md" type="submit" disabled={saving}>
           {saving ? 'Sauvegarde…' : 'Sauvegarder'}
         </button>
       </form>

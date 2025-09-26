@@ -127,31 +127,46 @@ function AppShell() {
   };
 
   return (
-    <div className="app-shell">
-      <header className="app-header">
+    <div className="app-shell page-container pb-48">
+      <header className="home-header">
         <div>
-          <h1>CR Automatique</h1>
-          <p className="subtitle">Traitement audio local + résumés assistés OpenAI</p>
+          <h1 className="page-title">CR Automatique</h1>
+          <p className="home-subtitle">Traitement audio local avec résumés assistés OpenAI</p>
         </div>
-        <nav className="tabs" aria-label="Navigation principale">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              className={tab.id === activeTab ? 'tab active' : 'tab'}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <nav className="navbar" aria-label="Navigation principale">
+          {TABS.map((tab) => {
+            const isActive = tab.id === activeTab;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                className={[
+                  'btn',
+                  isActive ? 'btn-primary' : 'btn-secondary',
+                  'btn-sm',
+                ].join(' ')}
+                aria-current={isActive ? 'page' : undefined}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </nav>
       </header>
 
-      {error && <div className="toast error">{error}</div>}
+      {error && (
+        <div role="alert" className="alert alert--error">
+          {error}
+        </div>
+      )}
+
       {isLoading ? (
-        <div className="loading">Chargement en cours...</div>
+        <div className="surface-card">
+          <p className="text-base-content/70">Chargement en cours…</p>
+        </div>
       ) : (
-        <main className="app-content">
+        <main className="space-y-8">
           {activeTab === 'upload' && <UploadForm templates={templates} onSubmit={handleUpload} />}
           {activeTab === 'jobs' && (
             <JobDashboard
