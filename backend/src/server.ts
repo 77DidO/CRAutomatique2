@@ -110,33 +110,13 @@ export async function createServer(
 
   return {
     async start(port: number) {
-      const { findAvailablePort } = await import('./utils/port-check.js');
-
-      let resolvedPort: number;
-      try {
-        resolvedPort = await findAvailablePort(port);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        logger.error(
-          {
-            requestedPort: port,
-            error: { message },
-          },
-          'Unable to find available port',
-        );
-        throw error;
+      const { waitForPortAvailable } = await import('./utils/port-check.js');
+      
+      // Attendre que le port soit disponible
+      if (!await waitForPortAvailable(port)) {
+        throw new Error(`Le port ${port} n'est pas disponible après plusieurs tentatives`);
       }
-
-      if (resolvedPort !== port) {
-        logger.info(
-          {
-            requestedPort: port,
-            port: resolvedPort,
-          },
-          'Requested port unavailable, falling back to available port',
-        );
-      }
-
+      
       return new Promise<{ serverInstance: Server }>((resolve, reject) => {
         let eventedServer: {
           addListener(event: 'error', listener: (error: ListenError) => void): void;
@@ -147,7 +127,7 @@ export async function createServer(
           eventedServer.removeListener('error', onError);
           logger.error(
             {
-              port: resolvedPort,
+              port,
               error: {
                 code: typeof error.code === 'string' || typeof error.code === 'number' ? error.code : undefined,
                 message: error.message,
@@ -158,10 +138,10 @@ export async function createServer(
           reject(error);
         };
 
-        const serverInstance = app.listen(resolvedPort, () => {
+        const serverInstance = app.listen(port, () => {
           eventedServer.removeListener('error', onError);
           void pipeline.resume();
-          logger.info({ port: resolvedPort }, 'HTTP server listening');
+          logger.info({ port }, 'HTTP server listening');
           resolve({ serverInstance });
         }) as Server;
 
