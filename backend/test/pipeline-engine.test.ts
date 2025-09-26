@@ -109,6 +109,205 @@ test('pipeline completes job with stub services', async () => {
   assert.ok(fs.existsSync(subtitlesPath));
 });
 
+test('pipeline skips diarization when disabled in config', async () => {
+  const rootDir = createTempRoot();
+  process.env.DATA_ROOT = rootDir;
+  process.env.OPENAI_API_KEY = 'test-key';
+
+  const logger = createLogger();
+  const environment = await ensureDataEnvironment({ logger });
+
+  const jobStore = await createJobRepository(environment, { logger });
+  const configStore = await createConfigRepository(environment, { logger });
+  const templateStore = await createTemplateRepository(environment, { logger });
+
+  await configStore.write({ pipeline: { enableDiarization: false } });
+
+  let diarizeCalls = 0;
+
+  const services: Services = {
+    ffmpeg: {
+      async normalizeAudio({ input, output }) {
+        await fs.promises.copyFile(input, output);
+      },
+    },
+    whisper: {
+      async transcribe(): Promise<WhisperTranscriptionResult> {
+        return {
+          model: 'base',
+          text: 'Bonjour monde',
+          segments: [
+            { start: 0, end: 1.5, text: 'Bonjour' },
+            { start: 1.5, end: 3, text: 'monde' },
+          ],
+          language: 'fr',
+        };
+      },
+    },
+    diarization: {
+      async diarize() {
+        diarizeCalls += 1;
+        return {
+          segments: [
+            { start: 0, end: 1.2, speaker: 'speaker-1' },
+            { start: 1.2, end: 3, speaker: 'speaker-2' },
+          ],
+        };
+      },
+    },
+    openai: {
+      async generateSummary(): Promise<SummaryResult> {
+        return { markdown: '# Résumé\n- Point clé' };
+      },
+    },
+  };
+
+  const pipeline = createPipelineEngine({
+    environment,
+    jobStore,
+    configStore,
+    templateStore,
+    services,
+    logger,
+  });
+
+  const uploadPath = path.join(environment.tmpDir, 'sample.wav');
+  await fs.promises.writeFile(uploadPath, 'fake-audio');
+
+  const job = await jobStore.create({
+    filename: 'sample.wav',
+    tempPath: uploadPath,
+    templateId: 'default',
+    participants: ['Alice', 'Bob'],
+  });
+
+  await pipeline.enqueue(job.id);
+
+  const finalJob = await waitFor<Job>(async () => {
+    const value = await jobStore.get(job.id);
+    return value?.status === 'completed' ? value : null;
+  }, 10_000);
+
+  assert.equal(finalJob?.status, 'completed');
+  assert.equal(diarizeCalls, 0);
+
+  const segmentsPath = path.join(environment.jobsDir, job.id, 'segments.json');
+  const payloadRaw = await fs.promises.readFile(segmentsPath, 'utf8');
+  const payload = JSON.parse(payloadRaw) as {
+    segments: Array<{ speaker: string | null }>;
+    speakers: unknown[];
+  };
+
+  assert.equal(payload.speakers.length, 0);
+  assert.ok(payload.segments.every((segment) => segment.speaker === null));
+
+  delete process.env.OPENAI_API_KEY;
+});
+
+test('pipeline enriches transcription with diarization segments when enabled', async () => {
+  const rootDir = createTempRoot();
+  process.env.DATA_ROOT = rootDir;
+  process.env.OPENAI_API_KEY = 'test-key';
+
+  const logger = createLogger();
+  const environment = await ensureDataEnvironment({ logger });
+
+  const jobStore = await createJobRepository(environment, { logger });
+  const configStore = await createConfigRepository(environment, { logger });
+  const templateStore = await createTemplateRepository(environment, { logger });
+
+  await configStore.write({ pipeline: { enableDiarization: true } });
+
+  let diarizeCalls = 0;
+
+  const services: Services = {
+    ffmpeg: {
+      async normalizeAudio({ input, output }) {
+        await fs.promises.copyFile(input, output);
+      },
+    },
+    whisper: {
+      async transcribe(): Promise<WhisperTranscriptionResult> {
+        return {
+          model: 'base',
+          text: 'Bonjour monde',
+          segments: [
+            { start: 0, end: 1.5, text: 'Bonjour' },
+            { start: 1.5, end: 3, text: 'monde' },
+          ],
+          language: 'fr',
+        };
+      },
+    },
+    diarization: {
+      async diarize() {
+        diarizeCalls += 1;
+        return {
+          segments: [
+            { start: 0, end: 1.4, speaker: 'alice' },
+            { start: 1.4, end: 3.2, speaker: 'bob' },
+          ],
+        };
+      },
+    },
+    openai: {
+      async generateSummary(): Promise<SummaryResult> {
+        return { markdown: '# Résumé\n- Point clé' };
+      },
+    },
+  };
+
+  const pipeline = createPipelineEngine({
+    environment,
+    jobStore,
+    configStore,
+    templateStore,
+    services,
+    logger,
+  });
+
+  const uploadPath = path.join(environment.tmpDir, 'sample.wav');
+  await fs.promises.writeFile(uploadPath, 'fake-audio');
+
+  const job = await jobStore.create({
+    filename: 'sample.wav',
+    tempPath: uploadPath,
+    templateId: 'default',
+    participants: ['Alice', 'Bob'],
+  });
+
+  await pipeline.enqueue(job.id);
+
+  const finalJob = await waitFor<Job>(async () => {
+    const value = await jobStore.get(job.id);
+    return value?.status === 'completed' ? value : null;
+  }, 10_000);
+
+  assert.equal(finalJob?.status, 'completed');
+  assert.equal(diarizeCalls, 1);
+
+  const segmentsPath = path.join(environment.jobsDir, job.id, 'segments.json');
+  const payloadRaw = await fs.promises.readFile(segmentsPath, 'utf8');
+  const payload = JSON.parse(payloadRaw) as {
+    segments: Array<{ speaker: string | null; speakerLabel: string | null }>;
+    speakers: Array<{ id: string; label: string }>;
+  };
+
+  assert.deepEqual(
+    payload.segments.map((segment) => segment.speaker),
+    ['alice', 'bob'],
+  );
+  assert.ok(payload.segments.every((segment) => segment.speakerLabel));
+  assert.equal(payload.speakers.length, 2);
+
+  const timedTranscriptPath = path.join(environment.jobsDir, job.id, 'transcription_timed.txt');
+  const timedContent = await fs.promises.readFile(timedTranscriptPath, 'utf8');
+  assert.ok(timedContent.includes('Speaker 1'));
+  assert.ok(timedContent.includes('Speaker 2'));
+
+  delete process.env.OPENAI_API_KEY;
+});
+
 test('pipeline skips subtitle export when disabled in config', async () => {
   const rootDir = createTempRoot();
   process.env.DATA_ROOT = rootDir;

@@ -12,6 +12,7 @@ import type {
 
 interface CreateSpeakerDiarizationServiceOptions {
   logger: Logger;
+  spawn?: typeof spawn;
 }
 
 interface RunProcessOptions {
@@ -20,14 +21,15 @@ interface RunProcessOptions {
   cwd?: string;
   logger: Logger;
   timeout?: number;
+  spawnFn: typeof spawn;
 }
 
-function runProcess({ command, args, cwd, logger, timeout }: RunProcessOptions): Promise<{ stdout: string }>
+function runProcess({ command, args, cwd, logger, timeout, spawnFn }: RunProcessOptions): Promise<{ stdout: string }>
 {
   return new Promise((resolve, reject) => {
     logger.info({ command, args, cwd }, 'Démarrage du processus de diarisation');
 
-    const child = spawn(command, args, { cwd });
+    const child = spawnFn(command, args, { cwd });
     let stdout = '';
     let stderr = '';
 
@@ -133,7 +135,7 @@ function tryParseJson(content: string): unknown | null {
 
 export function createSpeakerDiarizationService(
   environment: Environment,
-  { logger }: CreateSpeakerDiarizationServiceOptions,
+  { logger, spawn: spawnOverride }: CreateSpeakerDiarizationServiceOptions,
 ): DiarizationService {
   const rootDirectory =
     typeof environment.rootDir === 'string' && environment.rootDir.length > 0
@@ -150,6 +152,7 @@ export function createSpeakerDiarizationService(
     process.env.DIARIZATION_SCRIPT_PATH ||
     path.join(rootDirectory, 'backend', 'tools', 'speaker-diarization.py');
   const timeout = Number.parseInt(process.env.DIARIZATION_TIMEOUT ?? '', 10);
+  const spawnFn = typeof spawnOverride === 'function' ? spawnOverride : spawn;
 
   return {
     async diarize({ inputPath, outputDir }): Promise<DiarizationResult> {
@@ -177,6 +180,7 @@ export function createSpeakerDiarizationService(
         cwd: rootDirectory,
         logger,
         timeout: Number.isNaN(timeout) ? undefined : timeout,
+        spawnFn,
       });
 
       let payload: unknown | null = tryParseJson(stdout);
