@@ -4,6 +4,7 @@ const emptyTemplate = { name: '', description: '', prompt: '' };
 
 export default function TemplateManager({ templates, onCreate, onUpdate, onDelete }) {
   const [newTemplate, setNewTemplate] = useState(emptyTemplate);
+  const [isCreating, setIsCreating] = useState(false);
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState(null);
 
@@ -22,6 +23,7 @@ export default function TemplateManager({ templates, onCreate, onUpdate, onDelet
     try {
       await onCreate(newTemplate);
       setNewTemplate(emptyTemplate);
+      setIsCreating(false);
     } catch (err) {
       setError(err.message);
     }
@@ -39,153 +41,211 @@ export default function TemplateManager({ templates, onCreate, onUpdate, onDelet
 
   return (
     <section className="surface-card space-y-6">
-      <h2 className="section-title">Gabarits de synthèse</h2>
+      <div className="template-manager-header">
+        <h2 className="section-title">Gabarits de synthèse</h2>
+        <button
+          className="btn btn-primary btn-md"
+          type="button"
+          onClick={() => {
+            setError(null);
+            setIsCreating((prev) => {
+              if (prev) {
+                setNewTemplate(emptyTemplate);
+              }
+              return !prev;
+            });
+          }}
+        >
+          {isCreating ? 'Fermer' : 'Créer un gabarit'}
+        </button>
+      </div>
       {error && <div className="alert alert--error">{error}</div>}
 
-      <form className="bg-base-200/60 rounded-xl p-6 space-y-4" onSubmit={handleCreate}>
-        <h3 className="section-title">Créer un gabarit</h3>
-        <div className="form-field">
-          <label className="form-label" htmlFor="template-name">
-            Nom
-          </label>
-          <input
-            id="template-name"
-            className="input input-bordered"
-            value={newTemplate.name}
-            onChange={(event) => setNewTemplate((prev) => ({ ...prev, name: event.target.value }))}
-            required
-          />
-        </div>
-        <div className="form-field">
-          <label className="form-label" htmlFor="template-description">
-            Description
-          </label>
-          <input
-            id="template-description"
-            className="input input-bordered"
-            value={newTemplate.description}
-            onChange={(event) => setNewTemplate((prev) => ({ ...prev, description: event.target.value }))}
-          />
-        </div>
-        <div className="form-field">
-          <label className="form-label" htmlFor="template-prompt">
-            Prompt
-          </label>
-          <textarea
-            id="template-prompt"
-            className="textarea"
-            value={newTemplate.prompt}
-            onChange={(event) => setNewTemplate((prev) => ({ ...prev, prompt: event.target.value }))}
-            required
-          />
-        </div>
-        <button className="btn btn-primary btn-md" type="submit">
-          Créer
-        </button>
-      </form>
+      {isCreating && (
+        <form className="template-form" onSubmit={handleCreate}>
+          <div className="form-field">
+            <label className="form-label" htmlFor="template-name">
+              Nom
+            </label>
+            <input
+              id="template-name"
+              className="input input-bordered"
+              value={newTemplate.name}
+              onChange={(event) => setNewTemplate((prev) => ({ ...prev, name: event.target.value }))}
+              required
+            />
+          </div>
+          <div className="form-field">
+            <label className="form-label" htmlFor="template-description">
+              Description
+            </label>
+            <input
+              id="template-description"
+              className="input input-bordered"
+              value={newTemplate.description}
+              onChange={(event) => setNewTemplate((prev) => ({ ...prev, description: event.target.value }))}
+            />
+          </div>
+          <div className="form-field">
+            <label className="form-label" htmlFor="template-prompt">
+              Prompt
+            </label>
+            <textarea
+              id="template-prompt"
+              className="textarea"
+              value={newTemplate.prompt}
+              onChange={(event) => setNewTemplate((prev) => ({ ...prev, prompt: event.target.value }))}
+              required
+            />
+          </div>
+          <div className="template-actions">
+            <button className="btn btn-primary btn-md" type="submit">
+              Créer
+            </button>
+            <button
+              className="btn btn-secondary btn-md"
+              type="button"
+              onClick={() => {
+                setNewTemplate(emptyTemplate);
+                setIsCreating(false);
+              }}
+            >
+              Annuler
+            </button>
+          </div>
+        </form>
+      )}
 
-      <div className="template-grid">
-        {sortedTemplates.map((template) => (
-          <TemplateCard
-            key={template.id}
-            template={template}
-            isEditing={editing?.id === template.id}
-            onEdit={() => setEditing(template)}
-            onCancel={() => setEditing(null)}
-            onDelete={() => onDelete(template.id)}
-            onSave={handleUpdate}
-          />
-        ))}
+      <div className="overflow-x-auto">
+        <table className="template-table">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Description</th>
+              <th>Prompt</th>
+              <th className="template-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedTemplates.length === 0 && (
+              <tr>
+                <td className="template-empty" colSpan={4}>
+                  Aucun gabarit n'est disponible pour le moment.
+                </td>
+              </tr>
+            )}
+            {sortedTemplates.map((template) => (
+              <tr key={template.id} className={editing?.id === template.id ? 'is-editing' : ''}>
+                <td data-label="Nom">{template.name}</td>
+                <td data-label="Description">{template.description || 'Pas de description'}</td>
+                <td data-label="Prompt" className="template-prompt-preview">
+                  <pre>{template.prompt}</pre>
+                </td>
+                <td data-label="Actions" className="template-actions">
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    type="button"
+                    onClick={() => setEditing(template)}
+                  >
+                    Modifier
+                  </button>
+                  <button
+                    className="btn btn-error btn-sm"
+                    type="button"
+                    onClick={async () => {
+                      if (window.confirm(`Supprimer le gabarit "${template.name}" ?`)) {
+                        await onDelete(template.id);
+                      }
+                    }}
+                  >
+                    Supprimer
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+
+      {editing && (
+        <TemplateEditor
+          key={editing.id}
+          template={editing}
+          onCancel={() => setEditing(null)}
+          onDelete={async () => {
+            if (window.confirm(`Supprimer le gabarit "${editing.name}" ?`)) {
+              await onDelete(editing.id);
+              setEditing(null);
+            }
+          }}
+          onSave={handleUpdate}
+        />
+      )}
     </section>
   );
 }
 
-function TemplateCard({ template, isEditing, onEdit, onCancel, onDelete, onSave }) {
+function TemplateEditor({ template, onCancel, onSave, onDelete }) {
   const [draft, setDraft] = useState(template);
 
   React.useEffect(() => {
-    if (isEditing) {
-      setDraft(template);
-    }
-  }, [isEditing, template]);
+    setDraft(template);
+  }, [template]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     await onSave(draft);
   };
 
-  const handleDelete = async () => {
-    if (window.confirm(`Supprimer le gabarit "${template.name}" ?`)) {
-      await onDelete();
-    }
-  };
-
-  if (isEditing) {
-    return (
-      <form className="template-card" onSubmit={handleSubmit}>
-        <div className="form-field">
-          <label className="form-label" htmlFor={`name-${template.id}`}>
-            Nom
-          </label>
-          <input
-            id={`name-${template.id}`}
-            className="input input-bordered"
-            value={draft.name}
-            onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
-            required
-          />
-        </div>
-        <div className="form-field">
-          <label className="form-label" htmlFor={`desc-${template.id}`}>
-            Description
-          </label>
-          <input
-            id={`desc-${template.id}`}
-            className="input input-bordered"
-            value={draft.description}
-            onChange={(event) => setDraft((prev) => ({ ...prev, description: event.target.value }))}
-          />
-        </div>
-        <div className="form-field">
-          <label className="form-label" htmlFor={`prompt-${template.id}`}>
-            Prompt
-          </label>
-          <textarea
-            id={`prompt-${template.id}`}
-            className="textarea"
-            value={draft.prompt}
-            onChange={(event) => setDraft((prev) => ({ ...prev, prompt: event.target.value }))}
-            required
-          />
-        </div>
-        <div className="template-actions">
-          <button className="btn btn-primary btn-sm" type="submit">
-            Sauvegarder
-          </button>
-          <button className="btn btn-secondary btn-sm" type="button" onClick={onCancel}>
-            Annuler
-          </button>
-        </div>
-      </form>
-    );
-  }
-
   return (
-    <article className="template-card">
-      <header>
-        <h3 className="section-title mb-2">{template.name}</h3>
-        <p className="text-base-content/70 text-sm">{template.description || 'Pas de description'}</p>
-      </header>
-      <pre className="prompt-preview">{template.prompt}</pre>
+    <form className="template-editor" onSubmit={handleSubmit}>
+      <h3 className="section-title">Modifier "{template.name}"</h3>
+      <div className="form-field">
+        <label className="form-label" htmlFor={`name-${template.id}`}>
+          Nom
+        </label>
+        <input
+          id={`name-${template.id}`}
+          className="input input-bordered"
+          value={draft.name}
+          onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
+          required
+        />
+      </div>
+      <div className="form-field">
+        <label className="form-label" htmlFor={`desc-${template.id}`}>
+          Description
+        </label>
+        <input
+          id={`desc-${template.id}`}
+          className="input input-bordered"
+          value={draft.description ?? ''}
+          onChange={(event) => setDraft((prev) => ({ ...prev, description: event.target.value }))}
+        />
+      </div>
+      <div className="form-field">
+        <label className="form-label" htmlFor={`prompt-${template.id}`}>
+          Prompt
+        </label>
+        <textarea
+          id={`prompt-${template.id}`}
+          className="textarea"
+          value={draft.prompt}
+          onChange={(event) => setDraft((prev) => ({ ...prev, prompt: event.target.value }))}
+          required
+        />
+      </div>
       <div className="template-actions">
-        <button className="btn btn-secondary btn-sm" type="button" onClick={onEdit}>
-          Modifier
+        <button className="btn btn-primary btn-sm" type="submit">
+          Sauvegarder
         </button>
-        <button className="btn btn-error btn-sm" type="button" onClick={handleDelete}>
+        <button className="btn btn-secondary btn-sm" type="button" onClick={onCancel}>
+          Annuler
+        </button>
+        <button className="btn btn-error btn-sm" type="button" onClick={onDelete}>
           Supprimer
         </button>
       </div>
-    </article>
+    </form>
   );
 }
