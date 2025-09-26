@@ -43,10 +43,10 @@ export default function JobDetail({ job, logs, isLoadingLogs }) {
   useEffect(() => {
     let isMounted = true;
 
-    if (!jobId || !segmentsFilename || !segmentsKey) {
-      setSpeakerData(null);
-      setSpeakersError(null);
-      setIsLoadingSpeakers(false);
+  if (!jobId || !segmentsFilename || !segmentsKey) {
+    setSpeakerData(null);
+    setSpeakersError(null);
+    setIsLoadingSpeakers(false);
       return () => {
         isMounted = false;
       };
@@ -92,107 +92,144 @@ export default function JobDetail({ job, logs, isLoadingLogs }) {
   }, [jobId, segmentsFilename, segmentsKey]);
 
   if (!job) {
-    return <p>Sélectionnez un traitement pour afficher les détails.</p>;
+    return <p className="history-empty">Sélectionnez un traitement pour afficher les détails.</p>;
   }
 
   const hasSegmentsOutput = job.outputs?.some((output) => output.filename === 'segments.json');
+  const progressValue = Math.round(job.progress ?? 0);
+  const speakerCount = speakerData?.speakers?.length ?? 0;
+  const segmentCount = speakerData?.segments?.length ?? 0;
 
   return (
-    <div className="job-detail">
-      <header className="job-detail-header">
+    <div className="history-detail">
+      <header className="history-detail-header">
         <div>
-          <h2 className="section-title">
-            {job.filename}
-            <StatusBadge status={job.status} />
-          </h2>
-          <p className="job-meta">
-            Déclenché le {new Date(job.createdAt).toLocaleString()} • Dernière mise à jour {new Date(job.updatedAt).toLocaleString()}
-          </p>
+          <h2 className="section-title">{job.filename}</h2>
+          <div className="text-base-content/70 text-sm">
+            Déclenché le {new Date(job.createdAt).toLocaleString()} • Dernière mise à jour{' '}
+            {new Date(job.updatedAt).toLocaleString()}
+          </div>
         </div>
-        <div className="job-progress large">
-          <div className="job-progress-bar" style={{ width: `${job.progress ?? 0}%` }} />
+        <div className="status-line">
+          <div className="status-actions">
+            <StatusBadge status={job.status} />
+          </div>
+          <div className="status-progress" aria-label="Progression du traitement">
+            <div className="progress-bar" role="presentation">
+              <div className="progress-bar__value" style={{ width: `${progressValue}%` }} />
+            </div>
+            <span className="status-progress-value">{progressValue}%</span>
+          </div>
         </div>
       </header>
 
-      <section aria-labelledby="job-outputs">
-        <h3 id="job-outputs">Exports disponibles</h3>
+      <section aria-labelledby="job-outputs" className="space-y-3">
+        <h3 id="job-outputs" className="section-title">
+          Exports disponibles
+        </h3>
         {job.outputs?.length ? (
-          <div className="asset-list">
+          <div className="resource-list">
             {job.outputs.map((output) => (
               <a
                 key={output.filename}
-                className="asset-link"
+                className="resource-link"
                 href={`/api/assets/${job.id}/${output.filename}`}
                 target="_blank"
                 rel="noreferrer"
               >
                 <span>{output.label}</span>
-                <span className="asset-meta">{output.mimeType}</span>
+                <span className="text-base-content/70 text-sm">{output.mimeType}</span>
               </a>
             ))}
           </div>
         ) : (
-          <p>Aucun export n'est encore disponible.</p>
+          <p className="text-base-content/70">Aucun export n'est encore disponible.</p>
         )}
       </section>
 
-      <section aria-labelledby="job-speakers">
-        <h3 id="job-speakers">Interventions par speaker</h3>
-        {!hasSegmentsOutput && <p>Données speaker non disponibles pour ce traitement.</p>}
-        {hasSegmentsOutput && isLoadingSpeakers && <p>Chargement des segments…</p>}
+      <section aria-labelledby="job-speakers" className="space-y-3">
+        <h3 id="job-speakers" className="section-title">
+          Interventions par speaker
+        </h3>
+        {!hasSegmentsOutput && <p className="text-base-content/70">Données speaker non disponibles pour ce traitement.</p>}
+        {hasSegmentsOutput && isLoadingSpeakers && <p className="text-base-content/70">Chargement des segments…</p>}
         {hasSegmentsOutput && speakersError && (
-          <p className="text-error">Impossible de charger les segments : {speakersError}</p>
+          <p className="error-text">Impossible de charger les segments : {speakersError}</p>
         )}
         {hasSegmentsOutput && !isLoadingSpeakers && !speakersError && speakerData && (
-          <div className="speaker-section">
+          <div className="space-y-6">
+            <div className="diarization-summary">
+              <div className="diarization-card">
+                <p className="diarization-card__title">Locuteurs identifiés</p>
+                <p className="diarization-card__metric">{speakerCount}</p>
+                <p className="diarization-card__meta">Nombre total de voix</p>
+              </div>
+              <div className="diarization-card">
+                <p className="diarization-card__title">Segments</p>
+                <p className="diarization-card__metric">{segmentCount}</p>
+                <p className="diarization-card__meta">Entrées diarisation</p>
+              </div>
+            </div>
+
             {speakerData.speakers?.length ? (
-              <ul className="speaker-stats">
+              <ul className="inline-list" aria-label="Liste des locuteurs">
                 {speakerData.speakers.map((speaker) => (
                   <li key={speaker.id}>
-                    <span className="label">{speaker.label}</span>
-                    <span className="meta">
-                      {speaker.segmentCount} intervention{speaker.segmentCount > 1 ? 's' : ''} •{' '}
-                      {formatDuration(speaker.totalDuration)}
-                    </span>
+                    {speaker.label} • {speaker.segmentCount} intervention{speaker.segmentCount > 1 ? 's' : ''}
+                    {speaker.totalDuration ? ` • ${formatDuration(speaker.totalDuration)}` : ''}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p>Aucun speaker identifié.</p>
+              <p className="text-base-content/70">Aucun speaker identifié.</p>
             )}
+
             {speakerData.segments?.length ? (
-              <div className="segment-timeline" role="list">
+              <div className="diarization-segment-list" role="list">
                 {speakerData.segments.map((segment) => (
-                  <div key={segment.index} className="segment-row" role="listitem">
-                    <div className="time-range">
-                      {formatTimestamp(segment.start)} – {formatTimestamp(segment.end)}
+                  <article key={segment.index} className="diarization-segment" role="listitem">
+                    <div className="diarization-segment__header">
+                      <span className="diarization-segment__speaker">{segment.speakerLabel || 'Speaker ?'}</span>
+                      <span className="diarization-segment__time">
+                        {formatTimestamp(segment.start)} – {formatTimestamp(segment.end)}
+                      </span>
                     </div>
-                    <div className="speaker-label">{segment.speakerLabel || 'Speaker ?'}</div>
-                    <div className="segment-text">{segment.text || <em>(Silence)</em>}</div>
-                  </div>
+                    {segment.text ? (
+                      <p className="diarization-segment__text">{segment.text}</p>
+                    ) : (
+                      <p className="diarization-segment__text">
+                        <em>(Silence)</em>
+                      </p>
+                    )}
+                  </article>
                 ))}
               </div>
             ) : (
-              <p>Aucune découpe segmentée disponible.</p>
+              <p className="text-base-content/70">Aucune découpe segmentée disponible.</p>
             )}
           </div>
         )}
       </section>
 
-      <section aria-labelledby="job-logs">
-        <h3 id="job-logs">Journal du pipeline</h3>
-        {isLoadingLogs && <p>Chargement des logs…</p>}
-        <div className="logs">
-          {logs.map((entry, index) => (
-            <div key={`${entry.timestamp}-${index}`} className="log-entry">
-              <div className="meta">
-                {new Date(entry.timestamp).toLocaleTimeString()} • {entry.level?.toUpperCase()}
+      <section aria-labelledby="job-logs" className="space-y-3">
+        <h3 id="job-logs" className="section-title">
+          Journal du pipeline
+        </h3>
+        {isLoadingLogs && <p className="text-base-content/70">Chargement des logs…</p>}
+        {logs.length ? (
+          <div className="log-list">
+            {logs.map((entry, index) => (
+              <div key={`${entry.timestamp}-${index}`} className="log-entry">
+                <div className="meta">
+                  {new Date(entry.timestamp).toLocaleTimeString()} • {entry.level?.toUpperCase()}
+                </div>
+                <div>{entry.message}</div>
               </div>
-              <div>{entry.message}</div>
-            </div>
-          ))}
-          {!logs.length && <p>Aucun événement pour le moment.</p>}
-        </div>
+            ))}
+          </div>
+        ) : (
+          !isLoadingLogs && <p className="logs-placeholder">Aucun événement pour le moment.</p>
+        )}
       </section>
     </div>
   );

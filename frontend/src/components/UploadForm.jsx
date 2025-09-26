@@ -40,18 +40,23 @@ export default function UploadForm({ templates, onSubmit }) {
   };
 
   return (
-    <section className="card" aria-label="Formulaire d'import">
-      <h2 className="section-title">Importer un nouvel enregistrement</h2>
-      <p>
-        Les fichiers sont traités localement via FFmpeg et Whisper, puis enrichis avec OpenAI.
-        Les exports restent identiques à la version précédente (TXT, Markdown et VTT).
-      </p>
+    <section className="surface-card space-y-6" aria-label="Formulaire d'import">
+      <div>
+        <h2 className="section-title">Importer un nouvel enregistrement</h2>
+        <p className="text-base-content/70">
+          Les fichiers sont traités localement via FFmpeg et Whisper, puis enrichis avec OpenAI.
+          Les exports restent identiques à la version précédente (TXT, Markdown et VTT).
+        </p>
+      </div>
 
-      <form className="upload-form" onSubmit={handleSubmit}>
-        <div className="input-group">
-          <label htmlFor="file">Fichier audio</label>
+      <form className="upload-form space-y-6" onSubmit={handleSubmit}>
+        <div className="form-field">
+          <label className="form-label" htmlFor="file">
+            Fichier audio
+          </label>
           <input
             id="file"
+            className="file-input file-input-bordered"
             type="file"
             accept="audio/*,video/*"
             onChange={(event) => setFile(event.target.files[0] || null)}
@@ -59,10 +64,13 @@ export default function UploadForm({ templates, onSubmit }) {
           />
         </div>
 
-        <div className="input-group">
-          <label htmlFor="participants">Participants (séparés par une virgule)</label>
+        <div className="form-field">
+          <label className="form-label" htmlFor="participants">
+            Participants (séparés par une virgule)
+          </label>
           <input
             id="participants"
+            className="input input-bordered"
             type="text"
             placeholder="Alice, Bob, ..."
             value={participants}
@@ -70,10 +78,13 @@ export default function UploadForm({ templates, onSubmit }) {
           />
         </div>
 
-        <div className="input-group">
-          <label htmlFor="template">Gabarit de synthèse</label>
+        <div className="form-field">
+          <label className="form-label" htmlFor="template">
+            Gabarit de synthèse
+          </label>
           <select
             id="template"
+            className="select select-bordered"
             value={templateId}
             onChange={(event) => setTemplateId(event.target.value)}
           >
@@ -85,9 +96,9 @@ export default function UploadForm({ templates, onSubmit }) {
           </select>
         </div>
 
-        {error && <p className="toast error">{error}</p>}
+        {error && <p className="error-text">{error}</p>}
 
-        <button className="button primary" type="submit" disabled={isSubmitting}>
+        <button className="btn btn-primary btn-md" type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Envoi en cours…' : 'Lancer le traitement'}
         </button>
       </form>

@@ -35,15 +35,15 @@ export default function JobDashboard({ jobs, selectedJob, onSelectJob, onDeleteJ
   }, [selectedJob]);
 
   return (
-    <section className="jobs-grid">
-      <div className="card">
-        <h2 className="section-title">
-          Historique des traitements
-          <span>{jobs.length} job(s)</span>
-        </h2>
+    <section className="grid gap-6 md:grid-cols-2">
+      <div className="surface-card space-y-4">
+        <div>
+          <h2 className="section-title">Historique des traitements</h2>
+          <p className="text-base-content/70 text-sm">{jobs.length} traitement(s) enregistré(s)</p>
+        </div>
         <JobList jobs={jobs} selectedJob={selectedJob} onSelect={onSelectJob} onDelete={onDeleteJob} />
       </div>
-      <div className="card">
+      <div className="surface-card">
         <JobDetail job={selectedJob} logs={logs} isLoadingLogs={isLoadingLogs} />
       </div>
     </section>

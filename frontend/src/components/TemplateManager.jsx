@@ -38,40 +38,48 @@ export default function TemplateManager({ templates, onCreate, onUpdate, onDelet
   };
 
   return (
-    <section className="template-manager card">
+    <section className="surface-card space-y-6">
       <h2 className="section-title">Gabarits de synthèse</h2>
-      {error && <p className="toast error">{error}</p>}
+      {error && <div className="alert alert--error">{error}</div>}
 
-      <form className="inner-card" onSubmit={handleCreate}>
-        <h3>Créer un gabarit</h3>
-        <div className="input-group">
-          <label htmlFor="template-name">Nom</label>
+      <form className="bg-base-200/60 rounded-xl p-6 space-y-4" onSubmit={handleCreate}>
+        <h3 className="section-title">Créer un gabarit</h3>
+        <div className="form-field">
+          <label className="form-label" htmlFor="template-name">
+            Nom
+          </label>
           <input
             id="template-name"
+            className="input input-bordered"
             value={newTemplate.name}
             onChange={(event) => setNewTemplate((prev) => ({ ...prev, name: event.target.value }))}
             required
           />
         </div>
-        <div className="input-group">
-          <label htmlFor="template-description">Description</label>
+        <div className="form-field">
+          <label className="form-label" htmlFor="template-description">
+            Description
+          </label>
           <input
             id="template-description"
+            className="input input-bordered"
             value={newTemplate.description}
             onChange={(event) => setNewTemplate((prev) => ({ ...prev, description: event.target.value }))}
           />
         </div>
-        <div className="input-group">
-          <label htmlFor="template-prompt">Prompt</label>
+        <div className="form-field">
+          <label className="form-label" htmlFor="template-prompt">
+            Prompt
+          </label>
           <textarea
             id="template-prompt"
-            className="large"
+            className="textarea"
             value={newTemplate.prompt}
             onChange={(event) => setNewTemplate((prev) => ({ ...prev, prompt: event.target.value }))}
             required
           />
         </div>
-        <button className="button primary" type="submit">
+        <button className="btn btn-primary btn-md" type="submit">
           Créer
         </button>
       </form>
@@ -116,38 +124,46 @@ function TemplateCard({ template, isEditing, onEdit, onCancel, onDelete, onSave 
   if (isEditing) {
     return (
       <form className="template-card" onSubmit={handleSubmit}>
-        <div className="input-group">
-          <label htmlFor={`name-${template.id}`}>Nom</label>
+        <div className="form-field">
+          <label className="form-label" htmlFor={`name-${template.id}`}>
+            Nom
+          </label>
           <input
             id={`name-${template.id}`}
+            className="input input-bordered"
             value={draft.name}
             onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
             required
           />
         </div>
-        <div className="input-group">
-          <label htmlFor={`desc-${template.id}`}>Description</label>
+        <div className="form-field">
+          <label className="form-label" htmlFor={`desc-${template.id}`}>
+            Description
+          </label>
           <input
             id={`desc-${template.id}`}
+            className="input input-bordered"
             value={draft.description}
             onChange={(event) => setDraft((prev) => ({ ...prev, description: event.target.value }))}
           />
         </div>
-        <div className="input-group">
-          <label htmlFor={`prompt-${template.id}`}>Prompt</label>
+        <div className="form-field">
+          <label className="form-label" htmlFor={`prompt-${template.id}`}>
+            Prompt
+          </label>
           <textarea
             id={`prompt-${template.id}`}
-            className="large"
+            className="textarea"
             value={draft.prompt}
             onChange={(event) => setDraft((prev) => ({ ...prev, prompt: event.target.value }))}
             required
           />
         </div>
         <div className="template-actions">
-          <button className="button primary" type="submit">
+          <button className="btn btn-primary btn-sm" type="submit">
             Sauvegarder
           </button>
-          <button className="button secondary" type="button" onClick={onCancel}>
+          <button className="btn btn-secondary btn-sm" type="button" onClick={onCancel}>
             Annuler
           </button>
         </div>
@@ -158,15 +174,15 @@ function TemplateCard({ template, isEditing, onEdit, onCancel, onDelete, onSave 
   return (
     <article className="template-card">
       <header>
-        <h3>{template.name}</h3>
-        <p className="job-meta">{template.description || 'Pas de description'}</p>
+        <h3 className="section-title mb-2">{template.name}</h3>
+        <p className="text-base-content/70 text-sm">{template.description || 'Pas de description'}</p>
       </header>
       <pre className="prompt-preview">{template.prompt}</pre>
       <div className="template-actions">
-        <button className="button secondary" type="button" onClick={onEdit}>
+        <button className="btn btn-secondary btn-sm" type="button" onClick={onEdit}>
           Modifier
         </button>
-        <button className="button danger" type="button" onClick={handleDelete}>
+        <button className="btn btn-error btn-sm" type="button" onClick={handleDelete}>
           Supprimer
         </button>
       </div>
