@@ -383,7 +383,10 @@
 .template-grid {
   display: grid;
   gap: 1.25rem;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.template-grid-header {
+  display: none;
 }
 
 .template-card {
@@ -398,6 +401,7 @@
 .template-actions {
   display: flex;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 textarea.large {
@@ -609,6 +613,31 @@ legend {
   gap: 2rem;
 }
 
+.template-card--view {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.template-card--view .template-name {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.template-card--view .template-description {
+  margin: 0;
+}
+
+.template-card--view .template-actions {
+  justify-content: flex-start;
+}
+
+.template-card--view .prompt-preview {
+  margin-top: 0.5rem;
+}
+
+.template-card--edit {
+  gap: 1.25rem;
+}
+
 .prompt-preview {
   background: rgba(15, 23, 42, 0.6);
   border-radius: 0.9rem;
@@ -631,4 +660,60 @@ legend {
   padding: 1.5rem;
   display: grid;
   gap: 1rem;
+}
+
+@media (min-width: 900px) {
+  .template-grid {
+    gap: 1rem;
+  }
+
+  .template-grid-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 2fr) minmax(0, 1fr);
+    padding: 0 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+  }
+
+  .template-card--view {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 2fr) minmax(0, 1fr);
+    grid-template-areas:
+      'name description actions'
+      'prompt prompt prompt';
+    align-items: start;
+  }
+
+  .template-card--view .template-name {
+    grid-area: name;
+    font-size: 1.15rem;
+  }
+
+  .template-card--view .template-description {
+    grid-area: description;
+  }
+
+  .template-card--view .template-actions {
+    grid-area: actions;
+    justify-content: flex-end;
+  }
+
+  .template-card--view .prompt-preview {
+    grid-area: prompt;
+    margin-top: 0;
+  }
+
+  .template-card--edit {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .template-card--edit .input-group:nth-last-child(2) {
+    grid-column: span 2;
+  }
+
+  .template-card--edit .template-actions {
+    justify-content: flex-end;
+  }
 }
