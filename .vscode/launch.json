@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Attach Node: Backend (nodemon)",
+      "name": "API: npm run dev (inspect)",
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "npm",
@@ -15,7 +15,8 @@
         "NODE_OPTIONS": "--inspect"
       },
       "envFile": "${workspaceFolder}/backend/.env",
-      "console": "integratedTerminal"
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
     },
     {
       "name": "Brave: Vite UI",
@@ -23,7 +24,11 @@
       "request": "launch",
       "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}/frontend",
-      "runtimeExecutable": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+      "runtimeExecutable": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+      "userDataDir": "${workspaceFolder}/.vscode/.brave-debug-profile",
+      "runtimeArgs": ["--auto-open-devtools-for-tabs"],
+      "preLaunchTask": "Frontend: dev",
+      "trace": true
     }
   ],
   "compounds": [
@@ -31,7 +36,7 @@
       "name": "CRAuto: dev (backend+frontend)",
       "preLaunchTask": "Dev: backend+frontend",
       "configurations": [
-        "Attach Node: Backend (nodemon)",
+        "API: npm run dev (inspect)",
         "Brave: Vite UI"
       ]
     }
