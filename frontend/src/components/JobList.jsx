@@ -1,7 +1,13 @@
 import React from 'react';
 import StatusBadge from './StatusBadge.jsx';
 
-export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
+export default function JobList({ jobs, selectedJob, onSelect }) {
+  const handleSelect = (jobId) => {
+    if (onSelect) {
+      onSelect(jobId);
+    }
+  };
+
   if (!jobs.length) {
     return <p className="history-empty">Aucun traitement pour le moment.</p>;
   }
@@ -14,9 +20,6 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
             <th scope="col">Fichier</th>
             <th scope="col">Statut</th>
             <th scope="col">Progression</th>
-            <th scope="col" className="text-right">
-              Actions
-            </th>
           </tr>
         </thead>
         <tbody>
@@ -27,7 +30,15 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
               <tr
                 key={job.id}
                 className={isActive ? 'history-row--active' : undefined}
-                onClick={() => onSelect(job.id)}
+                role="link"
+                tabIndex={0}
+                onClick={() => handleSelect(job.id)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    handleSelect(job.id);
+                  }
+                }}
               >
                 <td>
                   <div className="font-medium">{job.filename}</div>
@@ -45,30 +56,6 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
                       <div className="progress-bar__value" style={{ width: `${progressValue}%` }} />
                     </div>
                     <span className="status-progress-value">{progressValue}%</span>
-                  </div>
-                </td>
-                <td>
-                  <div className="history-table-actions">
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-xs"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onSelect(job.id);
-                      }}
-                    >
-                      Consulter
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-error btn-xs"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDelete(job.id);
-                      }}
-                    >
-                      Supprimer
-                    </button>
                   </div>
                 </td>
               </tr>

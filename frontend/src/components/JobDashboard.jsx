@@ -3,7 +3,7 @@ import JobList from './JobList.jsx';
 import JobDetail from './JobDetail.jsx';
 import { api } from '../api/client.js';
 
-export default function JobDashboard({ jobs, selectedJob, onSelectJob, onDeleteJob }) {
+export default function JobDashboard({ jobs, selectedJob, onSelectJob }) {
   const [logs, setLogs] = useState([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
@@ -41,7 +41,7 @@ export default function JobDashboard({ jobs, selectedJob, onSelectJob, onDeleteJ
           <h2 className="section-title">Historique des traitements</h2>
           <p className="text-base-content/70 text-sm">{jobs.length} traitement(s) enregistré(s)</p>
         </div>
-        <JobList jobs={jobs} selectedJob={selectedJob} onSelect={onSelectJob} onDelete={onDeleteJob} />
+        <JobList jobs={jobs} selectedJob={selectedJob} onSelect={onSelectJob} />
       </div>
       <div className="surface-card">
         <JobDetail job={selectedJob} logs={logs} isLoadingLogs={isLoadingLogs} />

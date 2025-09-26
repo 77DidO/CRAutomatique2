@@ -71,20 +71,6 @@ function AppShell() {
     }
   };
 
-  const handleDeleteJob = async (jobId) => {
-    setError(null);
-    try {
-      await api.deleteJob(jobId);
-      const refreshed = await api.listJobs();
-      setJobs(refreshed);
-      if (selectedJobId === jobId) {
-        setSelectedJobId(refreshed[0]?.id || null);
-      }
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   const handleSelectJob = (jobId) => {
     setSelectedJobId(jobId);
     setActiveTab('jobs');
@@ -169,12 +155,7 @@ function AppShell() {
         <main className="space-y-8">
           {activeTab === 'upload' && <UploadForm templates={templates} onSubmit={handleUpload} />}
           {activeTab === 'jobs' && (
-            <JobDashboard
-              jobs={jobs}
-              selectedJob={selectedJob}
-              onSelectJob={handleSelectJob}
-              onDeleteJob={handleDeleteJob}
-            />
+            <JobDashboard jobs={jobs} selectedJob={selectedJob} onSelectJob={handleSelectJob} />
           )}
           {activeTab === 'config' && config && (
             <ConfigPanel config={config} onSave={handleSaveConfig} />

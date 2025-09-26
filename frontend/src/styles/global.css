@@ -1160,9 +1160,26 @@ pre {
 
 .history-table th,
 .history-table td {
-  padding: 0.85rem 1rem;
+  padding: 0.9rem 1.25rem;
   text-align: left;
   border-bottom: 1px solid var(--color-border);
+}
+
+.history-table th:first-child,
+.history-table td:first-child {
+  width: 45%;
+  padding-right: 1.5rem;
+}
+
+.history-table th:nth-child(2),
+.history-table td:nth-child(2) {
+  width: 160px;
+  white-space: nowrap;
+}
+
+.history-table th:nth-child(3),
+.history-table td:nth-child(3) {
+  width: 260px;
 }
 
 .history-table th {
@@ -1174,15 +1191,22 @@ pre {
 
 .history-table tbody tr {
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
 }
 
 .history-table tbody tr:hover {
-  background: rgba(0, 58, 99, 0.06);
+  background: rgba(0, 58, 99, 0.08);
+}
+
+.history-table tbody tr:focus-visible {
+  background: rgba(0, 58, 99, 0.12);
+  box-shadow: inset 0 0 0 2px rgba(0, 58, 99, 0.35);
 }
 
 .history-row--active {
-  background: rgba(0, 58, 99, 0.12);
+  background: rgba(0, 58, 99, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(0, 58, 99, 0.35);
 }
 
 .history-empty {
@@ -1360,12 +1384,6 @@ fieldset + fieldset {
 .toggle-field span {
   font-weight: 500;
   color: var(--color-text);
-}
-
-.history-table-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
 }
 
 .history-table .text-muted {
