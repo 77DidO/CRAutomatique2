@@ -4,11 +4,18 @@
     {
       "name": "Attach Node: Backend (nodemon)",
       "type": "node",
-      "request": "attach",
-      "port": 9229,
-      "restart": true,
-      "protocol": "inspector",
-      "timeout": 30000
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "NODE_OPTIONS": "--inspect"
+      },
+      "envFile": "${workspaceFolder}/backend/.env",
+      "console": "integratedTerminal"
     },
     {
       "name": "Brave: Vite UI",
