@@ -18,19 +18,31 @@
       "type": "npm",
       "script": "dev",
       "path": "backend",
-      "isBackground": true
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "detail": "Lance `npm run dev` (tsx watch) dans backend/"
     },
     {
       "label": "Frontend: dev",
       "type": "npm",
       "script": "dev",
       "path": "frontend",
-      "isBackground": true
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "detail": "Lance `npm run dev` (Vite) dans frontend/"
     },
     {
       "label": "Dev: backend+frontend",
       "dependsOn": ["Backend: dev", "Frontend: dev"],
-      "dependsOrder": "parallel"
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "detail": "Démarre les serveurs de dev API + UI en parallèle"
     },
     {
       "label": "Backend: test",
