@@ -4,6 +4,7 @@ export async function summariseStep(context: PipelineContext): Promise<void> {
   const { job, config, template, services, jobStore, logger } = context;
 
   if (!config.pipeline.enableSummaries) {
+    // Permet de court-circuiter l'appel LLM lorsqu'il est désactivé dans la configuration.
     await jobStore.appendLog(job.id, 'Synthèse LLM désactivée, étape ignorée');
     logger.info({ jobId: job.id }, 'Summarise step skipped because summaries disabled');
     context.data.summary = null;
@@ -40,6 +41,7 @@ export async function summariseStep(context: PipelineContext): Promise<void> {
   const markdown = typeof summary?.markdown === 'string' ? summary.markdown.trim() : '';
 
   if (!markdown) {
+    // Les cas de non génération sont tracés pour faciliter le diagnostic côté utilisateur.
     const skippedMessage =
       summary?.reason === 'missing_api_key'
         ? "Résumé ignoré : clé API OpenAI manquante"

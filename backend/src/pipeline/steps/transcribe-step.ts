@@ -1,6 +1,6 @@
 import path from 'node:path';
-import fs from 'node:fs';
 import type { PipelineContext } from '../../types/index.js';
+import { removeDirectory } from '../../utils/fs.js';
 
 export async function transcribeStep(context: PipelineContext): Promise<void> {
   const { job, environment, services, jobStore, config, logger } = context;
@@ -9,25 +9,15 @@ export async function transcribeStep(context: PipelineContext): Promise<void> {
     throw new Error('Chemin audio préparé introuvable pour la transcription');
   }
   const transcriptDir = path.join(environment.jobsDir, job.id, 'transcript');
-  
-  // Fonction d'attente
-  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-  
-  // Tentative de nettoyage avec plusieurs essais
-  for (let i = 0; i < 3; i++) {
-    try {
-      if (fs.existsSync(transcriptDir)) {
-        await fs.promises.rm(transcriptDir, { recursive: true, force: true });
-      }
-      break; // Si on arrive ici, c'est que ça a fonctionné
-    } catch (error) {
-      if (i === 2) { // Dernier essai
-        logger.warn({ error }, 'Échec du nettoyage du dossier de transcription après plusieurs tentatives');
-      } else {
-        logger.info(`Tentative ${i + 1} de nettoyage du dossier échouée, nouvelle tentative dans 1s...`);
-        await sleep(1000); // Attendre 1 seconde avant de réessayer
-      }
-    }
+
+  // Nettoyage défensif du dossier de sortie afin d'éviter l'utilisation d'un cache obsolète.
+  try {
+    await removeDirectory(transcriptDir, { retries: 3, delayMs: 500 });
+  } catch (error) {
+    logger.warn(
+      { error, jobId: job.id, transcriptDir },
+      'Échec du nettoyage du dossier de transcription, poursuite du pipeline',
+    );
   }
 
   await jobStore.appendLog(job.id, 'Transcription locale (Whisper)');
@@ -47,6 +37,7 @@ export async function transcribeStep(context: PipelineContext): Promise<void> {
     config: config.whisper,
   });
 
+  // Les segments et métadonnées sont conservés pour alimenter les étapes suivantes (résumé, sous-titres, ...).
   context.data.transcription = result;
   logger.info(
     {

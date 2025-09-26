@@ -91,6 +91,7 @@ export class PipelineEngine {
   }
 
   private async processNext(): Promise<void> {
+    // Évite l'exécution concurrente de plusieurs jobs afin de préserver les ressources locales.
     if (this.running.size > 0) {
       return;
     }
@@ -162,28 +163,30 @@ export class PipelineEngine {
       data: {},
     };
 
+    // Chaque étape enrichit ce contexte partagé, évitant des relectures I/O inutiles entre deux phases.
     const steps: Array<{ name: string; handler: PipelineStep }> = [
       { name: 'ingest', handler: ingestStep },
       { name: 'transcribe', handler: transcribeStep },
       { name: 'summarise', handler: summariseStep },
       { name: 'export', handler: exportStep },
     ];
+    const stepCount = steps.length;
 
     for (const [index, step] of steps.entries()) {
       if (this.cancellations.has(jobId)) {
-        this.logger.info({ jobId, step: step.name, index, totalSteps: steps.length }, 'Pipeline job cancelled');
+        this.logger.info({ jobId, step: step.name, index, totalSteps: stepCount }, 'Pipeline job cancelled');
         throw createHttpError(499, 'Pipeline cancelled');
       }
-      const progressBefore = Math.round((index / steps.length) * 100);
+      const progressBefore = Math.round((index / stepCount) * 100);
       this.logger.debug(
-        { jobId, step: step.name, index, totalSteps: steps.length, progress: progressBefore },
+        { jobId, step: step.name, index, totalSteps: stepCount, progress: progressBefore },
         'Pipeline step starting',
       );
       await step.handler(context);
-      const progress = Math.round(((index + 1) / steps.length) * 100);
+      const progress = Math.round(((index + 1) / stepCount) * 100);
       await this.jobStore.update(jobId, { progress });
       this.logger.info(
-        { jobId, step: step.name, index, totalSteps: steps.length, progress },
+        { jobId, step: step.name, index, totalSteps: stepCount, progress },
         'Pipeline step completed',
       );
     }
@@ -198,6 +201,7 @@ function selectTemplate(templates: Template[], job: Job): Template {
   if (templates.length === 0) {
     throw new Error('No templates available');
   }
+  // Privilégie le modèle explicitement demandé, sinon applique une stratégie de repli.
   return templates.find((tpl) => tpl.id === job.templateId) ?? templates[0];
 }
 
