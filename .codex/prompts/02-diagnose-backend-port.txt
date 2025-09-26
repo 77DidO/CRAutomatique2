@@ -1,0 +1,11 @@
+Rôle: SRE.
+Objectif: trouver pourquoi http://localhost:4000 ne répond pas.
+
+Procédure demandée (Windows/PowerShell):
+1) Vérifier si un process écoute sur 4000 (Get-NetTCPConnection) et afficher le PID/nom du process.
+2) Afficher les logs du backend (s’il tourne via npm run dev).
+3) Valider le .env (PORT, DATA_ROOT, FFMPEG_PATH, WHISPER_PATH).
+4) Proposer un contournement: changer de port (par ex. 4001) et adapter l’UI via VITE_BACKEND_URL.
+5) Check final: deux commandes Invoke-WebRequest (API root + éventuel /health) avec codes HTTP.
+
+Donne les commandes exactes et explique ligne par ligne.

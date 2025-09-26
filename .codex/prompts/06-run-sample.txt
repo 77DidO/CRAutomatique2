@@ -1,0 +1,6 @@
+Objectif: générer un échantillon audio avec FFmpeg (onde sinusoïdale), pousser un job local, attendre la fin et lister les exports.
+Donne:
+- la commande FFmpeg (Windows),
+- l’appel API (curl PowerShell) pour créer le job,
+- la boucle d’attente (polling) jusqu’au statut final,
+- les chemins d’artefacts à vérifier.

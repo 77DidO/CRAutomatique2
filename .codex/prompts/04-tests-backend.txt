@@ -1,0 +1,5 @@
+Objectif: écrire des tests Node (node --test) pour le pipeline.
+Attendu:
+- un test d’intégration “heureux” qui simule un job et vérifie les artefacts (txt/md/vtt) dans DATA_ROOT.
+- un test d’erreur (absence d’OPENAI_API_KEY) qui conserve la transcription et loggue un avertissement.
+Donne les fichiers à créer, le code de test, et les commandes npm pour exécution.

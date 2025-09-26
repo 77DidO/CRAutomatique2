@@ -1,0 +1,18 @@
+Rôle: Ingénieur dev local pour le repo CRAutomatique2.
+Objectif: me guider pour démarrer le backend (port 4000) et le frontend (port 5173), vérifier la santé et diagnostiquer les blocages.
+
+Contexte:
+- Backend Node/Express (npm run dev) écoute par défaut sur 4000.
+- Frontend Vite (npm run dev) écoute par défaut sur 5173 et utilise VITE_BACKEND_URL si défini.
+- Windows PowerShell disponible ; possible d'utiliser les scripts install.ps1 / start.ps1 du repo.
+
+Tâches:
+1) Proposer exactement les commandes à exécuter (Windows/PowerShell) pour:
+   - installer les deps backend & frontend si besoin,
+   - lancer `npm run dev` dans backend,
+   - lancer `npm run dev` dans frontend,
+   - vérifier l’accès: http://localhost:4000 (API) et http://localhost:5173 (UI).
+2) Si un port est occupé, expliquer comment fermer le process ou changer de port.
+3) Donner une check-list rapide pour .env backend (PORT, DATA_ROOT, OPENAI_API_KEY facultatif pour la synthèse, FFMPEG_PATH si FFmpeg n’est pas sur le PATH).
+4) Produire un mini “Ready check” en 3 lignes que je peux copier/coller dans PowerShell pour valider API et UI (Invoke-WebRequest).
+Sortie attendue: plan d’action numéroté + commandes exactes prêtes à coller.

@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Attach Node: Backend (nodemon)",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "restart": true,
+      "protocol": "inspector",
+      "timeout": 30000
+    },
+    {
+      "name": "Brave: Vite UI",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "CRAuto: dev (backend+frontend)",
+      "preLaunchTask": "Backend: npm install",
+      "configurations": [
+        "Attach Node: Backend (nodemon)",
+        "Brave: Vite UI"
+      ]
+    }
+  ]
+}

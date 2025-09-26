@@ -1,0 +1,36 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Backend: npm install",
+      "type": "shell",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "command": "npm install"
+    },
+    {
+      "label": "Frontend: npm install",
+      "type": "shell",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "command": "npm install"
+    },
+    {
+      "label": "Backend: dev",
+      "type": "npm",
+      "script": "dev",
+      "path": "backend"
+    },
+    {
+      "label": "Frontend: dev",
+      "type": "npm",
+      "script": "dev",
+      "path": "frontend"
+    },
+    {
+      "label": "Backend: test",
+      "type": "npm",
+      "script": "test",
+      "path": "backend",
+      "problemMatcher": []
+    }
+  ]
+}
