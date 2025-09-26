@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "campaigns": [
+    {
+      "campaignId": "51f2bda5-7548-4dee-b483-824941a6c912",
+      "logo": {
+        "imageUrl": "ad86abb7-e924-4a9f-aebb-8a5075f6a1a9/5f1ac737-1d9c-4b35-a2e2-fbacaf186b25.png",
+        "destinationUrl": "https://dash.org/brave",
+        "alt": "Dash - Dash Evolution - Live entirely off of decentralized, private crypto with the DashPay wallet",
+        "companyName": "Dash"
+      },
+      "wallpapers": [
+        {
+          "imageUrl": "ad86abb7-e924-4a9f-aebb-8a5075f6a1a9/c304f399-c2dd-43fe-8636-79150d703a95.jpg",
+          "creativeInstanceId": "6ab808be-a87a-470d-adec-58cce01f6c29",
+          "focalPoint": {
+            "x": 1280,
+            "y": 720
+          }
+        },
+        {
+          "imageUrl": "7a930810-76c8-4437-9d0d-74cb790e2d42/b65177ac-fe57-473b-8c46-bee73af00508.jpg",
+          "creativeInstanceId": "3fb281a4-f922-4dde-bdc9-3759f0798bfe",
+          "focalPoint": {
+            "x": 1280,
+            "y": 720
+          },
+          "logo": {
+            "imageUrl": "7a930810-76c8-4437-9d0d-74cb790e2d42/5f1ac737-1d9c-4b35-a2e2-fbacaf186b25.png",
+            "destinationUrl": "https://dash.org/brave",
+            "alt": "Dash - Dash Evolution - Live entirely off of decentralized, private crypto with the DashPay wallet",
+            "companyName": "Dash"
+          }
+        },
+        {
+          "imageUrl": "d48058e7-9784-4cfb-bb2a-684110411ab3/1378238c-9d87-4383-812c-e5e9b3a968d2.jpg",
+          "creativeInstanceId": "9108c1eb-a92b-481b-a6a4-8958dc429ab9",
+          "focalPoint": {
+            "x": 1280,
+            "y": 720
+          },
+          "logo": {
+            "imageUrl": "d48058e7-9784-4cfb-bb2a-684110411ab3/5f1ac737-1d9c-4b35-a2e2-fbacaf186b25.png",
+            "destinationUrl": "https://dash.org/brave",
+            "alt": "Dash - Dash Evolution - Live entirely off of decentralized, private crypto with the DashPay wallet",
+            "companyName": "Dash"
+          }
+        }
+      ]
+    }
+  ],
+  "campaigns2": [
+    {
+      "campaignId": "51f2bda5-7548-4dee-b483-824941a6c912",
+      "logo": {
+        "imageUrl": "ad86abb7-e924-4a9f-aebb-8a5075f6a1a9/5f1ac737-1d9c-4b35-a2e2-fbacaf186b25.png",
+        "destinationUrl": "https://dash.org/brave",
+        "alt": "Dash - Dash Evolution - Live entirely off of decentralized, private crypto with the DashPay wallet",
+        "companyName": "Dash"
+      },
+      "wallpapers": [
+        {
+          "imageUrl": "ad86abb7-e924-4a9f-aebb-8a5075f6a1a9/c304f399-c2dd-43fe-8636-79150d703a95.jpg",
+          "creativeInstanceId": "6ab808be-a87a-470d-adec-58cce01f6c29",
+          "focalPoint": {
+            "x": 1280,
+            "y": 720
+          }
+        },
+        {
+          "imageUrl": "7a930810-76c8-4437-9d0d-74cb790e2d42/b65177ac-fe57-473b-8c46-bee73af00508.jpg",
+          "creativeInstanceId": "3fb281a4-f922-4dde-bdc9-3759f0798bfe",
+          "focalPoint": {
+            "x": 1280,
+            "y": 720
+          },
+          "logo": {
+            "imageUrl": "7a930810-76c8-4437-9d0d-74cb790e2d42/5f1ac737-1d9c-4b35-a2e2-fbacaf186b25.png",
+            "destinationUrl": "https://dash.org/brave",
+            "alt": "Dash - Dash Evolution - Live entirely off of decentralized, private crypto with the DashPay wallet",
+            "companyName": "Dash"
+          }
+        },
+        {
+          "imageUrl": "d48058e7-9784-4cfb-bb2a-684110411ab3/1378238c-9d87-4383-812c-e5e9b3a968d2.jpg",
+          "creativeInstanceId": "9108c1eb-a92b-481b-a6a4-8958dc429ab9",
+          "focalPoint": {
+            "x": 1280,
+            "y": 720
+          },
+          "logo": {
+            "imageUrl": "d48058e7-9784-4cfb-bb2a-684110411ab3/5f1ac737-1d9c-4b35-a2e2-fbacaf186b25.png",
+            "destinationUrl": "https://dash.org/brave",
+            "alt": "Dash - Dash Evolution - Live entirely off of decentralized, private crypto with the DashPay wallet",
+            "companyName": "Dash"
+          }
+        }
+      ]
+    }
+  ]
+}

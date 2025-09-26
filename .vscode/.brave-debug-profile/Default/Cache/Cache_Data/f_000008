@@ -1,0 +1,199 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/UploadForm.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=705388fd"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=705388fd"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useEffect = __vite__cjsImport3_react["useEffect"]; const useMemo = __vite__cjsImport3_react["useMemo"]; const useState = __vite__cjsImport3_react["useState"];
+export default function UploadForm({ templates, onSubmit }) {
+  _s();
+  const [file, setFile] = useState(null);
+  const [participants, setParticipants] = useState("");
+  const [templateId, setTemplateId] = useState(templates[0]?.id || "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const templateOptions = useMemo(() => templates.map((tpl) => ({ value: tpl.id, label: tpl.name })), [templates]);
+  useEffect(() => {
+    if (!templateId && templateOptions[0]) {
+      setTemplateId(templateOptions[0].value);
+    }
+  }, [templateOptions, templateId]);
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!file) {
+      setError("Veuillez sélectionner un fichier audio.");
+      return;
+    }
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("participants", participants);
+      formData.append("templateId", templateId);
+      await onSubmit(formData);
+      setFile(null);
+      setParticipants("");
+      setTemplateId(templateOptions[0]?.value || "");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  return /* @__PURE__ */ jsxDEV("section", { className: "card", "aria-label": "Formulaire d'import", children: [
+    /* @__PURE__ */ jsxDEV("h2", { className: "section-title", children: "Importer un nouvel enregistrement" }, void 0, false, {
+      fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+      lineNumber: 63,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("p", { children: "Les fichiers sont traités localement via FFmpeg et Whisper, puis enrichis avec OpenAI. Les exports restent identiques à la version précédente (TXT, Markdown et VTT)." }, void 0, false, {
+      fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+      lineNumber: 64,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("form", { className: "upload-form", onSubmit: handleSubmit, children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "input-group", children: [
+        /* @__PURE__ */ jsxDEV("label", { htmlFor: "file", children: "Fichier audio" }, void 0, false, {
+          fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+          lineNumber: 71,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "input",
+          {
+            id: "file",
+            type: "file",
+            accept: "audio/*,video/*",
+            onChange: (event) => setFile(event.target.files[0] || null),
+            required: true
+          },
+          void 0,
+          false,
+          {
+            fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+            lineNumber: 72,
+            columnNumber: 11
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+        lineNumber: 70,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "input-group", children: [
+        /* @__PURE__ */ jsxDEV("label", { htmlFor: "participants", children: "Participants (séparés par une virgule)" }, void 0, false, {
+          fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+          lineNumber: 82,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "input",
+          {
+            id: "participants",
+            type: "text",
+            placeholder: "Alice, Bob, ...",
+            value: participants,
+            onChange: (event) => setParticipants(event.target.value)
+          },
+          void 0,
+          false,
+          {
+            fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+            lineNumber: 83,
+            columnNumber: 11
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+        lineNumber: 81,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "input-group", children: [
+        /* @__PURE__ */ jsxDEV("label", { htmlFor: "template", children: "Gabarit de synthèse" }, void 0, false, {
+          fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+          lineNumber: 93,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "select",
+          {
+            id: "template",
+            value: templateId,
+            onChange: (event) => setTemplateId(event.target.value),
+            children: templateOptions.map(
+              (option) => /* @__PURE__ */ jsxDEV("option", { value: option.value, children: option.label }, option.value, false, {
+                fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+                lineNumber: 100,
+                columnNumber: 13
+              }, this)
+            )
+          },
+          void 0,
+          false,
+          {
+            fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+            lineNumber: 94,
+            columnNumber: 11
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+        lineNumber: 92,
+        columnNumber: 9
+      }, this),
+      error && /* @__PURE__ */ jsxDEV("p", { className: "toast error", children: error }, void 0, false, {
+        fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+        lineNumber: 107,
+        columnNumber: 19
+      }, this),
+      /* @__PURE__ */ jsxDEV("button", { className: "button primary", type: "submit", disabled: isSubmitting, children: isSubmitting ? "Envoi en cours…" : "Lancer le traitement" }, void 0, false, {
+        fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+        lineNumber: 109,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+      lineNumber: 69,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx",
+    lineNumber: 62,
+    columnNumber: 5
+  }, this);
+}
+_s(UploadForm, "tAOvz/hWM8tWNHm5u2CNVo3NKrM=");
+_c = UploadForm;
+var _c;
+$RefreshReg$(_c, "UploadForm");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Projets/CRAutomatique2/frontend/src/components/UploadForm.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QUFBZ0M7QUFBQUMsYUFBQUQsSUFBQSIsIm5hbWVzIjpbIlJlYWN0IiwidXNlRWZmZWN0IiwidXNlTWVtbyIsInVzZVN0YXRlIiwiVXBsb2FkRm9ybSIsInRlbXBsYXRlcyIsIm9uU3VibWl0IiwiX3MiLCJmaWxlIiwic2V0RmlsZSIsInBhcnRpY2lwYW50cyIsInNldFBhcnRpY2lwYW50cyIsInRlbXBsYXRlSWQiLCJzZXRUZW1wbGF0ZUlkIiwiaWQiLCJpc1N1Ym1pdHRpbmciLCJzZXRJc1N1Ym1pdHRpbmciLCJlcnJvciIsInNldEVycm9yIiwidGVtcGxhdGVPcHRpb25zIiwibWFwIiwidHBsIiwidmFsdWUiLCJsYWJlbCIsIm5hbWUiLCJoYW5kbGVTdWJtaXQiLCJldmVudCIsInByZXZlbnREZWZhdWx0IiwiZm9ybURhdGEiLCJGb3JtRGF0YSIsImFwcGVuZCIsImVyciIsIm1lc3NhZ2UiLCJ0YXJnZXQiLCJmaWxlcyIsIm9wdGlvbiIsIl9jIiwiJFJlZnJlc2hSZWckIl0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIlVwbG9hZEZvcm0uanN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBSZWFjdCwgeyB1c2VFZmZlY3QsIHVzZU1lbW8sIHVzZVN0YXRlIH0gZnJvbSAncmVhY3QnO1xyXG5cclxuZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gVXBsb2FkRm9ybSh7IHRlbXBsYXRlcywgb25TdWJtaXQgfSkge1xyXG4gIGNvbnN0IFtmaWxlLCBzZXRGaWxlXSA9IHVzZVN0YXRlKG51bGwpO1xyXG4gIGNvbnN0IFtwYXJ0aWNpcGFudHMsIHNldFBhcnRpY2lwYW50c10gPSB1c2VTdGF0ZSgnJyk7XHJcbiAgY29uc3QgW3RlbXBsYXRlSWQsIHNldFRlbXBsYXRlSWRdID0gdXNlU3RhdGUodGVtcGxhdGVzWzBdPy5pZCB8fCAnJyk7XHJcbiAgY29uc3QgW2lzU3VibWl0dGluZywgc2V0SXNTdWJtaXR0aW5nXSA9IHVzZVN0YXRlKGZhbHNlKTtcclxuICBjb25zdCBbZXJyb3IsIHNldEVycm9yXSA9IHVzZVN0YXRlKG51bGwpO1xyXG5cclxuICBjb25zdCB0ZW1wbGF0ZU9wdGlvbnMgPSB1c2VNZW1vKCgpID0+IHRlbXBsYXRlcy5tYXAoKHRwbCkgPT4gKHsgdmFsdWU6IHRwbC5pZCwgbGFiZWw6IHRwbC5uYW1lIH0pKSwgW3RlbXBsYXRlc10pO1xyXG5cclxuICB1c2VFZmZlY3QoKCkgPT4ge1xyXG4gICAgaWYgKCF0ZW1wbGF0ZUlkICYmIHRlbXBsYXRlT3B0aW9uc1swXSkge1xyXG4gICAgICBzZXRUZW1wbGF0ZUlkKHRlbXBsYXRlT3B0aW9uc1swXS52YWx1ZSk7XHJcbiAgICB9XHJcbiAgfSwgW3RlbXBsYXRlT3B0aW9ucywgdGVtcGxhdGVJZF0pO1xyXG5cclxuICBjb25zdCBoYW5kbGVTdWJtaXQgPSBhc3luYyAoZXZlbnQpID0+IHtcclxuICAgIGV2ZW50LnByZXZlbnREZWZhdWx0KCk7XHJcbiAgICBpZiAoIWZpbGUpIHtcclxuICAgICAgc2V0RXJyb3IoJ1ZldWlsbGV6IHPDqWxlY3Rpb25uZXIgdW4gZmljaGllciBhdWRpby4nKTtcclxuICAgICAgcmV0dXJuO1xyXG4gICAgfVxyXG4gICAgc2V0RXJyb3IobnVsbCk7XHJcbiAgICBzZXRJc1N1Ym1pdHRpbmcodHJ1ZSk7XHJcbiAgICB0cnkge1xyXG4gICAgICBjb25zdCBmb3JtRGF0YSA9IG5ldyBGb3JtRGF0YSgpO1xyXG4gICAgICBmb3JtRGF0YS5hcHBlbmQoJ2ZpbGUnLCBmaWxlKTtcclxuICAgICAgZm9ybURhdGEuYXBwZW5kKCdwYXJ0aWNpcGFudHMnLCBwYXJ0aWNpcGFudHMpO1xyXG4gICAgICBmb3JtRGF0YS5hcHBlbmQoJ3RlbXBsYXRlSWQnLCB0ZW1wbGF0ZUlkKTtcclxuICAgICAgYXdhaXQgb25TdWJtaXQoZm9ybURhdGEpO1xyXG4gICAgICBzZXRGaWxlKG51bGwpO1xyXG4gICAgICBzZXRQYXJ0aWNpcGFudHMoJycpO1xyXG4gICAgICBzZXRUZW1wbGF0ZUlkKHRlbXBsYXRlT3B0aW9uc1swXT8udmFsdWUgfHwgJycpO1xyXG4gICAgfSBjYXRjaCAoZXJyKSB7XHJcbiAgICAgIHNldEVycm9yKGVyci5tZXNzYWdlKTtcclxuICAgIH0gZmluYWxseSB7XHJcbiAgICAgIHNldElzU3VibWl0dGluZyhmYWxzZSk7XHJcbiAgICB9XHJcbiAgfTtcclxuXHJcbiAgcmV0dXJuIChcclxuICAgIDxzZWN0aW9uIGNsYXNzTmFtZT1cImNhcmRcIiBhcmlhLWxhYmVsPVwiRm9ybXVsYWlyZSBkJ2ltcG9ydFwiPlxyXG4gICAgICA8aDIgY2xhc3NOYW1lPVwic2VjdGlvbi10aXRsZVwiPkltcG9ydGVyIHVuIG5vdXZlbCBlbnJlZ2lzdHJlbWVudDwvaDI+XHJcbiAgICAgIDxwPlxyXG4gICAgICAgIExlcyBmaWNoaWVycyBzb250IHRyYWl0w6lzIGxvY2FsZW1lbnQgdmlhIEZGbXBlZyBldCBXaGlzcGVyLCBwdWlzIGVucmljaGlzIGF2ZWMgT3BlbkFJLlxyXG4gICAgICAgIExlcyBleHBvcnRzIHJlc3RlbnQgaWRlbnRpcXVlcyDDoCBsYSB2ZXJzaW9uIHByw6ljw6lkZW50ZSAoVFhULCBNYXJrZG93biBldCBWVFQpLlxyXG4gICAgICA8L3A+XHJcblxyXG4gICAgICA8Zm9ybSBjbGFzc05hbWU9XCJ1cGxvYWQtZm9ybVwiIG9uU3VibWl0PXtoYW5kbGVTdWJtaXR9PlxyXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiaW5wdXQtZ3JvdXBcIj5cclxuICAgICAgICAgIDxsYWJlbCBodG1sRm9yPVwiZmlsZVwiPkZpY2hpZXIgYXVkaW88L2xhYmVsPlxyXG4gICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgIGlkPVwiZmlsZVwiXHJcbiAgICAgICAgICAgIHR5cGU9XCJmaWxlXCJcclxuICAgICAgICAgICAgYWNjZXB0PVwiYXVkaW8vKix2aWRlby8qXCJcclxuICAgICAgICAgICAgb25DaGFuZ2U9eyhldmVudCkgPT4gc2V0RmlsZShldmVudC50YXJnZXQuZmlsZXNbMF0gfHwgbnVsbCl9XHJcbiAgICAgICAgICAgIHJlcXVpcmVkXHJcbiAgICAgICAgICAvPlxyXG4gICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImlucHV0LWdyb3VwXCI+XHJcbiAgICAgICAgICA8bGFiZWwgaHRtbEZvcj1cInBhcnRpY2lwYW50c1wiPlBhcnRpY2lwYW50cyAoc8OpcGFyw6lzIHBhciB1bmUgdmlyZ3VsZSk8L2xhYmVsPlxyXG4gICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgIGlkPVwicGFydGljaXBhbnRzXCJcclxuICAgICAgICAgICAgdHlwZT1cInRleHRcIlxyXG4gICAgICAgICAgICBwbGFjZWhvbGRlcj1cIkFsaWNlLCBCb2IsIC4uLlwiXHJcbiAgICAgICAgICAgIHZhbHVlPXtwYXJ0aWNpcGFudHN9XHJcbiAgICAgICAgICAgIG9uQ2hhbmdlPXsoZXZlbnQpID0+IHNldFBhcnRpY2lwYW50cyhldmVudC50YXJnZXQudmFsdWUpfVxyXG4gICAgICAgICAgLz5cclxuICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJpbnB1dC1ncm91cFwiPlxyXG4gICAgICAgICAgPGxhYmVsIGh0bWxGb3I9XCJ0ZW1wbGF0ZVwiPkdhYmFyaXQgZGUgc3ludGjDqHNlPC9sYWJlbD5cclxuICAgICAgICAgIDxzZWxlY3RcclxuICAgICAgICAgICAgaWQ9XCJ0ZW1wbGF0ZVwiXHJcbiAgICAgICAgICAgIHZhbHVlPXt0ZW1wbGF0ZUlkfVxyXG4gICAgICAgICAgICBvbkNoYW5nZT17KGV2ZW50KSA9PiBzZXRUZW1wbGF0ZUlkKGV2ZW50LnRhcmdldC52YWx1ZSl9XHJcbiAgICAgICAgICA+XHJcbiAgICAgICAgICAgIHt0ZW1wbGF0ZU9wdGlvbnMubWFwKChvcHRpb24pID0+IChcclxuICAgICAgICAgICAgICA8b3B0aW9uIGtleT17b3B0aW9uLnZhbHVlfSB2YWx1ZT17b3B0aW9uLnZhbHVlfT5cclxuICAgICAgICAgICAgICAgIHtvcHRpb24ubGFiZWx9XHJcbiAgICAgICAgICAgICAgPC9vcHRpb24+XHJcbiAgICAgICAgICAgICkpfVxyXG4gICAgICAgICAgPC9zZWxlY3Q+XHJcbiAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgIHtlcnJvciAmJiA8cCBjbGFzc05hbWU9XCJ0b2FzdCBlcnJvclwiPntlcnJvcn08L3A+fVxyXG5cclxuICAgICAgICA8YnV0dG9uIGNsYXNzTmFtZT1cImJ1dHRvbiBwcmltYXJ5XCIgdHlwZT1cInN1Ym1pdFwiIGRpc2FibGVkPXtpc1N1Ym1pdHRpbmd9PlxyXG4gICAgICAgICAge2lzU3VibWl0dGluZyA/ICdFbnZvaSBlbiBjb3Vyc+KApicgOiAnTGFuY2VyIGxlIHRyYWl0ZW1lbnQnfVxyXG4gICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICA8L2Zvcm0+XHJcbiAgICA8L3NlY3Rpb24+XHJcbiAgKTtcclxufVxyXG4iXSwiZmlsZSI6IkM6L1Byb2pldHMvQ1JBdXRvbWF0aXF1ZTIvZnJvbnRlbmQvc3JjL2NvbXBvbmVudHMvVXBsb2FkRm9ybS5qc3gifQ==
