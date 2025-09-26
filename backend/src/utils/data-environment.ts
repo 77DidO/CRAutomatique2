@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import { ensureDirectory, ensureFile } from './fs.js';
 import type { AppConfig, Environment, Logger, Template } from '../types/index.js';
@@ -26,7 +25,7 @@ export async function ensureDataEnvironment({ logger }: EnsureDataEnvironmentOpt
   ensureFile(templatesFile, JSON.stringify(defaultTemplates(), null, 2));
   ensureFile(jobsFile, JSON.stringify({ jobs: [], logs: {} }, null, 2));
 
-  const whisperBinary = await resolveWhisperBinary(logger);
+  const whisperBinary = process.env.WHISPER_PYTHON_PATH || 'python';
   const ffmpegBinary = process.env.FFMPEG_PATH || null;
 
   return {
@@ -40,25 +39,6 @@ export async function ensureDataEnvironment({ logger }: EnsureDataEnvironmentOpt
     whisperBinary,
     ffmpegBinary,
   };
-}
-
-async function resolveWhisperBinary(logger: Logger): Promise<string> {
-  const configuredPath = process.env.WHISPER_PYTHON_PATH;
-  const fallbackBinary = 'python';
-
-  if (!configuredPath) {
-    return fallbackBinary;
-  }
-
-  const accessMode = 'X_OK' in fs.constants ? fs.constants.X_OK : fs.constants.F_OK;
-
-  try {
-    await fs.promises.access(configuredPath, accessMode);
-    return configuredPath;
-  } catch (error) {
-    logger.warn({ path: configuredPath, error }, 'Whisper Python binary is not accessible; falling back to default');
-    return fallbackBinary;
-  }
 }
 
 function defaultConfig(): AppConfig {
