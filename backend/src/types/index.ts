@@ -119,6 +119,7 @@ export interface LlmConfig {
 export interface PipelineConfig {
   enableSummaries: boolean;
   enableSubtitles: boolean;
+  enableDiarization: boolean;
 }
 
 export interface AppConfig {
@@ -136,10 +137,18 @@ export interface Template {
 
 export type TemplateInput = Partial<Omit<Template, 'id'>> & Pick<Template, 'prompt' | 'name'> & { id?: string };
 
+export interface DiarizationSegment {
+  start: number;
+  end: number;
+  speaker: string;
+}
+
 export interface WhisperTranscriptionSegment {
   start?: number;
   end?: number;
   text?: string;
+  speaker?: string | null;
+  diarization?: DiarizationSegment[];
 }
 
 export interface WhisperTranscriptionResult {
@@ -208,6 +217,7 @@ export interface PipelineData {
   transcription?: WhisperTranscriptionResult;
   summary?: SummaryResult | null;
   outputs?: JobOutput[];
+  diarization?: DiarizationSegment[];
 }
 
 export interface PipelineContext {

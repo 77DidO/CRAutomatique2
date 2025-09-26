@@ -60,6 +60,7 @@ function defaultConfig(): AppConfig {
     pipeline: {
       enableSummaries: true,
       enableSubtitles: true,
+      enableDiarization: false,
     },
   };
 }

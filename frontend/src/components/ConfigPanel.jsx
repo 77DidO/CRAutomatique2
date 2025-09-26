@@ -262,6 +262,14 @@ export default function ConfigPanel({ config, onSave }) {
             />
             <span>Générer les sous-titres VTT</span>
           </label>
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={Boolean(localConfig.pipeline.enableDiarization)}
+              onChange={(event) => updateSection(['pipeline', 'enableDiarization'], event.target.checked)}
+            />
+            <span>Activer la diarisation des locuteurs</span>
+          </label>
         </fieldset>
 
         {error && <p className="toast error">{error}</p>}

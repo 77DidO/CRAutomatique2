@@ -23,7 +23,7 @@ test('generateSummary treats quoted placeholder key as missing', async () => {
         return {
           whisper: { model: 'base', language: null, computeType: 'auto', batchSize: 0, vad: true, chunkDuration: 0 },
           llm: { provider: 'openai', model: 'gpt-4o-mini', temperature: 0.2, maxOutputTokens: 1200, apiKey: '"sk-replace-me"' },
-          pipeline: { enableSummaries: true, enableSubtitles: true },
+          pipeline: { enableSummaries: true, enableSubtitles: true, enableDiarization: false },
         };
       },
       async write() {

@@ -30,11 +30,13 @@ test('config repository deeply merges values', async () => {
 
   const updated = await configStore.write({
     llm: { model: 'gpt-4o', temperature: 0.5 },
-    pipeline: { enableSummaries: false },
+    pipeline: { enableSummaries: false, enableDiarization: true },
   });
 
   assert.equal(updated.llm.model, 'gpt-4o');
   assert.equal(updated.llm.temperature, 0.5);
   assert.equal(updated.pipeline.enableSummaries, false);
+  assert.equal(updated.pipeline.enableSubtitles, true);
+  assert.equal(updated.pipeline.enableDiarization, true);
   assert.equal(updated.whisper.model, 'base');
 });
