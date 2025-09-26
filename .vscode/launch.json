@@ -29,7 +29,7 @@
   "compounds": [
     {
       "name": "CRAuto: dev (backend+frontend)",
-      "preLaunchTask": "Backend: npm install",
+      "preLaunchTask": "Dev: backend+frontend",
       "configurations": [
         "Attach Node: Backend (nodemon)",
         "Brave: Vite UI"
