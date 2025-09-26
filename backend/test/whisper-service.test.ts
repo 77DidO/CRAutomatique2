@@ -610,6 +610,60 @@ test('python-based transcription retries without WhisperProcessor when NameError
   assert.equal(Number.parseInt(rawCount, 10), 2);
 });
 
+test('python-based transcription configures OpenVINO cache and performance hints', async () => {
+  const rootDir = createTempDir();
+  const outputDir = path.join(rootDir, 'outputs');
+  const pythonMockPath = path.join(rootDir, 'mock-python-openvino-config.mjs');
+
+  const script = `#!/usr/bin/env node\n`
+    + `import fs from 'node:fs';\n`
+    + `import path from 'node:path';\n`
+    + `const [scriptPath] = process.argv.slice(2);\n`
+    + `if (!scriptPath) {\n`
+    + `  console.error('Missing script path');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `const content = fs.readFileSync(scriptPath, 'utf8');\n`
+    + `if (!content.includes('cache_dir_env = os.environ.get("WHISPER_OPENVINO_CACHE_DIR")')) {\n`
+    + `  console.error('OpenVINO cache directory configuration missing');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('ov_config = {"CACHE_DIR": str(cache_dir)}')) {\n`
+    + `  console.error('OpenVINO cache configuration missing');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `if (!content.includes('log(f"Using OpenVINO device: {device_override} (cache: {cache_dir})")')) {\n`
+    + `  console.error('OpenVINO device logging missing');\n`
+    + `  process.exit(1);\n`
+    + `}\n`
+    + `const transcriptPath = path.join(path.dirname(scriptPath), 'transcript.json');\n`
+    + `const result = { text: 'Config ok', language: 'fr', segments: [] };\n`
+    + `fs.writeFileSync(transcriptPath, JSON.stringify(result));\n`
+    + `console.log(JSON.stringify(result));\n`
+    + `process.exit(0);\n`;
+
+  fs.writeFileSync(pythonMockPath, script, { mode: 0o755 });
+
+  const environment = createEnvironment(rootDir, pythonMockPath);
+  const service = createWhisperService(environment, { logger });
+
+  const inputPath = path.join(rootDir, 'input.wav');
+  await fs.promises.writeFile(inputPath, 'audio');
+
+  const result = await service.transcribe({ inputPath, outputDir, config: baseConfig });
+
+  assert.equal(result.text, 'Config ok');
+  assert.equal(result.language, 'fr');
+  assert.equal(result.model, baseConfig.model);
+  assert.deepEqual(result.segments, []);
+
+  const generatedScript = await fs.promises.readFile(path.join(outputDir, '_transcribe.py'), 'utf8');
+  assert.ok(generatedScript.includes('cache_dir_env = os.environ.get("WHISPER_OPENVINO_CACHE_DIR")'));
+  assert.ok(generatedScript.includes('ov_config = {"CACHE_DIR": str(cache_dir)}'));
+  assert.ok(generatedScript.includes('log(f"Using OpenVINO device: {device_override} (cache: {cache_dir})")'));
+});
+
+
 test('python-based transcription skips OpenVINO when WhisperProcessor probe fails', async () => {
   const rootDir = createTempDir();
   const outputDir = path.join(rootDir, 'outputs');

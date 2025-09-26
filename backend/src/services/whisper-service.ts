@@ -481,7 +481,34 @@ function buildPythonTranscribeScript({
             "Processor is missing feature_extractor or tokenizer attributes required for transcription."
         )
 
-    model = OVModelForSpeechSeq2Seq.from_pretrained(MODEL_ID)
+    cache_dir_env = os.environ.get("WHISPER_OPENVINO_CACHE_DIR")
+    if cache_dir_env:
+        cache_dir = Path(cache_dir_env).expanduser()
+    else:
+        cache_dir = OUTPUT_DIR / "openvino-cache"
+
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    ov_config = {"CACHE_DIR": str(cache_dir)}
+    performance_hint = os.environ.get("WHISPER_OPENVINO_PERFORMANCE_HINT")
+    if performance_hint:
+        ov_config["PERFORMANCE_HINT"] = performance_hint
+    else:
+        ov_config["PERFORMANCE_HINT"] = "LATENCY"
+
+    num_streams = os.environ.get("WHISPER_OPENVINO_NUM_STREAMS")
+    if num_streams and num_streams.strip():
+        ov_config["NUM_STREAMS"] = num_streams.strip()
+
+    device_override = (os.environ.get("WHISPER_OPENVINO_DEVICE") or "CPU").strip() or "CPU"
+    log(f"Using OpenVINO device: {device_override} (cache: {cache_dir})")
+
+    model = OVModelForSpeechSeq2Seq.from_pretrained(
+        MODEL_ID,
+        device=device_override,
+        ov_config=ov_config,
+    )
+
 
     asr = pipeline(
         "automatic-speech-recognition",
@@ -490,6 +517,8 @@ function buildPythonTranscribeScript({
         feature_extractor=feature_extractor,
         chunk_length_s=CHUNK_LENGTH,
         batch_size=BATCH_SIZE,
+
+        device=device_override.lower(),
     )
 
     result = asr(
