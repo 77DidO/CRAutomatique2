@@ -20,14 +20,14 @@
     },
     {
       "name": "Brave: Vite UI",
-      "type": "pwa-chrome",
+      "type": "chrome",
       "request": "launch",
       "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}/frontend",
       "runtimeExecutable": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
       "userDataDir": "${workspaceFolder}/.vscode/.brave-debug-profile",
       "runtimeArgs": ["--auto-open-devtools-for-tabs"],
-      "preLaunchTask": "Frontend: dev",
+      "preLaunchTask": "Dev: backend+frontend",
       "trace": true
     }
   ],
