@@ -55,6 +55,11 @@ test('pipeline completes job with stub services', async () => {
         };
       },
     },
+    diarization: {
+      async diarize() {
+        return { segments: [] };
+      },
+    },
     openai: {
       async generateSummary(): Promise<SummaryResult> {
         return { markdown: '# Résumé\n- Point clé' };
@@ -131,6 +136,11 @@ test('pipeline skips subtitle export when disabled in config', async () => {
           ],
           language: 'fr',
         };
+      },
+    },
+    diarization: {
+      async diarize() {
+        return { segments: [] };
       },
     },
     openai: {
@@ -215,6 +225,11 @@ test('pipeline completes job when summary generation is skipped', async () => {
         };
       },
     },
+    diarization: {
+      async diarize() {
+        return { segments: [] };
+      },
+    },
     openai: {
       async generateSummary(): Promise<SummaryResult> {
         return { markdown: null, reason: 'missing_api_key' };
@@ -292,6 +307,11 @@ test('pipeline completes job when placeholder OpenAI key is provided', async () 
         };
       },
     },
+    diarization: {
+      async diarize() {
+        return { segments: [] };
+      },
+    },
     openai: createOpenAiService({ configStore, logger }),
   };
 
@@ -367,6 +387,11 @@ test('pipeline handles job removal while queued and processing', async () => {
           ],
           language: 'fr',
         };
+      },
+    },
+    diarization: {
+      async diarize() {
+        return { segments: [] };
       },
     },
     openai: {

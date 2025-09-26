@@ -167,6 +167,14 @@ export interface WhisperService {
   transcribe(args: { inputPath: string; outputDir: string; config: WhisperConfig }): Promise<WhisperTranscriptionResult>;
 }
 
+export interface DiarizationResult {
+  segments: DiarizationSegment[];
+}
+
+export interface DiarizationService {
+  diarize(args: { inputPath: string; outputDir?: string }): Promise<DiarizationResult>;
+}
+
 export interface FfmpegService {
   normalizeAudio(args: { input: string; output: string }): Promise<void>;
 }
@@ -208,6 +216,7 @@ export interface TemplateStore {
 
 export type Services = {
   whisper: WhisperService;
+  diarization: DiarizationService;
   ffmpeg: FfmpegService;
   openai: OpenAiService;
 };

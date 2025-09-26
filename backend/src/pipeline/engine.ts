@@ -1,6 +1,7 @@
 import { createHttpError } from '../utils/http-error.js';
 import { ingestStep } from './steps/ingest-step.js';
 import { transcribeStep } from './steps/transcribe-step.js';
+import { diarizeStep } from './steps/diarize-step.js';
 import { summariseStep } from './steps/summarise-step.js';
 import { exportStep } from './steps/export-step.js';
 import type {
@@ -167,6 +168,7 @@ export class PipelineEngine {
     const steps: Array<{ name: string; handler: PipelineStep }> = [
       { name: 'ingest', handler: ingestStep },
       { name: 'transcribe', handler: transcribeStep },
+      { name: 'diarize', handler: diarizeStep },
       { name: 'summarise', handler: summariseStep },
       { name: 'export', handler: exportStep },
     ];
