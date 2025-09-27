@@ -98,7 +98,7 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
                         </button>
                         <button
                           type="button"
-                          className="history-row-menu__item history-row-menu__item--danger btn btn-error btn-with-icon"
+                          className="history-row-menu__item history-row-menu__item--danger"
                           role="menuitem"
                           onClick={(event) => {
                             event.stopPropagation();
@@ -112,18 +112,7 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
                             }
                           }}
                         >
-                          <svg
-                            aria-hidden="true"
-                            focusable="false"
-                            viewBox="0 0 20 20"
-                            className="btn-with-icon__icon"
-                          >
-                            <path
-                              d="M7 2.5A1.5 1.5 0 0 1 8.5 1h3A1.5 1.5 0 0 1 13 2.5V3h3.5a.75.75 0 0 1 0 1.5h-.638l-.74 10.013A2.25 2.25 0 0 1 12.88 16.5H7.12a2.25 2.25 0 0 1-1.742-.987L4.638 4.5H4a.75.75 0 0 1 0-1.5H7V2.5Zm1.5-.25a.25.25 0 0 0-.25.25V3h3.5v-.5a.25.25 0 0 0-.25-.25h-3Zm4.37 4.25a.75.75 0 0 1 1.495.11l-.427 6a.75.75 0 0 1-1.497-.107l.43-6.003Zm-4.508-.64a.75.75 0 0 1 .858.624l.73 6a.75.75 0 0 1-1.49.182l-.73-6a.75.75 0 0 1 .632-.806ZM6.03 6.36a.75.75 0 0 1 1.494.214l-.43 6.003a.75.75 0 0 1-1.496-.107l.432-6.11ZM6.25 4.5l-.33 4.66-.311 4.202a.75.75 0 0 0 .581.79c.417.09.846.135 1.276.135h5.004c.43 0 .859-.045 1.276-.135a.75.75 0 0 0 .58-.79l-.64-8.862H6.25Z"
-                              fill="currentColor"
-                            />
-                          </svg>
-                          <span>Supprimer</span>
+                          Supprimer
                         </button>
                       </div>
                     )}
