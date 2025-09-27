@@ -35,6 +35,29 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   }, [jobId]);
 
   useEffect(() => {
+    if (!outputs.length || selectedOutput) {
+      return;
+    }
+
+    const summaryOutput = outputs.find((output) => {
+      if (output.filename === 'summary.md') {
+        return true;
+      }
+      const mimeType = output.mimeType?.toLowerCase();
+      return mimeType === 'text/markdown';
+    });
+
+    const nextOutput = summaryOutput ?? outputs[0];
+    if (nextOutput) {
+      setSelectedOutput({
+        filename: nextOutput.filename,
+        label: nextOutput.label,
+        mimeType: nextOutput.mimeType,
+      });
+    }
+  }, [outputs, selectedOutput]);
+
+  useEffect(() => {
     if (!selectedOutputFilename) {
       return;
     }
