@@ -951,6 +951,42 @@ pre {
   color: var(--color-text-muted);
 }
 
+.participant-badge-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.participant-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  box-shadow: 0 8px 18px -12px rgba(0, 58, 99, 0.75);
+}
+
+.participant-badge__remove {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.participant-badge__remove:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .chip-list {
   display: flex;
   flex-wrap: wrap;
