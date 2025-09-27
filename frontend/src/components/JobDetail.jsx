@@ -51,7 +51,7 @@ function formatDuration(startValue, endValue) {
   return parts.join(' ');
 }
 
-export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
+export default function JobDetail({ job, logs, isLoadingLogs }) {
   const [selectedOutput, setSelectedOutput] = useState(null);
   const [isLoadingOutput, setIsLoadingOutput] = useState(false);
   const [outputError, setOutputError] = useState(null);
@@ -186,7 +186,6 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   }
 
   const progressValue = Math.round(job.progress ?? 0);
-  const isProcessing = job.status === 'queued' || job.status === 'processing';
   const formattedProcessingDuration = useMemo(() => {
     if (!job) {
       return null;
@@ -201,54 +200,41 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
     <div className="history-detail">
       <header className="history-detail-header">
         <div className="history-detail-heading">
-          <div>
+          <div className="history-detail-heading-primary">
             <h2 className="section-title history-detail-title">{job.filename}</h2>
-            <div className="text-base-content/70 text-sm">
-              Déclenché le {new Date(job.createdAt).toLocaleString()} • Dernière mise à jour{' '}
-              {new Date(job.updatedAt).toLocaleString()} • Temps de traitement :{' '}
-              {formattedProcessingDuration ?? '—'}
+            <div className="history-detail-meta text-sm">
+              <span className="history-detail-meta__item">
+                Déclenché le {new Date(job.createdAt).toLocaleString()}
+              </span>
+              <span className="history-detail-meta__item history-detail-meta__processing">
+                <svg
+                  className="history-detail-meta__icon"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  strokeWidth="1.5"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 6v6l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                  />
+                </svg>
+                <span>
+                  Temps de traitement :{' '}
+                  <strong>{formattedProcessingDuration ?? '—'}</strong>
+                </span>
+              </span>
             </div>
           </div>
-          <button
-            type="button"
-            className="history-delete-btn btn btn-error btn-md btn-with-icon"
-            disabled={isProcessing}
-            onClick={() => {
-              if (isProcessing) {
-                return;
-              }
-              if (
-                window.confirm(
-                  'Voulez-vous vraiment supprimer ce traitement ? Cette action est irréversible.'
-                )
-              ) {
-                onDeleteJob?.(job.id);
-              }
-            }}
-          >
-            <svg
-              className="btn-with-icon__icon"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="1.5"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 7.5h12M9.75 7.5V6.75A1.5 1.5 0 0 1 11.25 5.25h1.5a1.5 1.5 0 0 1 1.5 1.5V7.5m1.5 0V18a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V7.5m3 3v6m3-6v6"
-              />
-            </svg>
-            <span>Supprimer</span>
-          </button>
-        </div>
-        <div className="status-line">
-          <div className="status-actions">
-            <StatusBadge status={job.status} />
-          </div>
-          <div className="status-progress" aria-label="Progression du traitement">
-            <div className="progress-bar" role="presentation">
+          <div className="status-line">
+            <div className="status-actions">
+              <StatusBadge status={job.status} />
+            </div>
+            <div className="status-progress" aria-label="Progression du traitement">
+              <div className="progress-bar" role="presentation">
               <div className="progress-bar__value" style={{ width: `${progressValue}%` }} />
             </div>
             <span className="status-progress-value">{progressValue}%</span>
