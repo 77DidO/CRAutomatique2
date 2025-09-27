@@ -1,3 +1,4 @@
+/* Palette et variables globales pour l'application */
 :root {
   --color-primary: #003a63;
   --color-primary-dark: #00294a;
@@ -20,10 +21,12 @@
     'Liberation Mono', monospace;
 }
 
+/* Réinitialisation de base pour garantir un rendu cohérent */
 * {
   box-sizing: border-box;
 }
 
+/* Styles globaux du document */
 html,
 body {
   margin: 0;
@@ -34,15 +37,18 @@ body {
   line-height: 1.6;
 }
 
+/* Assure que le body couvre toute la hauteur de la fenêtre */
 body {
   min-height: 100vh;
 }
 
+/* Zone racine de l'application React */
 #root {
   min-height: 100vh;
   background: var(--color-app-bg);
 }
 
+/* Liens et interactions de base */
 a {
   color: var(--color-primary);
   text-decoration: none;
@@ -52,6 +58,7 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Harmonise la typographie des éléments de formulaire */
 button,
 input,
 select,
@@ -59,6 +66,7 @@ textarea {
   font: inherit;
 }
 
+/* Barre de navigation principale */
 .navbar {
   display: flex;
   align-items: center;
@@ -70,6 +78,7 @@ textarea {
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Zone qui contient les onglets de navigation */
 .navbar-tabs {
   margin-left: auto;
   display: flex;
@@ -78,6 +87,7 @@ textarea {
   gap: 0.75rem;
 }
 
+/* Boutons avec icône alignée */
 .btn-with-icon {
   display: inline-flex;
   align-items: center;
@@ -89,6 +99,7 @@ textarea {
   height: 1rem;
 }
 
+/* Contrainte de largeur et marges des pages */
 .page-container {
   max-width: 64rem;
   margin: 0 auto;
@@ -106,6 +117,7 @@ textarea {
   margin-bottom: 0.25rem;
 }
 
+/* Titres de sections secondaires */
 .section-title {
   margin: 0 0 1rem;
   font-size: 1.25rem;
@@ -144,6 +156,7 @@ textarea {
   text-align: right;
 }
 
+/* Accessibilité : contenu uniquement pour les lecteurs d'écran */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -160,10 +173,12 @@ textarea {
   font-weight: 600;
 }
 
+/* Police monospace pour les blocs techniques */
 .font-mono {
   font-family: var(--font-mono);
 }
 
+/* Classes utilitaires de largeur */
 .mx-auto {
   margin-left: auto;
   margin-right: auto;
@@ -238,6 +253,7 @@ textarea {
   padding-right: 1rem;
 }
 
+/* Gestion des espacements verticaux */
 .space-y-6 > * + * {
   margin-top: 1.5rem;
 }
@@ -306,6 +322,7 @@ textarea {
   display: grid;
 }
 
+/* Mise en page responsive */
 .md\:grid-cols-2 {
   grid-template-columns: repeat(1, minmax(0, 1fr));
 }
@@ -392,6 +409,7 @@ textarea {
   right: 0;
 }
 
+/* Tableau principal utilisé dans les vues historiques */
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -425,6 +443,7 @@ textarea {
   font-weight: 600;
 }
 
+/* Mise en forme du contenu riche */
 .prose {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -518,6 +537,7 @@ textarea {
   box-shadow: var(--shadow-soft);
 }
 
+/* Cartes de diarisation et métadonnées */
 .diarization-segment__header {
   display: flex;
   justify-content: space-between;
@@ -570,6 +590,7 @@ textarea {
   font-size: 0.85rem;
 }
 
+/* Styles de base des boutons */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -600,6 +621,7 @@ textarea {
   box-shadow: none;
 }
 
+/* Variantes de boutons : primaire */
 .btn-primary {
   background: var(--color-primary);
   color: #fff;
@@ -610,6 +632,7 @@ textarea {
   background: var(--color-primary-dark);
 }
 
+/* Variantes de boutons : secondaire */
 .btn-secondary {
   background: var(--color-surface);
   color: var(--color-primary);
@@ -628,6 +651,7 @@ textarea {
   font-size: 1rem;
 }
 
+/* Variante fantôme pour un style discret */
 .btn-ghost {
   background: transparent;
   color: var(--color-primary);

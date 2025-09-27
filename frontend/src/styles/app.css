@@ -1,25 +1,30 @@
+/* Structure générale de l'application */
 .app-shell {
   display: flex;
   flex-direction: column;
   gap: 2rem;
 }
 
+/* Contenu principal avec espacement vertical */
 .app-shell main {
   display: flex;
   flex-direction: column;
   gap: 2rem;
 }
 
+/* Ajustements visuels de la barre de navigation */
 .navbar {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-soft);
 }
 
+/* Boutons de navigation d'une largeur minimale */
 .navbar .btn {
   min-width: 9rem;
 }
 
 @media (max-width: 768px) {
+  /* Mise en page mobile de la barre de navigation */
   .navbar {
     width: 100%;
     justify-content: flex-start;
@@ -30,6 +35,7 @@
   }
 }
 
+/* Aperçu des invites de modèles dans la liste */
 .template-prompt-preview-text {
   display: inline-block;
   margin: 0;
@@ -41,6 +47,7 @@
   vertical-align: top;
 }
 
+/* Ligne d'historique sur laquelle l'utilisateur intervient */
 .history-table tr.is-editing {
   background: var(--color-app-bg);
 }
