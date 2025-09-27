@@ -643,10 +643,12 @@ textarea {
 .btn-error {
   background: var(--color-error);
   color: #fff;
+  box-shadow: 0 16px 30px -20px rgba(220, 38, 38, 0.6);
 }
 
 .btn-error:hover {
   background: #b91c1c;
+  color: #fff;
 }
 
 .btn-xs {
@@ -1624,6 +1626,7 @@ fieldset + fieldset {
 .history-row-menu__item {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.5rem;
   width: 100%;
   padding: 0.45rem 0.75rem;
@@ -1635,6 +1638,7 @@ fieldset + fieldset {
   font-weight: 500;
   cursor: pointer;
   text-align: left;
+  transform: none;
 }
 
 .history-row-menu__item:hover,
@@ -1654,6 +1658,34 @@ fieldset + fieldset {
 .history-row-menu__item--danger:hover,
 .history-row-menu__item--danger:focus-visible {
   background: rgba(220, 38, 38, 0.12);
+}
+
+.history-row-menu__item.btn {
+  box-shadow: none;
+  border: none;
+  padding: 0.45rem 0.75rem;
+  width: 100%;
+  transform: none;
+}
+
+.history-row-menu__item.btn:hover {
+  background: rgba(0, 58, 99, 0.08);
+  transform: none;
+}
+
+.history-row-menu__item.btn-error {
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--color-error);
+}
+
+.history-row-menu__item.btn-error:hover,
+.history-row-menu__item.btn-error:focus-visible {
+  background: rgba(220, 38, 38, 0.2);
+  color: var(--color-error);
+}
+
+.history-row-menu__item.btn-error .btn-with-icon__icon {
+  color: currentColor;
 }
 
 @media (max-width: 768px) {
