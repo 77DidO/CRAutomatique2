@@ -1,29 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Stepper, Step, StepLabel, StepContent, Chip, Typography } from '@mui/material';
 import { API_BASE } from '../api/client.js';
 import StatusBadge from './StatusBadge.jsx';
-
-const FAILURE_LEVELS = new Set(['error', 'failed', 'fatal']);
-const SUCCESS_LEVELS = new Set(['success', 'completed']);
-const WARNING_LEVELS = new Set(['warn', 'warning']);
-
-const LOG_LEVEL_META = {
-  error: { label: 'Erreur', color: 'error' },
-  failed: { label: 'Échec', color: 'error' },
-  fatal: { label: 'Erreur critique', color: 'error' },
-  warn: { label: 'Avertissement', color: 'warning' },
-  warning: { label: 'Avertissement', color: 'warning' },
-  success: { label: 'Succès', color: 'success' },
-  completed: { label: 'Terminé', color: 'success' },
-  info: { label: 'Info', color: 'info' },
-  processing: { label: 'En cours', color: 'primary' },
-  debug: { label: 'Debug', color: 'default' },
-};
-
-function getLevelMeta(level) {
-  const normalized = typeof level === 'string' ? level.toLowerCase() : 'info';
-  return LOG_LEVEL_META[normalized] ?? { label: normalized.toUpperCase(), color: 'default' };
-}
 
 function formatTimestamp(seconds) {
   if (typeof seconds !== 'number' || Number.isNaN(seconds) || !Number.isFinite(seconds)) {
@@ -227,35 +204,6 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   const progressValue = Math.round(job.progress ?? 0);
   const speakerCount = speakerData?.speakers?.length ?? 0;
   const segmentCount = speakerData?.segments?.length ?? 0;
-  const logSteps = useMemo(() => {
-    if (!Array.isArray(logs)) {
-      return [];
-    }
-    return logs.map((entry, index) => {
-      const level = typeof entry.level === 'string' ? entry.level.toLowerCase() : 'info';
-      const timestamp = entry.timestamp ? new Date(entry.timestamp) : null;
-      return {
-        id: `${entry.timestamp ?? index}-${index}`,
-        message: entry.message,
-        level,
-        timestamp,
-      };
-    });
-  }, [logs]);
-  const errorStepIndex = logSteps.findIndex((step) => FAILURE_LEVELS.has(step.level));
-  const isJobCompleted = job?.status === 'completed';
-  const activeStep = (() => {
-    if (logSteps.length === 0) {
-      return 0;
-    }
-    if (errorStepIndex !== -1) {
-      return errorStepIndex;
-    }
-    if (isJobCompleted) {
-      return logSteps.length;
-    }
-    return logSteps.length - 1;
-  })();
 
   return (
     <div className="history-detail">
@@ -430,54 +378,27 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
           Journal du pipeline
         </h3>
         {isLoadingLogs && <p className="text-base-content/70">Chargement des logs…</p>}
-        {logSteps.length ? (
-          <Stepper orientation="vertical" activeStep={activeStep} nonLinear>
-            {logSteps.map((step, index) => {
-              const meta = getLevelMeta(step.level);
-              const timestampLabel = step.timestamp
-                ? `${step.timestamp.toLocaleDateString()} • ${step.timestamp.toLocaleTimeString()}`
-                : null;
-              const isErrorStep = FAILURE_LEVELS.has(step.level);
-              const isWarningStep = WARNING_LEVELS.has(step.level);
-              const stepCompleted =
-                isJobCompleted ||
-                SUCCESS_LEVELS.has(step.level) ||
-                (!isErrorStep && errorStepIndex === -1 && index < activeStep);
+        {logs.length ? (
+          <ol className="pipeline-timeline" aria-label="Chronologie du pipeline">
+            {logs.map((entry, index) => {
+              const level = typeof entry.level === 'string' ? entry.level.toLowerCase() : 'info';
+              const levelLabel = typeof entry.level === 'string' ? entry.level.toUpperCase() : 'INFO';
               return (
-                <Step key={step.id} completed={stepCompleted} expanded>
-                  <StepLabel
-                    error={isErrorStep}
-                    optional={
-                      timestampLabel ? (
-                        <Typography variant="caption" color="text.secondary">
-                          {timestampLabel}
-                        </Typography>
-                      ) : undefined
-                    }
-                  >
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <span>{step.message}</span>
-                      <Chip size="small" label={meta.label} color={meta.color} variant={isWarningStep ? 'outlined' : 'filled'} />
-                    </span>
-                  </StepLabel>
-                  <StepContent>
-                    {!timestampLabel && (
-                      <Typography variant="caption" color="text.secondary">
-                        Niveau : {meta.label}
-                      </Typography>
-                    )}
-                  </StepContent>
-                </Step>
+                <li
+                  key={`${entry.timestamp}-${index}`}
+                  className={`pipeline-timeline__item pipeline-timeline__item--${level}`}
+                >
+                  <div className="pipeline-timeline__marker" aria-hidden="true" />
+                  <div className="pipeline-timeline__content">
+                    <div className="pipeline-timeline__meta">
+                      {new Date(entry.timestamp).toLocaleTimeString()} • {levelLabel}
+                    </div>
+                    <div className="pipeline-timeline__message">{entry.message}</div>
+                  </div>
+                </li>
               );
             })}
-          </Stepper>
+          </ol>
         ) : (
           !isLoadingLogs && <p className="logs-placeholder">Aucun événement pour le moment.</p>
         )}
