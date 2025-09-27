@@ -15,6 +15,40 @@ function canPreviewMimeType(mimeType) {
   );
 }
 
+function toValidDate(value) {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDuration(startValue, endValue) {
+  const start = toValidDate(startValue);
+  const end = toValidDate(endValue);
+  if (!start || !end) {
+    return null;
+  }
+  const diffMs = end.getTime() - start.getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) {
+    return null;
+  }
+
+  const totalSeconds = Math.round(diffMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const parts = [];
+
+  if (minutes > 0) {
+    parts.push(`${minutes} min${minutes > 1 ? 's' : ''}`);
+  }
+  if (seconds > 0 || parts.length === 0) {
+    parts.push(`${seconds} s`);
+  }
+
+  return parts.join(' ');
+}
+
 export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   const [selectedOutput, setSelectedOutput] = useState(null);
   const [isLoadingOutput, setIsLoadingOutput] = useState(false);
@@ -139,6 +173,15 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   }
 
   const progressValue = Math.round(job.progress ?? 0);
+  const formattedProcessingDuration = useMemo(() => {
+    if (!job) {
+      return null;
+    }
+    if (job.status !== 'completed') {
+      return 'en cours';
+    }
+    return formatDuration(job.createdAt, job.updatedAt) ?? '—';
+  }, [job?.status, job?.createdAt, job?.updatedAt]);
 
   return (
     <div className="history-detail">
@@ -148,7 +191,8 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
             <h2 className="section-title history-detail-title">{job.filename}</h2>
             <div className="text-base-content/70 text-sm">
               Déclenché le {new Date(job.createdAt).toLocaleString()} • Dernière mise à jour{' '}
-              {new Date(job.updatedAt).toLocaleString()}
+              {new Date(job.updatedAt).toLocaleString()} • Temps de traitement :{' '}
+              {formattedProcessingDuration ?? '—'}
             </div>
           </div>
           <button
