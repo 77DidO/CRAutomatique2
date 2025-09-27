@@ -277,8 +277,12 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
                     });
                   }}
                 >
-                  <span>{output.label}</span>
-                  <span className="text-base-content/70 text-sm">{output.mimeType}</span>
+                  <span className="resource-link__body">
+                    <span className="resource-link__title">{output.label}</span>
+                    <span className="resource-link__subtitle text-base-content/70 text-sm">
+                      {output.mimeType}
+                    </span>
+                  </span>
                 </button>
               );
             })}
