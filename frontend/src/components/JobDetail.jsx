@@ -186,6 +186,7 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   }
 
   const progressValue = Math.round(job.progress ?? 0);
+  const isProcessing = job.status === 'queued' || job.status === 'processing';
   const formattedProcessingDuration = useMemo(() => {
     if (!job) {
       return null;
@@ -211,7 +212,11 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
           <button
             type="button"
             className="history-delete-btn btn btn-error btn-md btn-with-icon"
+            disabled={isProcessing}
             onClick={() => {
+              if (isProcessing) {
+                return;
+              }
               if (
                 window.confirm(
                   'Voulez-vous vraiment supprimer ce traitement ? Cette action est irréversible.'
