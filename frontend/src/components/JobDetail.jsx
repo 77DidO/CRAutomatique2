@@ -227,21 +227,22 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
         </h3>
         {isLoadingLogs && <p className="text-base-content/70">Chargement des logs…</p>}
         {logs.length ? (
-          <ol className="pipeline-timeline" aria-label="Chronologie du pipeline">
+          <ol className="pipeline-stepper pipeline-stepper--compact" aria-label="Chronologie du pipeline">
             {logs.map((entry, index) => {
               const level = typeof entry.level === 'string' ? entry.level.toLowerCase() : 'info';
-              const levelLabel = typeof entry.level === 'string' ? entry.level.toUpperCase() : 'INFO';
+              const eventDate = new Date(entry.timestamp);
+              const timestampLabel = eventDate.toLocaleString();
               return (
                 <li
                   key={`${entry.timestamp}-${index}`}
-                  className={`pipeline-timeline__item pipeline-timeline__item--${level}`}
+                  className={`pipeline-stepper__item pipeline-stepper__item--${level}`}
                 >
-                  <div className="pipeline-timeline__marker" aria-hidden="true" />
-                  <div className="pipeline-timeline__content">
-                    <div className="pipeline-timeline__meta">
-                      {new Date(entry.timestamp).toLocaleTimeString()} • {levelLabel}
-                    </div>
-                    <div className="pipeline-timeline__message">{entry.message}</div>
+                  <span className="pipeline-stepper__index" aria-hidden="true" />
+                  <div className="pipeline-stepper__body">
+                    <div className="pipeline-stepper__message">{entry.message}</div>
+                    <time className="pipeline-stepper__timestamp" dateTime={eventDate.toISOString()}>
+                      {timestampLabel}
+                    </time>
                   </div>
                 </li>
               );
