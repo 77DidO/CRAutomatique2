@@ -1412,75 +1412,56 @@ legend {
   color: var(--color-error);
 }
 
-.pipeline-stepper {
+.pipeline-timeline {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
-.pipeline-stepper__item,
-.pipeline-stepper__item--info {
-  --step-color: var(--color-primary);
+.pipeline-timeline__item {
   position: relative;
-  display: grid;
-  grid-template-columns: 2.5rem 1fr;
-  column-gap: 1rem;
-  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  padding-left: 0.25rem;
 }
 
-.pipeline-stepper__item::before {
+.pipeline-timeline__item::after {
   content: '';
   position: absolute;
-  top: 2.5rem;
-  left: 1.25rem;
+  top: 1.25rem;
+  left: 0.55rem;
   width: 2px;
-  height: calc(100% - 2.5rem);
-  background: var(--step-color);
-  background: color-mix(in srgb, var(--step-color) 45%, transparent);
-  opacity: 0.6;
+  height: calc(100% - 1.25rem);
+  background: var(--color-border);
 }
 
-.pipeline-stepper__item:last-child::before {
+.pipeline-timeline__item:last-child::after {
   display: none;
 }
 
-.pipeline-stepper__index {
+.pipeline-timeline__marker {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  flex: 0 0 1.1rem;
+  height: 1.1rem;
   border-radius: 999px;
-  font-weight: 700;
-  font-size: 1rem;
-  background: var(--step-color);
-  background: color-mix(in srgb, var(--step-color) 18%, var(--color-surface));
-  border: 2px solid var(--step-color);
-  color: var(--color-surface);
-  box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.08);
+  background: var(--color-border);
+  box-shadow: 0 0 0 6px rgba(15, 23, 42, 0.08);
+  margin-top: 0.15rem;
 }
 
-@supports (background: color-mix(in srgb, white 0%, black 0%)) {
-  .pipeline-stepper__index {
-    color: var(--step-color);
-  }
-}
-
-.pipeline-stepper__body {
+.pipeline-timeline__content {
+  flex: 1;
   border-radius: var(--radius-md);
-  border: 1px solid var(--step-color);
-  border: 1px solid color-mix(in srgb, var(--step-color) 35%, var(--color-border));
-  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  padding: 0.65rem 0.85rem;
   background: var(--color-surface);
-  background: color-mix(in srgb, var(--step-color) 12%, var(--color-surface));
   box-shadow: var(--shadow-soft);
 }
 
-.pipeline-stepper__meta {
+.pipeline-timeline__meta {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--color-text-muted);
@@ -1489,21 +1470,24 @@ legend {
   margin-bottom: 0.35rem;
 }
 
-.pipeline-stepper__message {
+.pipeline-timeline__message {
   font-size: 0.95rem;
 }
 
-.pipeline-stepper__item--error {
-  --step-color: var(--color-error);
+.pipeline-timeline__item--error .pipeline-timeline__marker {
+  background: var(--color-error);
+  box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.12);
 }
 
-.pipeline-stepper__item--warning {
-  --step-color: var(--color-secondary);
+.pipeline-timeline__item--warning .pipeline-timeline__marker {
+  background: var(--color-secondary);
+  box-shadow: 0 0 0 6px rgba(246, 139, 30, 0.12);
 }
 
-.pipeline-stepper__item--success,
-.pipeline-stepper__item--completed {
-  --step-color: var(--color-success);
+.pipeline-timeline__item--success .pipeline-timeline__marker,
+.pipeline-timeline__item--completed .pipeline-timeline__marker {
+  background: var(--color-success);
+  box-shadow: 0 0 0 6px rgba(21, 128, 61, 0.12);
 }
 
 .template-grid {
