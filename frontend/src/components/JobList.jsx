@@ -48,7 +48,11 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
 
     const rect = contentElement.getBoundingClientRect();
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-    const shouldDropup = rect.bottom > viewportHeight;
+    const containerElement =
+      menuElement.closest('.surface-card') || menuElement.closest('[data-dropup-container]');
+    const containerRect = containerElement?.getBoundingClientRect();
+    const bottomLimit = Math.min(viewportHeight, containerRect?.bottom ?? viewportHeight);
+    const shouldDropup = rect.bottom > bottomLimit;
 
     setOpenMenu((current) => {
       if (current.id !== menuId || current.dropup === shouldDropup) {
