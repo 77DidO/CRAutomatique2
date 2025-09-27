@@ -227,34 +227,21 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
         </h3>
         {isLoadingLogs && <p className="text-base-content/70">Chargement des logs…</p>}
         {logs.length ? (
-          <ol
-            className="pipeline-stepper pipeline-stepper--horizontal"
-            aria-label="Chronologie du pipeline"
-          >
+          <ol className="pipeline-timeline" aria-label="Chronologie du pipeline">
             {logs.map((entry, index) => {
               const level = typeof entry.level === 'string' ? entry.level.toLowerCase() : 'info';
               const levelLabel = typeof entry.level === 'string' ? entry.level.toUpperCase() : 'INFO';
               return (
                 <li
                   key={`${entry.timestamp}-${index}`}
-                  className={`pipeline-stepper__item pipeline-stepper__item--${level}`}
+                  className={`pipeline-timeline__item pipeline-timeline__item--${level}`}
                 >
-                  <div className="pipeline-stepper__head">
-                    <span
-                      className="pipeline-stepper__connector pipeline-stepper__connector--before"
-                      aria-hidden="true"
-                    />
-                    <span className="pipeline-stepper__index">{index + 1}</span>
-                    <span
-                      className="pipeline-stepper__connector pipeline-stepper__connector--after"
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <div className="pipeline-stepper__body">
-                    <div className="pipeline-stepper__meta">
+                  <div className="pipeline-timeline__marker" aria-hidden="true" />
+                  <div className="pipeline-timeline__content">
+                    <div className="pipeline-timeline__meta">
                       {new Date(entry.timestamp).toLocaleTimeString()} • {levelLabel}
                     </div>
-                    <div className="pipeline-stepper__message">{entry.message}</div>
+                    <div className="pipeline-timeline__message">{entry.message}</div>
                   </div>
                 </li>
               );
