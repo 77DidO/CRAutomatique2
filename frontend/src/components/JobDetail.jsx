@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { API_BASE } from '../api/client.js';
 import StatusBadge from './StatusBadge.jsx';
 
 function formatTimestamp(seconds) {
@@ -105,7 +106,7 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
       setOutputError(null);
       setOutputContent('');
       try {
-        const response = await fetch(`/api/assets/${jobId}/${filename}`, {
+        const response = await fetch(`${API_BASE}/api/assets/${jobId}/${filename}`, {
           signal: controller.signal,
         });
         if (!response.ok) {
@@ -163,7 +164,7 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
 
     async function fetchSegments() {
       try {
-        const response = await fetch(`/api/assets/${jobId}/${segmentsFilename}`, {
+        const response = await fetch(`${API_BASE}/api/assets/${jobId}/${segmentsFilename}`, {
           signal: controller.signal,
         });
         if (!response.ok) {
@@ -287,7 +288,7 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
               </div>
               <a
                 className="btn btn-secondary btn-sm"
-                href={`/api/assets/${job.id}/${selectedOutput.filename}`}
+                href={`${API_BASE}/api/assets/${job.id}/${selectedOutput.filename}`}
                 target="_blank"
                 rel="noreferrer"
               >
