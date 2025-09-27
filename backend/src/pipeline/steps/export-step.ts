@@ -12,7 +12,7 @@ export async function exportStep(context: PipelineContext): Promise<void> {
   const jobDir = path.join(environment.jobsDir, job.id);
   const outputs: JobOutput[] = [];
 
-  await jobStore.appendLog(job.id, 'Export des livrables');
+  await jobStore.appendLog(job.id, 'Export des livrables', 'info', 'export');
   logger.info({ jobId: job.id, jobDir }, 'Export step started');
 
   const transcription = context.data.transcription?.text ?? '';
@@ -101,7 +101,7 @@ export async function exportStep(context: PipelineContext): Promise<void> {
   context.data.outputs = outputs;
   logger.info({ jobId: job.id, outputCount: outputs.length }, 'Export step completed');
 
-  await jobStore.appendLog(job.id, 'Exports finalisés');
+  await jobStore.appendLog(job.id, 'Exports finalisés', 'info', 'export');
 }
 
 function buildVtt(

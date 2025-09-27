@@ -20,7 +20,7 @@ export async function transcribeStep(context: PipelineContext): Promise<void> {
     );
   }
 
-  await jobStore.appendLog(job.id, 'Transcription locale (Whisper)');
+  await jobStore.appendLog(job.id, 'Transcription locale (Whisper)', 'info', 'transcribe');
   logger.info(
     {
       jobId: job.id,
@@ -49,5 +49,5 @@ export async function transcribeStep(context: PipelineContext): Promise<void> {
     'Transcribe step completed',
   );
 
-  await jobStore.appendLog(job.id, 'Transcription générée');
+  await jobStore.appendLog(job.id, 'Transcription générée', 'info', 'transcribe');
 }

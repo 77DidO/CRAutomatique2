@@ -109,9 +109,19 @@ class FileJobStore implements JobStore {
     return updated;
   }
 
-  async appendLog(id: string, message: string, level: LogLevel = 'info'): Promise<JobLogEntry> {
+  async appendLog(
+    id: string,
+    message: string,
+    level: LogLevel = 'info',
+    pipelineStep: string | null = null,
+  ): Promise<JobLogEntry> {
     const entries = this.logs.get(id) ?? [];
-    const entry: JobLogEntry = { timestamp: new Date().toISOString(), level, message };
+    const entry: JobLogEntry = {
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      pipelineStep,
+    };
     entries.push(entry);
     this.logs.set(id, entries);
     await this.persist();

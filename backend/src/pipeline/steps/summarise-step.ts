@@ -6,7 +6,7 @@ export async function summariseStep(context: PipelineContext): Promise<void> {
 
   if (!config.pipeline.enableSummaries) {
     // Permet de court-circuiter l'appel LLM lorsqu'il est désactivé dans la configuration.
-    await jobStore.appendLog(job.id, 'Synthèse LLM désactivée, étape ignorée');
+    await jobStore.appendLog(job.id, 'Synthèse LLM désactivée, étape ignorée', 'info', 'summarise');
     logger.info({ jobId: job.id }, 'Summarise step skipped because summaries disabled');
     context.data.summary = null;
     return;
@@ -14,13 +14,13 @@ export async function summariseStep(context: PipelineContext): Promise<void> {
 
   const transcription = context.data.transcription;
   if (!transcription) {
-    await jobStore.appendLog(job.id, 'Transcription manquante, résumé ignoré', 'warn');
+    await jobStore.appendLog(job.id, 'Transcription manquante, résumé ignoré', 'warn', 'summarise');
     logger.warn({ jobId: job.id }, 'Summarise step skipped due to missing transcription');
     context.data.summary = null;
     return;
   }
 
-  await jobStore.appendLog(job.id, 'Génération du résumé (OpenAI)');
+  await jobStore.appendLog(job.id, 'Génération du résumé (OpenAI)', 'info', 'summarise');
   const { provider, model, temperature, maxOutputTokens } = config.llm;
 
   const speakerTimeline = buildSpeakerTimeline(context.data.transcription?.segments);
@@ -52,7 +52,7 @@ export async function summariseStep(context: PipelineContext): Promise<void> {
         ? "Résumé ignoré : clé API OpenAI manquante"
         : 'Résumé non généré par le service OpenAI';
 
-    await jobStore.appendLog(job.id, skippedMessage, 'warn');
+    await jobStore.appendLog(job.id, skippedMessage, 'warn', 'summarise');
     logger.warn({ jobId: job.id, reason: summary?.reason ?? 'unknown' }, 'Summarise step did not produce content');
     context.data.summary = null;
     return;
@@ -61,5 +61,5 @@ export async function summariseStep(context: PipelineContext): Promise<void> {
   context.data.summary = { markdown };
   logger.info({ jobId: job.id, markdownLength: markdown.length }, 'Summarise step completed');
 
-  await jobStore.appendLog(job.id, 'Résumé généré');
+  await jobStore.appendLog(job.id, 'Résumé généré', 'info', 'summarise');
 }
