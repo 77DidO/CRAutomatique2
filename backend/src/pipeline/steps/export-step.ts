@@ -33,10 +33,11 @@ export async function exportStep(context: PipelineContext): Promise<void> {
     'Raw transcription exported',
   );
 
+  let summaryOutput: JobOutput | null = null;
   if (context.data.summary?.markdown) {
     const summaryPath = path.join(jobDir, 'summary.md');
     await fs.promises.writeFile(summaryPath, context.data.summary.markdown, 'utf8');
-    outputs.push({ label: 'Résumé', filename: 'summary.md', mimeType: 'text/markdown' });
+    summaryOutput = { label: 'Résumé', filename: 'summary.md', mimeType: 'text/markdown' };
     logger.debug(
       { jobId: job.id, summaryPath, summaryLength: context.data.summary.markdown.length },
       'Summary exported',
@@ -75,6 +76,10 @@ export async function exportStep(context: PipelineContext): Promise<void> {
     );
   } else {
     logger.info({ jobId: job.id }, 'Timed transcription export skipped due to missing segments');
+  }
+
+  if (summaryOutput) {
+    outputs.push(summaryOutput);
   }
 
   if (config.pipeline.enableSubtitles && context.data.transcription?.segments?.length) {
