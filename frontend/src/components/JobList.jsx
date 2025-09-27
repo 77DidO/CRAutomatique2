@@ -1,8 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import StatusBadge from './StatusBadge.jsx';
 
 export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
-  const [openMenuId, setOpenMenuId] = useState(null);
+  const [openMenu, setOpenMenu] = useState({ id: null, dropup: false });
+  const menuRefs = useRef(new Map());
+
+  const registerMenuRef = (id) => (node) => {
+    if (node) {
+      menuRefs.current.set(id, node);
+    } else {
+      menuRefs.current.delete(id);
+    }
+  };
 
   useEffect(() => {
     function handlePointerDown(event) {
@@ -12,7 +21,7 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
       ) {
         return;
       }
-      setOpenMenuId(null);
+      setOpenMenu({ id: null, dropup: false });
     }
 
     document.addEventListener('pointerdown', handlePointerDown);
@@ -20,6 +29,34 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
       document.removeEventListener('pointerdown', handlePointerDown);
     };
   }, []);
+
+  useLayoutEffect(() => {
+    const menuId = openMenu.id;
+    if (!menuId) {
+      return;
+    }
+
+    const menuElement = menuRefs.current.get(menuId);
+    if (!menuElement) {
+      return;
+    }
+
+    const contentElement = menuElement.querySelector('.history-row-menu__content');
+    if (!contentElement) {
+      return;
+    }
+
+    const rect = contentElement.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const shouldDropup = rect.bottom > viewportHeight;
+
+    setOpenMenu((current) => {
+      if (current.id !== menuId || current.dropup === shouldDropup) {
+        return current;
+      }
+      return { ...current, dropup: shouldDropup };
+    });
+  }, [openMenu.id]);
 
   if (!jobs.length) {
     return <p className="history-empty">Aucun traitement pour le moment.</p>;
@@ -42,7 +79,8 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
           {jobs.map((job) => {
             const isActive = selectedJob?.id === job.id;
             const progressValue = Math.round(job.progress ?? 0);
-            const isMenuOpen = openMenuId === job.id;
+            const isMenuOpen = openMenu.id === job.id;
+            const isDropup = isMenuOpen && openMenu.dropup;
             return (
               <tr
                 key={job.id}
@@ -68,7 +106,7 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
                   </div>
                 </td>
                 <td className="history-row-menu-cell">
-                  <div className="history-row-menu">
+                  <div className="history-row-menu" ref={registerMenuRef(job.id)}>
                     <button
                       type="button"
                       className="history-row-menu-trigger btn btn-ghost btn-icon"
@@ -76,21 +114,30 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
                       aria-expanded={isMenuOpen}
                       onClick={(event) => {
                         event.stopPropagation();
-                        setOpenMenuId((current) => (current === job.id ? null : job.id));
+                        setOpenMenu((current) =>
+                          current.id === job.id
+                            ? { id: null, dropup: false }
+                            : { id: job.id, dropup: false }
+                        );
                       }}
                     >
                       <span className="sr-only">Afficher les actions</span>
                       <span aria-hidden="true">⋮</span>
                     </button>
                     {isMenuOpen && (
-                      <div className="history-row-menu__content" role="menu">
+                      <div
+                        className={`history-row-menu__content${
+                          isDropup ? ' history-row-menu__content--dropup' : ''
+                        }`}
+                        role="menu"
+                      >
                         <button
                           type="button"
                           className="history-row-menu__item"
                           role="menuitem"
                           onClick={(event) => {
                             event.stopPropagation();
-                            setOpenMenuId(null);
+                            setOpenMenu({ id: null, dropup: false });
                             onSelect(job.id);
                           }}
                         >
@@ -102,7 +149,7 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
                           role="menuitem"
                           onClick={(event) => {
                             event.stopPropagation();
-                            setOpenMenuId(null);
+                            setOpenMenu({ id: null, dropup: false });
                             if (
                               window.confirm(
                                 'Voulez-vous vraiment supprimer ce traitement ? Cette action est irréversible.'

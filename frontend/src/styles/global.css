@@ -1621,6 +1621,11 @@ fieldset + fieldset {
   z-index: 20;
 }
 
+.history-row-menu__content--dropup {
+  top: auto;
+  bottom: calc(100% + 0.35rem);
+}
+
 .history-row-menu__item {
   display: flex;
   align-items: center;
