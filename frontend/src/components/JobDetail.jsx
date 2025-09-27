@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { API_BASE } from '../api/client.js';
 import StatusBadge from './StatusBadge.jsx';
+import { renderMarkdown } from '../utils/renderMarkdown.js';
 
 function canPreviewMimeType(mimeType) {
   if (!mimeType) {
@@ -49,47 +49,19 @@ function formatDuration(startValue, endValue) {
   return parts.join(' ');
 }
 
-export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
-  const [selectedOutput, setSelectedOutput] = useState(null);
-  const [isLoadingOutput, setIsLoadingOutput] = useState(false);
-  const [outputError, setOutputError] = useState(null);
-  const [outputContent, setOutputContent] = useState('');
-
+export default function JobDetail({ job, logs, isLoadingLogs }) {
+  const [speakerData, setSpeakerData] = useState(null);
+  const [isLoadingSpeakers, setIsLoadingSpeakers] = useState(false);
+  const [speakersError, setSpeakersError] = useState(null);
+  const [summaryContent, setSummaryContent] = useState('');
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState(null);
   const jobId = job?.id ?? null;
-  const outputs = useMemo(() => job?.outputs ?? [], [job?.outputs]);
-  const selectedOutputFilename = selectedOutput?.filename ?? null;
-  const selectedOutputMime = selectedOutput?.mimeType ?? null;
-  const canPreviewOutput = selectedOutput ? canPreviewMimeType(selectedOutputMime) : false;
-
-  useEffect(() => {
-    setSelectedOutput(null);
-    setIsLoadingOutput(false);
-    setOutputError(null);
-    setOutputContent('');
-  }, [jobId]);
-
-  useEffect(() => {
-    if (!outputs.length || selectedOutput) {
-      return;
-    }
-
-    const summaryOutput = outputs.find((output) => {
-      if (output.filename === 'summary.md') {
-        return true;
-      }
-      const mimeType = output.mimeType?.toLowerCase();
-      return mimeType === 'text/markdown';
-    });
-
-    const nextOutput = summaryOutput ?? outputs[0];
-    if (nextOutput) {
-      setSelectedOutput({
-        filename: nextOutput.filename,
-        label: nextOutput.label,
-        mimeType: nextOutput.mimeType,
-      });
-    }
-  }, [outputs, selectedOutput]);
+  const jobUpdatedAt = job?.updatedAt ?? null;
+  const segmentsFilename = segmentsOutput?.filename ?? null;
+  const segmentsKey = jobId && segmentsFilename ? `${jobId}:${segmentsFilename}:${jobUpdatedAt}` : null;
+  const hasSummaryOutput = job?.outputs?.some((output) => output.filename === 'summary.md') ?? false;
+  const summaryKey = jobId && hasSummaryOutput ? `${jobId}:summary:${jobUpdatedAt}` : null;
 
   useEffect(() => {
     if (!selectedOutputFilename) {
@@ -113,10 +85,10 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
     let isMounted = true;
     const { filename, mimeType } = selectedOutput;
 
-    if (!canPreviewMimeType(mimeType)) {
-      setOutputContent('');
-      setOutputError(null);
-      setIsLoadingOutput(false);
+    if (!jobId || !segmentsFilename || !segmentsKey) {
+      setSpeakerData(null);
+      setSpeakersError(null);
+      setIsLoadingSpeakers(false);
       return () => {
         isMounted = false;
         controller.abort();
@@ -167,6 +139,59 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
       controller.abort();
     };
   }, [jobId, selectedOutput]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!summaryKey) {
+      setSummaryContent('');
+      setSummaryError(null);
+      setIsLoadingSummary(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const controller = new AbortController();
+    setIsLoadingSummary(true);
+    setSummaryError(null);
+    setSummaryContent('');
+
+    async function fetchSummary() {
+      try {
+        const response = await fetch(`/api/assets/${jobId}/summary.md`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const text = await response.text();
+        if (isMounted) {
+          setSummaryContent(text.trim());
+        }
+      } catch (error) {
+        if (isMounted) {
+          const err = error instanceof Error ? error : new Error('Erreur inconnue');
+          if (err.name !== 'AbortError') {
+            setSummaryError(err.message);
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingSummary(false);
+        }
+      }
+    }
+
+    fetchSummary();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [summaryKey, jobId]);
+
+  const renderedSummary = useMemo(() => renderMarkdown(summaryContent), [summaryContent]);
 
   if (!job) {
     return <p className="history-empty">Sélectionnez un traitement pour afficher les détails.</p>;
@@ -237,6 +262,32 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
           </div>
         </div>
       </header>
+
+      <section aria-labelledby="job-summary" className="space-y-3">
+        <h3 id="job-summary" className="section-title">
+          Synthèse automatique
+        </h3>
+        {!hasSummaryOutput && (
+          <p className="text-base-content/70">Aucun fichier de synthèse n'est disponible pour ce traitement.</p>
+        )}
+        {hasSummaryOutput && isLoadingSummary && (
+          <p className="text-base-content/70">Chargement de la synthèse…</p>
+        )}
+        {hasSummaryOutput && summaryError && (
+          <p className="error-text">Impossible de charger la synthèse : {summaryError}</p>
+        )}
+        {hasSummaryOutput && !isLoadingSummary && !summaryError && renderedSummary && (
+          <div
+            className="summary-preview"
+            aria-label="Résumé du traitement"
+            role="region"
+            dangerouslySetInnerHTML={{ __html: renderedSummary }}
+          />
+        )}
+        {hasSummaryOutput && !isLoadingSummary && !summaryError && !renderedSummary && (
+          <p className="text-base-content/70">Le fichier de synthèse est vide.</p>
+        )}
+      </section>
 
       <section aria-labelledby="job-outputs" className="space-y-3">
         <h3 id="job-outputs" className="section-title">
