@@ -235,9 +235,10 @@ export default function JobDetail({ job, logs, isLoadingLogs }) {
             </div>
             <div className="status-progress" aria-label="Progression du traitement">
               <div className="progress-bar" role="presentation">
-              <div className="progress-bar__value" style={{ width: `${progressValue}%` }} />
+                <div className="progress-bar__value" style={{ width: `${progressValue}%` }} />
+              </div>
+              <span className="status-progress-value">{progressValue}%</span>
             </div>
-            <span className="status-progress-value">{progressValue}%</span>
           </div>
         </div>
       </header>
