@@ -1513,6 +1513,12 @@ pre {
   box-shadow: var(--shadow-soft);
 }
 
+.history-delete-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
 .history-detail {
   display: flex;
   flex-direction: column;
@@ -1808,6 +1814,26 @@ fieldset + fieldset {
 
 .history-row-menu__item--danger {
   color: var(--color-error);
+}
+
+.history-row-menu__item[disabled],
+.history-row-menu__item.is-disabled {
+  cursor: not-allowed;
+  color: var(--color-text-muted);
+  background: rgba(31, 41, 55, 0.08);
+}
+
+.history-row-menu__item--danger[disabled],
+.history-row-menu__item--danger.is-disabled {
+  color: rgba(220, 38, 38, 0.6);
+}
+
+.history-row-menu__item[disabled]:hover,
+.history-row-menu__item[disabled]:focus-visible,
+.history-row-menu__item.is-disabled:hover,
+.history-row-menu__item.is-disabled:focus-visible {
+  background: rgba(31, 41, 55, 0.08);
+  box-shadow: none;
 }
 
 .history-row-menu__item--danger:hover,

@@ -86,6 +86,7 @@ export default function JobList({ jobs, onDelete }) {
             const isMenuOpen = openMenu.id === job.id;
             const isDropup = isMenuOpen && openMenu.dropup;
             const jobDetailPath = `/jobs/${job.id}`;
+            const isProcessing = job.status === 'queued' || job.status === 'processing';
             return (
               <tr key={job.id}>
                 <td>
@@ -151,10 +152,16 @@ export default function JobList({ jobs, onDelete }) {
                         </Link>
                         <button
                           type="button"
-                          className="history-row-menu__item history-row-menu__item--danger"
+                          className={`history-row-menu__item history-row-menu__item--danger${
+                            isProcessing ? ' is-disabled' : ''
+                          }`}
                           role="menuitem"
+                          disabled={isProcessing}
                           onClick={(event) => {
                             event.stopPropagation();
+                            if (isProcessing) {
+                              return;
+                            }
                             setOpenMenu({ id: null, dropup: false });
                             if (
                               window.confirm(
