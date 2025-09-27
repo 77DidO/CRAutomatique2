@@ -1,7 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import StatusBadge from './StatusBadge.jsx';
 
-export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
+export default function JobList({ jobs, onDelete }) {
   const [openMenu, setOpenMenu] = useState({ id: null, dropup: false });
   const menuRefs = useRef(new Map());
 
@@ -81,33 +82,35 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
         </thead>
         <tbody>
           {jobs.map((job) => {
-            const isActive = selectedJob?.id === job.id;
             const progressValue = Math.round(job.progress ?? 0);
             const isMenuOpen = openMenu.id === job.id;
             const isDropup = isMenuOpen && openMenu.dropup;
+            const jobDetailPath = `/jobs/${job.id}`;
             return (
-              <tr
-                key={job.id}
-                className={isActive ? 'history-row--active' : undefined}
-                onClick={() => onSelect(job.id)}
-              >
+              <tr key={job.id}>
                 <td>
-                  <div className="font-medium">{job.filename}</div>
-                  <div className="text-base-content/70 text-sm">
-                    Créé le {new Date(job.createdAt).toLocaleString()}
-                    {job.participants?.length ? ` • Participants : ${job.participants.join(', ')}` : ''}
-                  </div>
-                </td>
-                <td>
-                  <StatusBadge status={job.status} />
-                </td>
-                <td>
-                  <div className="status-progress" aria-label="Avancement du traitement">
-                    <div className="progress-bar" role="presentation">
-                      <div className="progress-bar__value" style={{ width: `${progressValue}%` }} />
+                  <Link to={jobDetailPath} className="history-row__link">
+                    <div className="font-medium">{job.filename}</div>
+                    <div className="text-base-content/70 text-sm">
+                      Créé le {new Date(job.createdAt).toLocaleString()}
+                      {job.participants?.length ? ` • Participants : ${job.participants.join(', ')}` : ''}
                     </div>
-                    <span className="status-progress-value">{progressValue}%</span>
-                  </div>
+                  </Link>
+                </td>
+                <td>
+                  <Link to={jobDetailPath} className="history-row__link history-row__link--inline">
+                    <StatusBadge status={job.status} />
+                  </Link>
+                </td>
+                <td>
+                  <Link to={jobDetailPath} className="history-row__link history-row__link--inline">
+                    <div className="status-progress" aria-label="Avancement du traitement">
+                      <div className="progress-bar" role="presentation">
+                        <div className="progress-bar__value" style={{ width: `${progressValue}%` }} />
+                      </div>
+                      <span className="status-progress-value">{progressValue}%</span>
+                    </div>
+                  </Link>
                 </td>
                 <td className="history-row-menu-cell">
                   <div className="history-row-menu" ref={registerMenuRef(job.id)}>
@@ -135,18 +138,17 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
                         }`}
                         role="menu"
                       >
-                        <button
-                          type="button"
+                        <Link
+                          to={jobDetailPath}
                           className="history-row-menu__item"
                           role="menuitem"
                           onClick={(event) => {
                             event.stopPropagation();
                             setOpenMenu({ id: null, dropup: false });
-                            onSelect(job.id);
                           }}
                         >
                           Voir le détail
-                        </button>
+                        </Link>
                         <button
                           type="button"
                           className="history-row-menu__item history-row-menu__item--danger"

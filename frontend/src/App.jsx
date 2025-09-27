@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppProvider, useAppContext } from './context/AppContext.jsx';
 import { api } from './api/client.js';
 import { useInterval } from './hooks/useInterval.js';
 import UploadForm from './components/UploadForm.jsx';
-import JobDashboard from './components/JobDashboard.jsx';
 import ConfigPanel from './components/ConfigPanel.jsx';
 import TemplateManager from './components/TemplateManager.jsx';
 import './styles/app.css';
@@ -17,12 +17,11 @@ const TABS = [
 function AppShell() {
   const { config, setConfig, templates, setTemplates, jobs, setJobs } = useAppContext();
   const [activeTab, setActiveTab] = useState('jobs');
-  const [selectedJobId, setSelectedJobId] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingJob, setIsCreatingJob] = useState(false);
-
-  const selectedJob = useMemo(() => jobs.find((job) => job.id === selectedJobId) || null, [jobs, selectedJobId]);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function bootstrap() {
@@ -35,7 +34,6 @@ function AppShell() {
         setConfig(initialConfig);
         setTemplates(tpl);
         setJobs(jobList);
-        setSelectedJobId(jobList[0]?.id || null);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -45,13 +43,17 @@ function AppShell() {
     bootstrap();
   }, [setConfig, setTemplates, setJobs]);
 
+  useEffect(() => {
+    if (location.pathname.startsWith('/jobs')) {
+      setActiveTab('jobs');
+      setIsCreatingJob(false);
+    }
+  }, [location.pathname]);
+
   useInterval(async () => {
     try {
       const jobList = await api.listJobs();
       setJobs(jobList);
-      if (selectedJobId && !jobList.some((job) => job.id === selectedJobId)) {
-        setSelectedJobId(jobList[0]?.id || null);
-      }
     } catch (err) {
       setError(err.message);
     }
@@ -63,9 +65,9 @@ function AppShell() {
       const job = await api.createJob(payload);
       const refreshed = await api.listJobs();
       setJobs(refreshed);
-      setSelectedJobId(job.id);
       setActiveTab('jobs');
       setIsCreatingJob(false);
+      navigate(`/jobs/${job.id}`);
     } catch (err) {
       setError(err.message);
       throw err;
@@ -78,18 +80,9 @@ function AppShell() {
       await api.deleteJob(jobId);
       const refreshed = await api.listJobs();
       setJobs(refreshed);
-      if (selectedJobId === jobId) {
-        setSelectedJobId(refreshed[0]?.id || null);
-      }
     } catch (err) {
       setError(err.message);
     }
-  };
-
-  const handleSelectJob = (jobId) => {
-    setSelectedJobId(jobId);
-    setActiveTab('jobs');
-    setIsCreatingJob(false);
   };
 
   const handleSaveConfig = async (nextConfig) => {
@@ -131,6 +124,9 @@ function AppShell() {
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
     setIsCreatingJob(false);
+    if (tabId !== 'jobs') {
+      navigate('/');
+    }
   };
 
   return (
@@ -147,6 +143,7 @@ function AppShell() {
             onClick={() => {
               setActiveTab('jobs');
               setIsCreatingJob((prev) => (activeTab === 'jobs' ? !prev : true));
+              navigate('/');
             }}
           >
             <svg
@@ -200,12 +197,7 @@ function AppShell() {
           {activeTab === 'jobs' && (
             <>
               {isCreatingJob && <UploadForm templates={templates} onSubmit={handleUpload} />}
-              <JobDashboard
-                jobs={jobs}
-                selectedJob={selectedJob}
-                onSelectJob={handleSelectJob}
-                onDeleteJob={handleDeleteJob}
-              />
+              <Outlet context={{ jobs, onDeleteJob: handleDeleteJob }} />
             </>
           )}
           {activeTab === 'config' && config && (
