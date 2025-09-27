@@ -95,6 +95,8 @@ test('pipeline completes job with stub services', async () => {
 
   assert.equal(finalJob?.status, 'completed');
   assert.equal(finalJob?.outputs.length, 5);
+  assert.deepEqual(finalJob?.participants, ['Alice', 'Bob']);
+  assert.ok(Array.isArray(finalJob?.participants));
 
   const transcriptPath = path.join(environment.jobsDir, job.id, 'transcription_raw.txt');
   const timedTranscriptPath = path.join(environment.jobsDir, job.id, 'transcription_timed.txt');

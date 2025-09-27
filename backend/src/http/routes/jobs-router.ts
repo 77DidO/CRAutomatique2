@@ -64,6 +64,46 @@ export function createJobsRouter({ jobStore, pipeline, environment }: CreateJobs
     }
   });
 
+  const parseParticipants = (value: unknown): string[] => {
+    const parseStringValue = (input: string): string[] => {
+      const trimmed = input.trim();
+      if (!trimmed) {
+        return [];
+      }
+
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed) as unknown;
+          if (Array.isArray(parsed)) {
+            return parsed
+              .filter((participant): participant is string => typeof participant === 'string')
+              .map((participant) => participant.trim())
+              .filter(Boolean);
+          }
+        } catch {
+          // Ignore JSON parse errors and fallback to legacy comma splitting.
+        }
+      }
+
+      return trimmed
+        .split(',')
+        .map((participant) => participant.trim())
+        .filter(Boolean);
+    };
+
+    if (Array.isArray(value)) {
+      return value
+        .filter((item): item is string => typeof item === 'string')
+        .flatMap((item) => parseStringValue(item));
+    }
+
+    if (typeof value === 'string') {
+      return parseStringValue(value);
+    }
+
+    return [];
+  };
+
   router.post('/', upload.single('file'), async (req: Request, res: Response, next: NextFunction) => {
     try {
       const file = req.file as UploadedFile | undefined;
@@ -72,11 +112,7 @@ export function createJobsRouter({ jobStore, pipeline, environment }: CreateJobs
       }
 
       const body = (req.body ?? {}) as Record<string, unknown>;
-      const rawParticipants = typeof body.participants === 'string' ? (body.participants as string) : '';
-      const participants = rawParticipants
-        .split(',')
-        .map((participant: string) => participant.trim())
-        .filter(Boolean);
+      const participants = parseParticipants(body.participants);
 
       const templateId = typeof body.templateId === 'string' ? (body.templateId as string) : null;
 
