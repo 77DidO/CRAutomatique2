@@ -138,6 +138,20 @@ function scoreCandidate(filePath: string, parsed: ParsedPathInfo): number {
   return score;
 }
 
+function deriveFallbackModelIdentifier(modelId: string): string {
+  const trimmed = modelId.trim();
+  if (trimmed.length === 0) {
+    return modelId;
+  }
+
+  const match = /^openai\/whisper-([\w.-]+)$/iu.exec(trimmed);
+  if (match) {
+    return match[1];
+  }
+
+  return trimmed;
+}
+
 function findBestMatchingFile(files: string[], parsed: ParsedPathInfo, extension: string): string | null {
   const lowerExt = extension.toLowerCase();
   const candidates = files.filter((file) => file.toLowerCase().endsWith(lowerExt));
@@ -493,10 +507,11 @@ function buildPythonTranscribeScript({
         'large-v1': 'openai/whisper-large-v1',
         'large-v2': 'openai/whisper-large-v2',
         'large-v3': 'openai/whisper-large-v3',
-      }[lowerModel] ?? requestedModel
+      }[lowerModel] ?? requestedModel ?? 'openai/whisper-base'
     : 'openai/whisper-base';
 
-  const model = resolvedModel;
+  const model: string = resolvedModel;
+  const fallbackModel = deriveFallbackModelIdentifier(model);
   const language = config.language ?? 'fr';
   const chunkDuration = typeof config.chunkDuration === 'number' && Number.isFinite(config.chunkDuration) && config.chunkDuration > 0
     ? config.chunkDuration
@@ -508,6 +523,7 @@ function buildPythonTranscribeScript({
   const pythonInputPath = JSON.stringify(inputPath);
   const pythonOutputDir = JSON.stringify(outputDir);
   const pythonModel = JSON.stringify(model);
+  const pythonFallbackModel = JSON.stringify(fallbackModel);
   const pythonLanguage = JSON.stringify(language);
   const useOpenvino = mode === 'openvino';
 
@@ -664,6 +680,7 @@ from pathlib import Path
 OUTPUT_DIR = Path(${pythonOutputDir})
 INPUT_PATH = Path(${pythonInputPath})
 MODEL_ID = ${pythonModel}
+FALLBACK_MODEL_ID = ${pythonFallbackModel}
 LANGUAGE = ${pythonLanguage}
 CHUNK_LENGTH = float(${chunkDuration})
 BATCH_SIZE = int(${batchSize})
@@ -723,8 +740,8 @@ ${openvinoFunctionBlock}${transformersTranscriptionBlock}
 def run_fallback_transcription():
     import whisper
 
-    log(f"Loading fallback Whisper model: {MODEL_ID}")
-    model = whisper.load_model(MODEL_ID)
+    log(f"Loading fallback Whisper model: {FALLBACK_MODEL_ID} (original request: {MODEL_ID})")
+    model = whisper.load_model(FALLBACK_MODEL_ID)
     result = model.transcribe(str(INPUT_PATH), language=LANGUAGE, verbose=False)
 
     text = (result.get("text") or "").strip() if isinstance(result, dict) else ""

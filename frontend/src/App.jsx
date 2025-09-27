@@ -9,7 +9,6 @@ import TemplateManager from './components/TemplateManager.jsx';
 import './styles/app.css';
 
 const TABS = [
-  { id: 'upload', label: 'Nouveau traitement' },
   { id: 'jobs', label: 'Historique' },
   { id: 'config', label: 'Configuration' },
   { id: 'templates', label: 'Gabarits' },
@@ -17,10 +16,11 @@ const TABS = [
 
 function AppShell() {
   const { config, setConfig, templates, setTemplates, jobs, setJobs } = useAppContext();
-  const [activeTab, setActiveTab] = useState('upload');
+  const [activeTab, setActiveTab] = useState('jobs');
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingJob, setIsCreatingJob] = useState(false);
 
   const selectedJob = useMemo(() => jobs.find((job) => job.id === selectedJobId) || null, [jobs, selectedJobId]);
 
@@ -65,6 +65,7 @@ function AppShell() {
       setJobs(refreshed);
       setSelectedJobId(job.id);
       setActiveTab('jobs');
+      setIsCreatingJob(false);
     } catch (err) {
       setError(err.message);
       throw err;
@@ -88,6 +89,7 @@ function AppShell() {
   const handleSelectJob = (jobId) => {
     setSelectedJobId(jobId);
     setActiveTab('jobs');
+    setIsCreatingJob(false);
   };
 
   const handleSaveConfig = async (nextConfig) => {
@@ -126,6 +128,11 @@ function AppShell() {
     }
   };
 
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setIsCreatingJob(false);
+  };
+
   return (
     <div className="app-shell page-container pb-48">
       <header className="home-header">
@@ -134,24 +141,47 @@ function AppShell() {
           <p className="home-subtitle">Traitement audio local avec résumés assistés OpenAI</p>
         </div>
         <nav className="navbar" aria-label="Navigation principale">
-          {TABS.map((tab) => {
-            const isActive = tab.id === activeTab;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                className={[
-                  'btn',
-                  isActive ? 'btn-primary' : 'btn-secondary',
-                  'btn-sm',
-                ].join(' ')}
-                aria-current={isActive ? 'page' : undefined}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
+          <button
+            type="button"
+            className="btn btn-primary btn-sm btn-with-icon"
+            onClick={() => {
+              setActiveTab('jobs');
+              setIsCreatingJob((prev) => (activeTab === 'jobs' ? !prev : true));
+            }}
+          >
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              viewBox="0 0 20 20"
+              className="btn-with-icon__icon"
+            >
+              <path
+                d="M10 4a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2h-4v4a1 1 0 1 1-2 0v-4H5a1 1 0 1 1 0-2h4V5a1 1 0 0 1 1-1Z"
+                fill="currentColor"
+              />
+            </svg>
+            {isCreatingJob ? 'Fermer' : 'Nouveau traitement'}
+          </button>
+          <div className="navbar-tabs" role="tablist">
+            {TABS.map((tab) => {
+              const isActive = tab.id === activeTab;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={[
+                    'btn',
+                    isActive ? 'btn-primary' : 'btn-secondary',
+                    'btn-sm',
+                  ].join(' ')}
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={() => handleTabChange(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </nav>
       </header>
 
@@ -167,14 +197,16 @@ function AppShell() {
         </div>
       ) : (
         <main className="space-y-8">
-          {activeTab === 'upload' && <UploadForm templates={templates} onSubmit={handleUpload} />}
           {activeTab === 'jobs' && (
-            <JobDashboard
-              jobs={jobs}
-              selectedJob={selectedJob}
-              onSelectJob={handleSelectJob}
-              onDeleteJob={handleDeleteJob}
-            />
+            <>
+              {isCreatingJob && <UploadForm templates={templates} onSubmit={handleUpload} />}
+              <JobDashboard
+                jobs={jobs}
+                selectedJob={selectedJob}
+                onSelectJob={handleSelectJob}
+                onDeleteJob={handleDeleteJob}
+              />
+            </>
           )}
           {activeTab === 'config' && config && (
             <ConfigPanel config={config} onSave={handleSaveConfig} />

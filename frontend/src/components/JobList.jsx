@@ -1,7 +1,67 @@
-import React from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import StatusBadge from './StatusBadge.jsx';
 
 export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
+  const [openMenu, setOpenMenu] = useState({ id: null, dropup: false });
+  const menuRefs = useRef(new Map());
+
+  const registerMenuRef = (id) => (node) => {
+    if (node) {
+      menuRefs.current.set(id, node);
+    } else {
+      menuRefs.current.delete(id);
+    }
+  };
+
+  useEffect(() => {
+    function handlePointerDown(event) {
+      if (
+        event.target.closest('.history-row-menu') ||
+        event.target.closest('.history-row-menu-trigger')
+      ) {
+        return;
+      }
+      setOpenMenu({ id: null, dropup: false });
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const menuId = openMenu.id;
+    if (!menuId) {
+      return;
+    }
+
+    const menuElement = menuRefs.current.get(menuId);
+    if (!menuElement) {
+      return;
+    }
+
+    const contentElement = menuElement.querySelector('.history-row-menu__content');
+    if (!contentElement) {
+      return;
+    }
+
+    const rect = contentElement.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const containerElement =
+      menuElement.closest('.surface-card') || menuElement.closest('[data-dropup-container]');
+    const containerRect = containerElement?.getBoundingClientRect();
+    const bottomLimit = Math.min(viewportHeight, containerRect?.bottom ?? viewportHeight);
+    const shouldDropup = rect.bottom > bottomLimit;
+
+    setOpenMenu((current) => {
+      if (current.id !== menuId || current.dropup === shouldDropup) {
+        return current;
+      }
+      return { ...current, dropup: shouldDropup };
+    });
+  }, [openMenu.id]);
+
   if (!jobs.length) {
     return <p className="history-empty">Aucun traitement pour le moment.</p>;
   }
@@ -14,8 +74,8 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
             <th scope="col">Fichier</th>
             <th scope="col">Statut</th>
             <th scope="col">Progression</th>
-            <th scope="col" className="text-right">
-              Actions
+            <th scope="col" className="history-row-menu-header">
+              <span className="sr-only">Actions</span>
             </th>
           </tr>
         </thead>
@@ -23,6 +83,8 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
           {jobs.map((job) => {
             const isActive = selectedJob?.id === job.id;
             const progressValue = Math.round(job.progress ?? 0);
+            const isMenuOpen = openMenu.id === job.id;
+            const isDropup = isMenuOpen && openMenu.dropup;
             return (
               <tr
                 key={job.id}
@@ -47,28 +109,64 @@ export default function JobList({ jobs, selectedJob, onSelect, onDelete }) {
                     <span className="status-progress-value">{progressValue}%</span>
                   </div>
                 </td>
-                <td>
-                  <div className="history-table-actions">
+                <td className="history-row-menu-cell">
+                  <div className="history-row-menu" ref={registerMenuRef(job.id)}>
                     <button
                       type="button"
-                      className="btn btn-secondary btn-xs"
+                      className="history-row-menu-trigger btn btn-ghost btn-icon"
+                      aria-haspopup="true"
+                      aria-expanded={isMenuOpen}
                       onClick={(event) => {
                         event.stopPropagation();
-                        onSelect(job.id);
+                        setOpenMenu((current) =>
+                          current.id === job.id
+                            ? { id: null, dropup: false }
+                            : { id: job.id, dropup: false }
+                        );
                       }}
                     >
-                      Consulter
+                      <span className="sr-only">Afficher les actions</span>
+                      <span aria-hidden="true">⋮</span>
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn-error btn-xs"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDelete(job.id);
-                      }}
-                    >
-                      Supprimer
-                    </button>
+                    {isMenuOpen && (
+                      <div
+                        className={`history-row-menu__content${
+                          isDropup ? ' history-row-menu__content--dropup' : ''
+                        }`}
+                        role="menu"
+                      >
+                        <button
+                          type="button"
+                          className="history-row-menu__item"
+                          role="menuitem"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setOpenMenu({ id: null, dropup: false });
+                            onSelect(job.id);
+                          }}
+                        >
+                          Voir le détail
+                        </button>
+                        <button
+                          type="button"
+                          className="history-row-menu__item history-row-menu__item--danger"
+                          role="menuitem"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setOpenMenu({ id: null, dropup: false });
+                            if (
+                              window.confirm(
+                                'Voulez-vous vraiment supprimer ce traitement ? Cette action est irréversible.'
+                              )
+                            ) {
+                              onDelete(job.id);
+                            }
+                          }}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </td>
               </tr>
