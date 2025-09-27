@@ -2,34 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { API_BASE } from '../api/client.js';
 import StatusBadge from './StatusBadge.jsx';
 
-function formatTimestamp(seconds) {
-  if (typeof seconds !== 'number' || Number.isNaN(seconds) || !Number.isFinite(seconds)) {
-    return '00:00:00';
-  }
-  const totalSeconds = Math.max(0, Math.round(seconds));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const secs = totalSeconds % 60;
-  return [hours, minutes, secs].map((value) => String(value).padStart(2, '0')).join(':');
-}
-
-function formatDuration(seconds) {
-  if (typeof seconds !== 'number' || Number.isNaN(seconds) || !Number.isFinite(seconds)) {
-    return '0s';
-  }
-  const totalSeconds = Math.max(0, Math.round(seconds));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const secs = totalSeconds % 60;
-  if (hours > 0) {
-    return `${hours}h ${minutes}m ${secs}s`;
-  }
-  if (minutes > 0) {
-    return `${minutes}m ${secs}s`;
-  }
-  return `${secs}s`;
-}
-
 function canPreviewMimeType(mimeType) {
   if (!mimeType) {
     return true;
@@ -44,19 +16,12 @@ function canPreviewMimeType(mimeType) {
 }
 
 export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
-  const [speakerData, setSpeakerData] = useState(null);
-  const [isLoadingSpeakers, setIsLoadingSpeakers] = useState(false);
-  const [speakersError, setSpeakersError] = useState(null);
   const [selectedOutput, setSelectedOutput] = useState(null);
   const [isLoadingOutput, setIsLoadingOutput] = useState(false);
   const [outputError, setOutputError] = useState(null);
   const [outputContent, setOutputContent] = useState('');
 
-  const segmentsOutput = job?.outputs?.find((output) => output.filename === 'segments.json');
   const jobId = job?.id ?? null;
-  const jobUpdatedAt = job?.updatedAt ?? null;
-  const segmentsFilename = segmentsOutput?.filename ?? null;
-  const segmentsKey = jobId && segmentsFilename ? `${jobId}:${segmentsFilename}:${jobUpdatedAt}` : null;
   const outputs = useMemo(() => job?.outputs ?? [], [job?.outputs]);
   const selectedOutputFilename = selectedOutput?.filename ?? null;
   const selectedOutputMime = selectedOutput?.mimeType ?? null;
@@ -146,64 +111,11 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
     };
   }, [jobId, selectedOutput]);
 
-  useEffect(() => {
-    let isMounted = true;
-    if (!jobId || !segmentsFilename || !segmentsKey) {
-      setSpeakerData(null);
-      setSpeakersError(null);
-      setIsLoadingSpeakers(false);
-      return () => {
-        isMounted = false;
-      };
-    }
-
-    const controller = new AbortController();
-    setSpeakerData(null);
-    setIsLoadingSpeakers(true);
-    setSpeakersError(null);
-
-    async function fetchSegments() {
-      try {
-        const response = await fetch(`${API_BASE}/api/assets/${jobId}/${segmentsFilename}`, {
-          signal: controller.signal,
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        const payload = await response.json();
-        if (isMounted) {
-          setSpeakerData(payload);
-        }
-      } catch (error) {
-        if (isMounted) {
-          const err = error instanceof Error ? error : new Error('Erreur inconnue');
-          if (err.name !== 'AbortError') {
-            setSpeakersError(err.message);
-          }
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingSpeakers(false);
-        }
-      }
-    }
-
-    fetchSegments();
-
-    return () => {
-      isMounted = false;
-      controller.abort();
-    };
-  }, [jobId, segmentsFilename, segmentsKey]);
-
   if (!job) {
     return <p className="history-empty">Sélectionnez un traitement pour afficher les détails.</p>;
   }
 
-  const hasSegmentsOutput = job.outputs?.some((output) => output.filename === 'segments.json');
   const progressValue = Math.round(job.progress ?? 0);
-  const speakerCount = speakerData?.speakers?.length ?? 0;
-  const segmentCount = speakerData?.segments?.length ?? 0;
 
   return (
     <div className="history-detail">
@@ -304,70 +216,6 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
             )}
             {!isLoadingOutput && !outputError && canPreviewOutput && (
               <pre className="resource-preview__content">{outputContent}</pre>
-            )}
-          </div>
-        )}
-      </section>
-
-      <section aria-labelledby="job-speakers" className="space-y-3 history-speakers">
-        <h3 id="job-speakers" className="section-title">
-          Interventions par speaker
-        </h3>
-        {!hasSegmentsOutput && <p className="text-base-content/70">Données speaker non disponibles pour ce traitement.</p>}
-        {hasSegmentsOutput && isLoadingSpeakers && <p className="text-base-content/70">Chargement des segments…</p>}
-        {hasSegmentsOutput && speakersError && (
-          <p className="error-text">Impossible de charger les segments : {speakersError}</p>
-        )}
-        {hasSegmentsOutput && !isLoadingSpeakers && !speakersError && speakerData && (
-          <div className="space-y-6">
-            <div className="diarization-summary">
-              <div className="diarization-card">
-                <p className="diarization-card__title">Locuteurs identifiés</p>
-                <p className="diarization-card__metric">{speakerCount}</p>
-                <p className="diarization-card__meta">Nombre total de voix</p>
-              </div>
-              <div className="diarization-card">
-                <p className="diarization-card__title">Segments</p>
-                <p className="diarization-card__metric">{segmentCount}</p>
-                <p className="diarization-card__meta">Entrées diarisation</p>
-              </div>
-            </div>
-
-            {speakerData.speakers?.length ? (
-              <ul className="inline-list" aria-label="Liste des locuteurs">
-                {speakerData.speakers.map((speaker) => (
-                  <li key={speaker.id}>
-                    {speaker.label} • {speaker.segmentCount} intervention{speaker.segmentCount > 1 ? 's' : ''}
-                    {speaker.totalDuration ? ` • ${formatDuration(speaker.totalDuration)}` : ''}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-base-content/70">Aucun speaker identifié.</p>
-            )}
-
-            {speakerData.segments?.length ? (
-              <div className="diarization-segment-list" role="list">
-                {speakerData.segments.map((segment) => (
-                  <article key={segment.index} className="diarization-segment" role="listitem">
-                    <div className="diarization-segment__header">
-                      <span className="diarization-segment__speaker">{segment.speakerLabel || 'Speaker ?'}</span>
-                      <span className="diarization-segment__time">
-                        {formatTimestamp(segment.start)} – {formatTimestamp(segment.end)}
-                      </span>
-                    </div>
-                    {segment.text ? (
-                      <p className="diarization-segment__text">{segment.text}</p>
-                    ) : (
-                      <p className="diarization-segment__text">
-                        <em>(Silence)</em>
-                      </p>
-                    )}
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <p className="text-base-content/70">Aucune découpe segmentée disponible.</p>
             )}
           </div>
         )}
