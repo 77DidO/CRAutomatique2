@@ -50,13 +50,15 @@
   box-shadow: var(--shadow-soft);
 }
 
-.template-prompt-preview pre {
+.template-prompt-preview-text {
+  display: inline-block;
   margin: 0;
   max-height: 9rem;
-  overflow-y: auto;
-  background: transparent;
+  overflow: hidden;
   font-size: 0.85rem;
+  line-height: 1.5;
   white-space: pre-wrap;
+  vertical-align: top;
 }
 
 .history-table tr.is-editing {

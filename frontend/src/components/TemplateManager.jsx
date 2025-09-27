@@ -137,35 +137,47 @@ export default function TemplateManager({ templates, onCreate, onUpdate, onDelet
                   </td>
                 </tr>
               )}
-              {sortedTemplates.map((template) => (
-                <tr key={template.id} className={editing?.id === template.id ? 'is-editing' : ''}>
-                  <td>{template.name}</td>
-                  <td>{template.description || 'Pas de description'}</td>
-                  <td className="template-prompt-preview">
-                    <pre>{template.prompt}</pre>
-                  </td>
-                  <td className="history-table-actions">
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      type="button"
-                      onClick={() => setEditing(template)}
-                    >
-                      Modifier
-                    </button>
-                    <button
-                      className="btn btn-error btn-sm"
-                      type="button"
-                      onClick={async () => {
-                        if (window.confirm(`Supprimer le gabarit "${template.name}" ?`)) {
-                          await onDelete(template.id);
-                        }
-                      }}
-                    >
-                      Supprimer
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {sortedTemplates.map((template) => {
+                const promptText = template.prompt ?? '';
+                const promptPreview =
+                  promptText.length > 160 ? `${promptText.slice(0, 160)}…` : promptText;
+
+                return (
+                  <tr key={template.id} className={editing?.id === template.id ? 'is-editing' : ''}>
+                    <td>{template.name}</td>
+                    <td>{template.description || 'Pas de description'}</td>
+                    <td className="template-prompt-preview">
+                      <span
+                        className="template-prompt-preview-text text-base-content/70"
+                        title={promptText}
+                        aria-label={promptText}
+                      >
+                        {promptPreview}
+                      </span>
+                    </td>
+                    <td className="history-table-actions">
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        type="button"
+                        onClick={() => setEditing(template)}
+                      >
+                        Modifier
+                      </button>
+                      <button
+                        className="btn btn-error btn-sm"
+                        type="button"
+                        onClick={async () => {
+                          if (window.confirm(`Supprimer le gabarit "${template.name}" ?`)) {
+                            await onDelete(template.id);
+                          }
+                        }}
+                      >
+                        Supprimer
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
