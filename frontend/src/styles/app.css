@@ -30,38 +30,6 @@
   }
 }
 
-.template-manager-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.template-manager-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.template-manager-search {
-  min-width: 16rem;
-  flex: 1 1 16rem;
-}
-
-.template-form,
-.template-editor {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  box-shadow: var(--shadow-soft);
-}
-
 .template-prompt-preview-text {
   display: inline-block;
   margin: 0;

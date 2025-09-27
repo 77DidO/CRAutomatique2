@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import StatusBadge from './StatusBadge.jsx';
 import useHistoryRowMenu from '../hooks/useHistoryRowMenu.js';
 
-export default function JobList({ jobs, onDelete }) {
+export default function JobList({ jobs, onDelete, emptyMessage = 'Aucun traitement pour le moment.' }) {
   const { registerMenuRef, toggleMenu, closeMenu, isMenuOpen, isDropup } = useHistoryRowMenu();
 
   if (!jobs.length) {
-    return <p className="history-empty">Aucun traitement pour le moment.</p>;
+    return <p className="history-empty">{emptyMessage}</p>;
   }
 
   return (
