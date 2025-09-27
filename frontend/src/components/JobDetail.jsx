@@ -310,7 +310,14 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
             {!isLoadingOutput && !outputError && canPreviewOutput && (
               isMarkdownContent ? (
                 <div className="resource-preview__content resource-preview__content--markdown">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} linkTarget="_blank">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ node, ...props }) => (
+                        <a {...props} target="_blank" rel="noreferrer" />
+                      ),
+                    }}
+                  >
                     {outputContent}
                   </ReactMarkdown>
                 </div>
