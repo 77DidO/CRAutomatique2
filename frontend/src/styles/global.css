@@ -102,6 +102,10 @@ textarea {
   letter-spacing: -0.01em;
 }
 
+.home-header .page-title {
+  margin-bottom: 0.25rem;
+}
+
 .section-title {
   margin: 0 0 1rem;
   font-size: 1.25rem;
