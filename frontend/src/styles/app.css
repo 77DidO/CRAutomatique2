@@ -2,14 +2,14 @@
 .app-shell {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 /* Contenu principal avec espacement vertical */
 .app-shell main {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 /* Ajustements visuels de la barre de navigation */
@@ -20,7 +20,7 @@
 
 /* Boutons de navigation d'une largeur minimale */
 .navbar .btn {
-  min-width: 9rem;
+  min-width: 8rem;
 }
 
 @media (max-width: 768px) {
@@ -39,7 +39,7 @@
 .template-prompt-preview-text {
   display: inline-block;
   margin: 0;
-  max-height: 9rem;
+  max-height: 7rem;
   overflow: hidden;
   font-size: 0.85rem;
   line-height: 1.5;
