@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
     env.VITE_BACKEND_URL
     || env.BACKEND_URL
     || (env.BACKEND_PORT ? `http://localhost:${env.BACKEND_PORT}` : null)
-    || 'http://localhost:4001';
+    || 'http://localhost:4000';
 
   return {
     plugins: [react()],
