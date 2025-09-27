@@ -124,7 +124,7 @@ function AppShell() {
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
     setIsCreatingJob(false);
-    if (tabId !== 'jobs') {
+    if (location.pathname !== '/') {
       navigate('/');
     }
   };
