@@ -9,7 +9,6 @@ import TemplateManager from './components/TemplateManager.jsx';
 import './styles/app.css';
 
 const TABS = [
-  { id: 'upload', label: 'Nouveau traitement' },
   { id: 'jobs', label: 'Historique' },
   { id: 'config', label: 'Configuration' },
   { id: 'templates', label: 'Gabarits' },
@@ -17,10 +16,11 @@ const TABS = [
 
 function AppShell() {
   const { config, setConfig, templates, setTemplates, jobs, setJobs } = useAppContext();
-  const [activeTab, setActiveTab] = useState('upload');
+  const [activeTab, setActiveTab] = useState('jobs');
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingJob, setIsCreatingJob] = useState(false);
 
   const selectedJob = useMemo(() => jobs.find((job) => job.id === selectedJobId) || null, [jobs, selectedJobId]);
 
@@ -65,6 +65,7 @@ function AppShell() {
       setJobs(refreshed);
       setSelectedJobId(job.id);
       setActiveTab('jobs');
+      setIsCreatingJob(false);
     } catch (err) {
       setError(err.message);
       throw err;
@@ -88,6 +89,7 @@ function AppShell() {
   const handleSelectJob = (jobId) => {
     setSelectedJobId(jobId);
     setActiveTab('jobs');
+    setIsCreatingJob(false);
   };
 
   const handleSaveConfig = async (nextConfig) => {
@@ -126,6 +128,13 @@ function AppShell() {
     }
   };
 
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    if (tabId !== 'jobs') {
+      setIsCreatingJob(false);
+    }
+  };
+
   return (
     <div className="app-shell page-container pb-48">
       <header className="home-header">
@@ -146,7 +155,7 @@ function AppShell() {
                   'btn-sm',
                 ].join(' ')}
                 aria-current={isActive ? 'page' : undefined}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
               >
                 {tab.label}
               </button>
@@ -167,14 +176,25 @@ function AppShell() {
         </div>
       ) : (
         <main className="space-y-8">
-          {activeTab === 'upload' && <UploadForm templates={templates} onSubmit={handleUpload} />}
           {activeTab === 'jobs' && (
-            <JobDashboard
-              jobs={jobs}
-              selectedJob={selectedJob}
-              onSelectJob={handleSelectJob}
-              onDeleteJob={handleDeleteJob}
-            />
+            <>
+              <div className="history-toolbar">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-md"
+                  onClick={() => setIsCreatingJob((prev) => !prev)}
+                >
+                  {isCreatingJob ? 'Fermer' : 'Nouveau traitement'}
+                </button>
+              </div>
+              {isCreatingJob && <UploadForm templates={templates} onSubmit={handleUpload} />}
+              <JobDashboard
+                jobs={jobs}
+                selectedJob={selectedJob}
+                onSelectJob={handleSelectJob}
+                onDeleteJob={handleDeleteJob}
+              />
+            </>
           )}
           {activeTab === 'config' && config && (
             <ConfigPanel config={config} onSave={handleSaveConfig} />
