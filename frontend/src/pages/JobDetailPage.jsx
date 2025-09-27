@@ -130,6 +130,8 @@ export default function JobDetailPage() {
     }
   };
 
+  const isProcessing = job?.status === 'queued' || job?.status === 'processing';
+
   return (
     <section className="history-stack">
       <div className="surface-card history-detail-card">
@@ -137,6 +139,41 @@ export default function JobDetailPage() {
           <Link to="/" className="btn btn-secondary btn-sm">
             Retour à l'historique
           </Link>
+          {job && (
+            <button
+              type="button"
+              className="btn btn-error btn-sm btn-with-icon"
+              disabled={isProcessing}
+              onClick={() => {
+                if (isProcessing) {
+                  return;
+                }
+                const confirmed = window.confirm(
+                  'Voulez-vous vraiment supprimer ce traitement ? Cette action est irréversible.'
+                );
+                if (confirmed) {
+                  void handleDeleteAndReturn(job.id);
+                }
+              }}
+            >
+              <svg
+                className="btn-with-icon__icon"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth="1.5"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 7.5h12M9.75 7.5V6.75A1.5 1.5 0 0 1 11.25 5.25h1.5a1.5 1.5 0 0 1 1.5 1.5V7.5m1.5 0V18a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V7.5m3 3v6m3-6v6"
+                />
+              </svg>
+              <span>Supprimer</span>
+            </button>
+          )}
         </div>
         {isLoadingJob ? (
           <p className="text-base-content/70">Chargement du traitement…</p>
@@ -150,7 +187,7 @@ export default function JobDetailPage() {
             </p>
           </div>
         ) : (
-          <JobDetail job={job} logs={logs} isLoadingLogs={isLoadingLogs} onDeleteJob={handleDeleteAndReturn} />
+          <JobDetail job={job} logs={logs} isLoadingLogs={isLoadingLogs} />
         )}
       </div>
     </section>
