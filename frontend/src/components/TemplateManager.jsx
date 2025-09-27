@@ -7,12 +7,29 @@ export default function TemplateManager({ templates, onCreate, onUpdate, onDelet
   const [newTemplate, setNewTemplate] = useState(emptyTemplate);
   const [mode, setMode] = useState('list');
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const { registerMenuRef, toggleMenu, closeMenu, isMenuOpen, isDropup } = useHistoryRowMenu();
 
-  const sortedTemplates = useMemo(
-    () => [...templates].sort((a, b) => a.name.localeCompare(b.name)),
-    [templates],
-  );
+  const filteredTemplates = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const sorted = [...templates].sort((a, b) => a.name.localeCompare(b.name));
+
+    if (!normalizedQuery) {
+      return sorted;
+    }
+
+    return sorted.filter((template) => {
+      const name = template.name?.toLowerCase() ?? '';
+      const description = template.description?.toLowerCase() ?? '';
+      const prompt = template.prompt?.toLowerCase() ?? '';
+
+      return (
+        name.includes(normalizedQuery) ||
+        description.includes(normalizedQuery) ||
+        prompt.includes(normalizedQuery)
+      );
+    });
+  }, [searchQuery, templates]);
 
   const isListMode = mode === 'list';
   const isCreateMode = mode === 'create';
@@ -65,17 +82,40 @@ export default function TemplateManager({ templates, onCreate, onUpdate, onDelet
         <div className="surface-card space-y-6">
           <div className="template-manager-header">
             <h2 className="section-title">Gabarits de synthèse</h2>
-            <button
-              className="btn btn-primary btn-md"
-              type="button"
-              onClick={() => {
-                setError(null);
-                setNewTemplate(emptyTemplate);
-                setMode('create');
-              }}
-            >
-              Créer un gabarit
-            </button>
+            <div className="template-manager-header-actions">
+              <label className="sr-only" htmlFor="template-search">
+                Rechercher un gabarit
+              </label>
+              <input
+                id="template-search"
+                type="search"
+                className="input input-sm template-manager-search"
+                placeholder="Rechercher"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Effacer le filtre"
+                >
+                  Effacer
+                </button>
+              )}
+              <button
+                className="btn btn-primary btn-md"
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setNewTemplate(emptyTemplate);
+                  setMode('create');
+                }}
+              >
+                Créer un gabarit
+              </button>
+            </div>
           </div>
           {error && <div className="alert alert--error">{error}</div>}
 
@@ -92,14 +132,21 @@ export default function TemplateManager({ templates, onCreate, onUpdate, onDelet
                 </tr>
               </thead>
               <tbody>
-                {sortedTemplates.length === 0 && (
+                {templates.length === 0 && (
                   <tr>
                     <td className="history-empty" colSpan={4}>
                       Aucun gabarit n'est disponible pour le moment.
                     </td>
                   </tr>
                 )}
-                {sortedTemplates.map((template) => {
+                {templates.length > 0 && filteredTemplates.length === 0 && (
+                  <tr>
+                    <td className="history-empty" colSpan={4}>
+                      Aucun gabarit ne correspond à votre recherche.
+                    </td>
+                  </tr>
+                )}
+                {filteredTemplates.map((template) => {
                   const promptText = template.prompt ?? '';
                   const promptPreview =
                     promptText.length > 160 ? `${promptText.slice(0, 160)}…` : promptText;
