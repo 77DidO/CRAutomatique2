@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { API_BASE } from '../api/client.js';
 import StatusBadge from './StatusBadge.jsx';
 
@@ -59,6 +61,17 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   const outputs = useMemo(() => job?.outputs ?? [], [job?.outputs]);
   const selectedOutputFilename = selectedOutput?.filename ?? null;
   const selectedOutputMime = selectedOutput?.mimeType ?? null;
+  const isMarkdownContent = useMemo(() => {
+    if (!selectedOutput) {
+      return false;
+    }
+    const mimeType = selectedOutput.mimeType?.toLowerCase() ?? '';
+    if (mimeType.includes('markdown')) {
+      return true;
+    }
+    const filename = selectedOutput.filename?.toLowerCase() ?? '';
+    return filename.endsWith('.md');
+  }, [selectedOutput]);
   const canPreviewOutput = selectedOutput ? canPreviewMimeType(selectedOutputMime) : false;
 
   useEffect(() => {
@@ -295,7 +308,15 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
               </p>
             )}
             {!isLoadingOutput && !outputError && canPreviewOutput && (
-              <pre className="resource-preview__content">{outputContent}</pre>
+              isMarkdownContent ? (
+                <div className="resource-preview__content resource-preview__content--markdown">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} linkTarget="_blank">
+                    {outputContent}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <pre className="resource-preview__content">{outputContent}</pre>
+              )
             )}
           </div>
         )}
