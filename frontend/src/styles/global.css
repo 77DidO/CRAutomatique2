@@ -71,13 +71,6 @@ textarea {
 }
 
 .navbar-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.navbar-actions {
   margin-left: auto;
   display: flex;
   flex-wrap: wrap;

@@ -130,9 +130,7 @@ function AppShell() {
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
-    if (tabId !== 'jobs') {
-      setIsCreatingJob(false);
-    }
+    setIsCreatingJob(false);
   };
 
   return (
@@ -143,6 +141,27 @@ function AppShell() {
           <p className="home-subtitle">Traitement audio local avec résumés assistés OpenAI</p>
         </div>
         <nav className="navbar" aria-label="Navigation principale">
+          <button
+            type="button"
+            className="btn btn-primary btn-sm btn-with-icon"
+            onClick={() => {
+              setActiveTab('jobs');
+              setIsCreatingJob((prev) => (activeTab === 'jobs' ? !prev : true));
+            }}
+          >
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              viewBox="0 0 20 20"
+              className="btn-with-icon__icon"
+            >
+              <path
+                d="M10 4a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2h-4v4a1 1 0 1 1-2 0v-4H5a1 1 0 1 1 0-2h4V5a1 1 0 0 1 1-1Z"
+                fill="currentColor"
+              />
+            </svg>
+            {isCreatingJob ? 'Fermer' : 'Nouveau traitement'}
+          </button>
           <div className="navbar-tabs" role="tablist">
             {TABS.map((tab) => {
               const isActive = tab.id === activeTab;
@@ -162,29 +181,6 @@ function AppShell() {
                 </button>
               );
             })}
-          </div>
-          <div className="navbar-actions">
-            <button
-              type="button"
-              className="btn btn-primary btn-sm btn-with-icon"
-              onClick={() => {
-                setActiveTab('jobs');
-                setIsCreatingJob((prev) => (activeTab === 'jobs' ? !prev : true));
-              }}
-            >
-              <svg
-                aria-hidden="true"
-                focusable="false"
-                viewBox="0 0 20 20"
-                className="btn-with-icon__icon"
-              >
-                <path
-                  d="M10 4a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2h-4v4a1 1 0 1 1-2 0v-4H5a1 1 0 1 1 0-2h4V5a1 1 0 0 1 1-1Z"
-                  fill="currentColor"
-                />
-              </svg>
-              {isCreatingJob ? 'Fermer' : 'Nouveau traitement'}
-            </button>
           </div>
         </nav>
       </header>
