@@ -43,7 +43,6 @@ export interface JobLogEntry {
   timestamp: string;
   level: LogLevel;
   message: string;
-  pipelineStep?: string | null;
 }
 
 export interface JobsFilePayload {
@@ -208,7 +207,7 @@ export interface JobStore {
   get(id: string): Promise<Job | null>;
   create(args: { filename: string; tempPath: string; templateId: string | null; participants: string[] }): Promise<Job>;
   update(id: string, updates: Partial<Job>): Promise<Job>;
-  appendLog(id: string, message: string, level?: LogLevel, pipelineStep?: string | null): Promise<JobLogEntry>;
+  appendLog(id: string, message: string, level?: LogLevel): Promise<JobLogEntry>;
   getLogs(id: string): Promise<JobLogEntry[]>;
   addOutput(id: string, output: JobOutput): Promise<Job>;
   remove(id: string): Promise<void>;
