@@ -111,7 +111,7 @@ export class PipelineEngine {
         this.logger.info({ jobId: nextId }, 'Pipeline job cancelled before completion');
         if (jobStillExists) {
           await this.jobStore.update(nextId, { status: 'failed' });
-          await this.jobStore.appendLog(nextId, 'Pipeline annulé par l’utilisateur', 'warn', 'pipeline');
+          await this.jobStore.appendLog(nextId, 'Pipeline annulé par l’utilisateur', 'warn');
         } else {
           this.logger.debug({ jobId: nextId }, 'Skipping cancellation persistence because job no longer exists');
         }
@@ -122,7 +122,7 @@ export class PipelineEngine {
         );
         if (jobStillExists) {
           await this.jobStore.update(nextId, { status: 'failed' });
-          await this.jobStore.appendLog(nextId, `Pipeline failed: ${error.message}`, 'error', 'pipeline');
+          await this.jobStore.appendLog(nextId, `Pipeline failed: ${error.message}`, 'error');
         } else {
           this.logger.debug({ jobId: nextId }, 'Skipping failure persistence because job no longer exists');
         }
@@ -146,7 +146,7 @@ export class PipelineEngine {
     }
 
     await this.jobStore.update(jobId, { status: 'processing', progress: 0 });
-    await this.jobStore.appendLog(jobId, 'Pipeline démarré', 'info', 'pipeline');
+    await this.jobStore.appendLog(jobId, 'Pipeline démarré');
     this.logger.info({ jobId, filename: job.filename, templateId: job.templateId }, 'Pipeline job started');
 
     const config = await this.configStore.read();
@@ -194,7 +194,7 @@ export class PipelineEngine {
     }
 
     await this.jobStore.update(jobId, { status: 'completed' });
-    await this.jobStore.appendLog(jobId, 'Pipeline terminé avec succès', 'info', 'pipeline');
+    await this.jobStore.appendLog(jobId, 'Pipeline terminé avec succès');
     this.logger.info({ jobId }, 'Pipeline job completed successfully');
   }
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { API_BASE } from '../api/client.js';
 import StatusBadge from './StatusBadge.jsx';
 
@@ -43,55 +43,6 @@ function canPreviewMimeType(mimeType) {
   );
 }
 
-const PIPELINE_STEPS = [
-  {
-    key: 'pipeline',
-    label: 'Orchestration',
-    description: 'États globaux et transitions du pipeline',
-  },
-  {
-    key: 'ingest',
-    label: 'Prétraitement audio',
-    description: 'Normalisation et préparation des supports audio',
-  },
-  {
-    key: 'transcribe',
-    label: 'Transcription',
-    description: 'Conversion audio → texte',
-  },
-  {
-    key: 'diarize',
-    label: 'Diarisation',
-    description: 'Identification des locuteurs',
-  },
-  {
-    key: 'summarise',
-    label: 'Synthèse',
-    description: 'Génération des résumés automatiques',
-  },
-  {
-    key: 'export',
-    label: 'Exports',
-    description: 'Production des livrables finaux',
-  },
-];
-
-const PIPELINE_FALLBACK_STEP = {
-  key: 'misc',
-  label: 'Divers',
-  description: 'Événements généraux ou hors pipeline',
-};
-
-const LOG_LEVEL_LABELS = {
-  debug: 'DEBUG',
-  info: 'INFO',
-  warn: 'WARN',
-  warning: 'WARN',
-  error: 'ERROR',
-};
-
-const KNOWN_LOG_LEVELS = new Set(['info', 'warn', 'error', 'debug']);
-
 export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   const [speakerData, setSpeakerData] = useState(null);
   const [isLoadingSpeakers, setIsLoadingSpeakers] = useState(false);
@@ -100,10 +51,6 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   const [isLoadingOutput, setIsLoadingOutput] = useState(false);
   const [outputError, setOutputError] = useState(null);
   const [outputContent, setOutputContent] = useState('');
-  const [expandedPipelineStep, setExpandedPipelineStep] = useState(
-    PIPELINE_STEPS[0]?.key ?? PIPELINE_FALLBACK_STEP.key,
-  );
-  const hasInteractedWithPipeline = useRef(false);
 
   const segmentsOutput = job?.outputs?.find((output) => output.filename === 'segments.json');
   const jobId = job?.id ?? null;
@@ -114,43 +61,6 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   const selectedOutputFilename = selectedOutput?.filename ?? null;
   const selectedOutputMime = selectedOutput?.mimeType ?? null;
   const canPreviewOutput = selectedOutput ? canPreviewMimeType(selectedOutputMime) : false;
-  const pipelineSections = useMemo(() => {
-    const safeLogs = Array.isArray(logs) ? logs : [];
-    const groups = new Map();
-    const knownKeys = new Set([...PIPELINE_STEPS.map((step) => step.key), PIPELINE_FALLBACK_STEP.key]);
-
-    for (const entry of safeLogs) {
-      const rawKey =
-        typeof entry.pipelineStep === 'string' ? entry.pipelineStep.trim().toLowerCase() : '';
-      const key = rawKey && knownKeys.has(rawKey) ? rawKey : PIPELINE_FALLBACK_STEP.key;
-      if (!groups.has(key)) {
-        groups.set(key, []);
-      }
-      groups.get(key)?.push(entry);
-    }
-
-    const sortEntries = (entries) =>
-      [...entries].sort((a, b) => {
-        const parsedA = Date.parse(a?.timestamp ?? '');
-        const parsedB = Date.parse(b?.timestamp ?? '');
-        const timeA = Number.isFinite(parsedA) ? parsedA : 0;
-        const timeB = Number.isFinite(parsedB) ? parsedB : 0;
-        return timeA - timeB;
-      });
-
-    const sections = PIPELINE_STEPS.map((step) => ({
-      ...step,
-      entries: sortEntries(groups.get(step.key) ?? []),
-    }));
-
-    sections.push({
-      ...PIPELINE_FALLBACK_STEP,
-      entries: sortEntries(groups.get(PIPELINE_FALLBACK_STEP.key) ?? []),
-    });
-
-    return sections;
-  }, [logs]);
-  const hasLogs = pipelineSections.some((section) => section.entries.length > 0);
 
   useEffect(() => {
     setSelectedOutput(null);
@@ -171,31 +81,6 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
       setOutputContent('');
     }
   }, [outputs, selectedOutputFilename]);
-
-  useEffect(() => {
-    if (!pipelineSections.length) {
-      return;
-    }
-
-    const currentSection = pipelineSections.find((section) => section.key === expandedPipelineStep);
-
-    if (!currentSection) {
-      const fallbackKey = pipelineSections[0]?.key ?? PIPELINE_FALLBACK_STEP.key;
-      setExpandedPipelineStep(fallbackKey);
-      return;
-    }
-
-    if (hasInteractedWithPipeline.current) {
-      return;
-    }
-
-    if (currentSection.entries.length === 0) {
-      const firstWithLogs = pipelineSections.find((section) => section.entries.length > 0);
-      if (firstWithLogs && firstWithLogs.key !== expandedPipelineStep) {
-        setExpandedPipelineStep(firstWithLogs.key);
-      }
-    }
-  }, [pipelineSections, expandedPipelineStep]);
 
   useEffect(() => {
     if (!jobId || !selectedOutput) {
@@ -314,11 +199,6 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   if (!job) {
     return <p className="history-empty">Sélectionnez un traitement pour afficher les détails.</p>;
   }
-
-  const togglePipelineSection = (key) => {
-    hasInteractedWithPipeline.current = true;
-    setExpandedPipelineStep((current) => (current === key ? current : key));
-  };
 
   const hasSegmentsOutput = job.outputs?.some((output) => output.filename === 'segments.json');
   const progressValue = Math.round(job.progress ?? 0);
@@ -498,91 +378,30 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
           Journal du pipeline
         </h3>
         {isLoadingLogs && <p className="text-base-content/70">Chargement des logs…</p>}
-        {!isLoadingLogs && !hasLogs && (
-          <p className="logs-placeholder">Aucun événement pour le moment.</p>
-        )}
-        <dl className="pipeline-accordion" aria-label="Journal du pipeline">
-          {pipelineSections.map((section) => {
-            const isOpen = expandedPipelineStep === section.key;
-            const entryCount = section.entries.length;
-            const eventLabel =
-              entryCount === 0
-                ? '0 événement'
-                : entryCount === 1
-                ? '1 événement'
-                : `${entryCount} événements`;
-            const panelId = `pipeline-panel-${section.key}`;
-            const buttonId = `pipeline-trigger-${section.key}`;
-
-            return (
-              <div
-                key={section.key}
-                className={`pipeline-accordion__item${isOpen ? ' pipeline-accordion__item--open' : ''}`}
-              >
-                <dt className="pipeline-accordion__summary">
-                  <button
-                    type="button"
-                    className="pipeline-accordion__button"
-                    aria-expanded={isOpen}
-                    aria-controls={panelId}
-                    id={buttonId}
-                    onClick={() => togglePipelineSection(section.key)}
-                  >
-                    <span className="pipeline-accordion__summary-text">
-                      <span className="pipeline-accordion__title">{section.label}</span>
-                      {section.description ? (
-                        <span className="pipeline-accordion__description">{section.description}</span>
-                      ) : null}
-                    </span>
-                    <span className="pipeline-accordion__meta">{eventLabel}</span>
-                    <span className="pipeline-accordion__chevron" aria-hidden="true" />
-                  </button>
-                </dt>
-                <dd
-                  id={panelId}
-                  className="pipeline-accordion__panel"
-                  aria-labelledby={buttonId}
-                  role="region"
-                  hidden={!isOpen}
+        {logs.length ? (
+          <ol className="pipeline-timeline" aria-label="Chronologie du pipeline">
+            {logs.map((entry, index) => {
+              const level = typeof entry.level === 'string' ? entry.level.toLowerCase() : 'info';
+              const levelLabel = typeof entry.level === 'string' ? entry.level.toUpperCase() : 'INFO';
+              return (
+                <li
+                  key={`${entry.timestamp}-${index}`}
+                  className={`pipeline-timeline__item pipeline-timeline__item--${level}`}
                 >
-                  {entryCount ? (
-                    <ol className="pipeline-accordion__logs">
-                      {section.entries.map((entry, index) => {
-                        const normalisedLevel =
-                          typeof entry.level === 'string' ? entry.level.toLowerCase() : 'info';
-                        const levelKey = normalisedLevel === 'warning' ? 'warn' : normalisedLevel;
-                        const safeLevelKey = KNOWN_LOG_LEVELS.has(levelKey) ? levelKey : 'info';
-                        const levelLabel =
-                          LOG_LEVEL_LABELS[levelKey] ?? LOG_LEVEL_LABELS[safeLevelKey] ?? safeLevelKey.toUpperCase();
-                        const timestampLabel = entry.timestamp
-                          ? new Date(entry.timestamp).toLocaleTimeString()
-                          : '—';
-                        return (
-                          <li
-                            key={`${entry.timestamp}-${index}`}
-                            className={`pipeline-accordion__log pipeline-accordion__log--${safeLevelKey}`}
-                          >
-                            <div className="pipeline-accordion__log-header">
-                              <span className="pipeline-accordion__timestamp">{timestampLabel}</span>
-                              <span className={`pipeline-accordion__level pipeline-accordion__level--${safeLevelKey}`}>
-                                {levelLabel}
-                              </span>
-                            </div>
-                            <p className="pipeline-accordion__message">{entry.message}</p>
-                          </li>
-                        );
-                      })}
-                    </ol>
-                  ) : (
-                    <p className="pipeline-accordion__empty">
-                      Aucun événement enregistré pour cette étape.
-                    </p>
-                  )}
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
+                  <div className="pipeline-timeline__marker" aria-hidden="true" />
+                  <div className="pipeline-timeline__content">
+                    <div className="pipeline-timeline__meta">
+                      {new Date(entry.timestamp).toLocaleTimeString()} • {levelLabel}
+                    </div>
+                    <div className="pipeline-timeline__message">{entry.message}</div>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          !isLoadingLogs && <p className="logs-placeholder">Aucun événement pour le moment.</p>
+        )}
       </section>
     </div>
   );

@@ -39,7 +39,7 @@ export async function diarizeStep(context: PipelineContext): Promise<void> {
 
   if (!config.pipeline.enableDiarization) {
     logger.info({ jobId: job.id }, 'Diarize step skipped because diarization disabled');
-    await jobStore.appendLog(job.id, 'Diarisation désactivée, étape ignorée', 'info', 'diarize');
+    await jobStore.appendLog(job.id, 'Diarisation désactivée, étape ignorée');
     context.data.diarization = [];
     return;
   }
@@ -48,12 +48,12 @@ export async function diarizeStep(context: PipelineContext): Promise<void> {
   if (!inputPath) {
     const message = 'Chemin audio introuvable, diarisation ignorée';
     logger.warn({ jobId: job.id }, 'Diarize step skipped due to missing audio path');
-    await jobStore.appendLog(job.id, message, 'warn', 'diarize');
+    await jobStore.appendLog(job.id, message, 'warn');
     context.data.diarization = [];
     return;
   }
 
-  await jobStore.appendLog(job.id, 'Diarisation des locuteurs', 'info', 'diarize');
+  await jobStore.appendLog(job.id, 'Diarisation des locuteurs');
 
   try {
     const diarizationDir = path.join(environment.jobsDir, job.id, 'diarization');
@@ -69,10 +69,10 @@ export async function diarizeStep(context: PipelineContext): Promise<void> {
       { jobId: job.id, segmentCount: segments.length },
       'Diarize step completed',
     );
-    await jobStore.appendLog(job.id, 'Diarisation générée', 'info', 'diarize');
+    await jobStore.appendLog(job.id, 'Diarisation générée');
   } catch (error) {
     logger.error({ jobId: job.id, error }, 'Diarize step failed');
-    await jobStore.appendLog(job.id, "Diarisation échouée, étape ignorée", 'warn', 'diarize');
+    await jobStore.appendLog(job.id, "Diarisation échouée, étape ignorée", 'warn');
     context.data.diarization = context.data.diarization ?? [];
   }
 }
