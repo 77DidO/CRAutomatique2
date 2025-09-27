@@ -51,6 +51,8 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   const [isLoadingOutput, setIsLoadingOutput] = useState(false);
   const [outputError, setOutputError] = useState(null);
   const [outputContent, setOutputContent] = useState('');
+  const [isConsoleView, setIsConsoleView] = useState(false);
+  const [copyStatus, setCopyStatus] = useState('idle');
 
   const segmentsOutput = job?.outputs?.find((output) => output.filename === 'segments.json');
   const jobId = job?.id ?? null;
@@ -61,6 +63,18 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
   const selectedOutputFilename = selectedOutput?.filename ?? null;
   const selectedOutputMime = selectedOutput?.mimeType ?? null;
   const canPreviewOutput = selectedOutput ? canPreviewMimeType(selectedOutputMime) : false;
+  const consoleText = useMemo(() => {
+    if (!logs.length) {
+      return '';
+    }
+    return logs
+      .map((entry) => {
+        const timestamp = entry.timestamp ? new Date(entry.timestamp).toISOString() : '';
+        const level = typeof entry.level === 'string' ? entry.level.toUpperCase() : 'INFO';
+        return `[${timestamp}] [${level}] ${entry.message}`;
+      })
+      .join('\n');
+  }, [logs]);
 
   useEffect(() => {
     setSelectedOutput(null);
@@ -68,6 +82,10 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
     setOutputError(null);
     setOutputContent('');
   }, [jobId]);
+
+  useEffect(() => {
+    setCopyStatus('idle');
+  }, [logs]);
 
   useEffect(() => {
     if (!selectedOutputFilename) {
@@ -377,28 +395,110 @@ export default function JobDetail({ job, logs, isLoadingLogs, onDeleteJob }) {
         <h3 id="job-logs" className="section-title">
           Journal du pipeline
         </h3>
+        <div className="pipeline-log-actions">
+          <div className="btn-group" role="group" aria-label="Affichage des logs">
+            <button
+              type="button"
+              className={`btn btn-sm${!isConsoleView ? ' btn-primary' : ' btn-secondary'}`}
+              aria-pressed={!isConsoleView}
+              onClick={() => setIsConsoleView(false)}
+            >
+              Chronologie
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm${isConsoleView ? ' btn-primary' : ' btn-secondary'}`}
+              aria-pressed={isConsoleView}
+              onClick={() => setIsConsoleView(true)}
+            >
+              Console
+            </button>
+          </div>
+          <button
+            type="button"
+            className="btn btn-sm btn-secondary"
+            onClick={async () => {
+              if (!consoleText) {
+                return;
+              }
+              try {
+                await navigator.clipboard.writeText(consoleText);
+                setCopyStatus('success');
+                window.setTimeout(() => {
+                  setCopyStatus('idle');
+                }, 2000);
+              } catch (error) {
+                setCopyStatus('error');
+                window.setTimeout(() => {
+                  setCopyStatus('idle');
+                }, 4000);
+              }
+            }}
+            disabled={!consoleText}
+          >
+            {copyStatus === 'success'
+              ? 'Copié !'
+              : copyStatus === 'error'
+              ? 'Erreur de copie'
+              : 'Copier les logs'}
+          </button>
+        </div>
         {isLoadingLogs && <p className="text-base-content/70">Chargement des logs…</p>}
         {logs.length ? (
-          <ol className="pipeline-timeline" aria-label="Chronologie du pipeline">
-            {logs.map((entry, index) => {
-              const level = typeof entry.level === 'string' ? entry.level.toLowerCase() : 'info';
-              const levelLabel = typeof entry.level === 'string' ? entry.level.toUpperCase() : 'INFO';
-              return (
-                <li
-                  key={`${entry.timestamp}-${index}`}
-                  className={`pipeline-timeline__item pipeline-timeline__item--${level}`}
-                >
-                  <div className="pipeline-timeline__marker" aria-hidden="true" />
-                  <div className="pipeline-timeline__content">
-                    <div className="pipeline-timeline__meta">
-                      {new Date(entry.timestamp).toLocaleTimeString()} • {levelLabel}
+          isConsoleView ? (
+            <div
+              className="pipeline-console"
+              role="log"
+              aria-live="polite"
+              aria-relevant="additions text"
+            >
+              {logs.map((entry, index) => {
+                const level = typeof entry.level === 'string' ? entry.level.toLowerCase() : 'info';
+                const levelLabel = typeof entry.level === 'string' ? entry.level.toUpperCase() : 'INFO';
+                return (
+                  <div
+                    key={`${entry.timestamp}-${index}`}
+                    className={`console-line console-line--${level}`}
+                  >
+                    <div className="console-line__meta">
+                      <span className="console-line__time">
+                        {new Date(entry.timestamp).toLocaleTimeString()}
+                      </span>
+                      <span className="console-line__level">{levelLabel}</span>
                     </div>
-                    <div className="pipeline-timeline__message">{entry.message}</div>
+                    <div className="console-line__message">{entry.message}</div>
                   </div>
-                </li>
-              );
-            })}
-          </ol>
+                );
+              })}
+            </div>
+          ) : (
+            <ol
+              className="pipeline-timeline"
+              aria-label="Chronologie du pipeline"
+              role="log"
+              aria-live="polite"
+              aria-relevant="additions text"
+            >
+              {logs.map((entry, index) => {
+                const level = typeof entry.level === 'string' ? entry.level.toLowerCase() : 'info';
+                const levelLabel = typeof entry.level === 'string' ? entry.level.toUpperCase() : 'INFO';
+                return (
+                  <li
+                    key={`${entry.timestamp}-${index}`}
+                    className={`pipeline-timeline__item pipeline-timeline__item--${level}`}
+                  >
+                    <div className="pipeline-timeline__marker" aria-hidden="true" />
+                    <div className="pipeline-timeline__content">
+                      <div className="pipeline-timeline__meta">
+                        {new Date(entry.timestamp).toLocaleTimeString()} • {levelLabel}
+                      </div>
+                      <div className="pipeline-timeline__message">{entry.message}</div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )
         ) : (
           !isLoadingLogs && <p className="logs-placeholder">Aucun événement pour le moment.</p>
         )}
