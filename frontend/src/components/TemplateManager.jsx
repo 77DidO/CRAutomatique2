@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import useHistoryRowMenu from '../hooks/useHistoryRowMenu.js';
 
 const emptyTemplate = { name: '', description: '', prompt: '' };
 
@@ -7,6 +8,7 @@ export default function TemplateManager({ templates, onCreate, onUpdate, onDelet
   const [isCreating, setIsCreating] = useState(false);
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState(null);
+  const { registerMenuRef, toggleMenu, closeMenu, isMenuOpen, isDropup } = useHistoryRowMenu();
 
   const sortedTemplates = useMemo(
     () => [...templates].sort((a, b) => a.name.localeCompare(b.name)),
@@ -124,7 +126,7 @@ export default function TemplateManager({ templates, onCreate, onUpdate, onDelet
                 <th scope="col">Nom</th>
                 <th scope="col">Description</th>
                 <th scope="col">Prompt</th>
-                <th scope="col">
+                <th scope="col" className="history-row-menu-header">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
@@ -141,6 +143,8 @@ export default function TemplateManager({ templates, onCreate, onUpdate, onDelet
                 const promptText = template.prompt ?? '';
                 const promptPreview =
                   promptText.length > 160 ? `${promptText.slice(0, 160)}…` : promptText;
+                const menuOpen = isMenuOpen(template.id);
+                const dropup = isDropup(template.id);
 
                 return (
                   <tr key={template.id} className={editing?.id === template.id ? 'is-editing' : ''}>
@@ -155,25 +159,57 @@ export default function TemplateManager({ templates, onCreate, onUpdate, onDelet
                         {promptPreview}
                       </span>
                     </td>
-                    <td className="history-table-actions">
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        type="button"
-                        onClick={() => setEditing(template)}
-                      >
-                        Modifier
-                      </button>
-                      <button
-                        className="btn btn-error btn-sm"
-                        type="button"
-                        onClick={async () => {
-                          if (window.confirm(`Supprimer le gabarit "${template.name}" ?`)) {
-                            await onDelete(template.id);
-                          }
-                        }}
-                      >
-                        Supprimer
-                      </button>
+                    <td className="history-row-menu-cell">
+                      <div className="history-row-menu" ref={registerMenuRef(template.id)}>
+                        <button
+                          type="button"
+                          className="history-row-menu-trigger btn btn-ghost btn-icon"
+                          aria-haspopup="true"
+                          aria-expanded={menuOpen}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleMenu(template.id);
+                          }}
+                        >
+                          <span className="sr-only">Afficher les actions</span>
+                          <span aria-hidden="true">⋮</span>
+                        </button>
+                        {menuOpen && (
+                          <div
+                            className={`history-row-menu__content${
+                              dropup ? ' history-row-menu__content--dropup' : ''
+                            }`}
+                            role="menu"
+                          >
+                            <button
+                              type="button"
+                              className="history-row-menu__item"
+                              role="menuitem"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                closeMenu();
+                                setEditing(template);
+                              }}
+                            >
+                              Modifier
+                            </button>
+                            <button
+                              type="button"
+                              className="history-row-menu__item history-row-menu__item--danger"
+                              role="menuitem"
+                              onClick={async (event) => {
+                                event.stopPropagation();
+                                closeMenu();
+                                if (window.confirm(`Supprimer le gabarit "${template.name}" ?`)) {
+                                  await onDelete(template.id);
+                                }
+                              }}
+                            >
+                              Supprimer
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

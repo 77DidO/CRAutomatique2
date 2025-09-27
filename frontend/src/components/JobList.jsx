@@ -1,67 +1,10 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import StatusBadge from './StatusBadge.jsx';
+import useHistoryRowMenu from '../hooks/useHistoryRowMenu.js';
 
 export default function JobList({ jobs, onDelete }) {
-  const [openMenu, setOpenMenu] = useState({ id: null, dropup: false });
-  const menuRefs = useRef(new Map());
-
-  const registerMenuRef = (id) => (node) => {
-    if (node) {
-      menuRefs.current.set(id, node);
-    } else {
-      menuRefs.current.delete(id);
-    }
-  };
-
-  useEffect(() => {
-    function handlePointerDown(event) {
-      if (
-        event.target.closest('.history-row-menu') ||
-        event.target.closest('.history-row-menu-trigger')
-      ) {
-        return;
-      }
-      setOpenMenu({ id: null, dropup: false });
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    const menuId = openMenu.id;
-    if (!menuId) {
-      return;
-    }
-
-    const menuElement = menuRefs.current.get(menuId);
-    if (!menuElement) {
-      return;
-    }
-
-    const contentElement = menuElement.querySelector('.history-row-menu__content');
-    if (!contentElement) {
-      return;
-    }
-
-    const rect = contentElement.getBoundingClientRect();
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-    const containerElement =
-      menuElement.closest('.surface-card') || menuElement.closest('[data-dropup-container]');
-    const containerRect = containerElement?.getBoundingClientRect();
-    const bottomLimit = Math.min(viewportHeight, containerRect?.bottom ?? viewportHeight);
-    const shouldDropup = rect.bottom > bottomLimit;
-
-    setOpenMenu((current) => {
-      if (current.id !== menuId || current.dropup === shouldDropup) {
-        return current;
-      }
-      return { ...current, dropup: shouldDropup };
-    });
-  }, [openMenu.id]);
+  const { registerMenuRef, toggleMenu, closeMenu, isMenuOpen, isDropup } = useHistoryRowMenu();
 
   if (!jobs.length) {
     return <p className="history-empty">Aucun traitement pour le moment.</p>;
@@ -83,8 +26,8 @@ export default function JobList({ jobs, onDelete }) {
         <tbody>
           {jobs.map((job) => {
             const progressValue = Math.round(job.progress ?? 0);
-            const isMenuOpen = openMenu.id === job.id;
-            const isDropup = isMenuOpen && openMenu.dropup;
+            const menuOpen = isMenuOpen(job.id);
+            const dropup = isDropup(job.id);
             const jobDetailPath = `/jobs/${job.id}`;
             const isProcessing = job.status === 'queued' || job.status === 'processing';
             return (
@@ -119,23 +62,19 @@ export default function JobList({ jobs, onDelete }) {
                       type="button"
                       className="history-row-menu-trigger btn btn-ghost btn-icon"
                       aria-haspopup="true"
-                      aria-expanded={isMenuOpen}
+                      aria-expanded={menuOpen}
                       onClick={(event) => {
                         event.stopPropagation();
-                        setOpenMenu((current) =>
-                          current.id === job.id
-                            ? { id: null, dropup: false }
-                            : { id: job.id, dropup: false }
-                        );
+                        toggleMenu(job.id);
                       }}
                     >
                       <span className="sr-only">Afficher les actions</span>
                       <span aria-hidden="true">⋮</span>
                     </button>
-                    {isMenuOpen && (
+                    {menuOpen && (
                       <div
                         className={`history-row-menu__content${
-                          isDropup ? ' history-row-menu__content--dropup' : ''
+                          dropup ? ' history-row-menu__content--dropup' : ''
                         }`}
                         role="menu"
                       >
@@ -145,7 +84,7 @@ export default function JobList({ jobs, onDelete }) {
                           role="menuitem"
                           onClick={(event) => {
                             event.stopPropagation();
-                            setOpenMenu({ id: null, dropup: false });
+                            closeMenu();
                           }}
                         >
                           Voir le détail
@@ -162,7 +101,7 @@ export default function JobList({ jobs, onDelete }) {
                             if (isProcessing) {
                               return;
                             }
-                            setOpenMenu({ id: null, dropup: false });
+                            closeMenu();
                             if (
                               window.confirm(
                                 'Voulez-vous vraiment supprimer ce traitement ? Cette action est irréversible.'
